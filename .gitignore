@@ -12,3 +12,4 @@ app/public/debug/
 
 *storybook.log
 storybook-static
+.vscode/settings.json

@@ -8,10 +8,6 @@ import {
   Box,
   Typography,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
   Checkbox,
   TextField,
   IconButton,
@@ -38,6 +34,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import SearchIcon from '@mui/icons-material/Search';
 import { useCategoryColors } from '../utils/categoryUtils';
 import ModalHeader from '../../ModalHeader';
 import Table from '@mui/material/Table';
@@ -50,7 +47,6 @@ import Paper from '@mui/material/Paper';
 import LinearProgress from '@mui/material/LinearProgress';
 import InputAdornment from '@mui/material/InputAdornment';
 import Badge from '@mui/material/Badge';
-import { useCategories } from '../utils/useCategories';
 import { logger } from '../../../utils/client-logger';
 
 interface Category {
@@ -109,6 +105,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [categorySearchFilter, setCategorySearchFilter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -316,7 +313,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
         })
       );
 
-      setCategories(categoriesWithCounts.sort((a, b) => b.count - a.count));
+      setCategories(categoriesWithCounts.sort((a, b) => a.name.localeCompare(b.name, 'he')));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       logger.error('Error fetching categories', undefined, { errorMessage });
@@ -613,18 +610,6 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
     }
   };
 
-  const openRenameDialog = (categoryName: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    setRenamingCategory(categoryName);
-    setRenameNewName(categoryName);
-  };
-
-  const openDeleteDialog = (categoryName: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    setDeletingCategory(categoryName);
-    setDeleteOptions({ deleteRules: true, deleteBudget: true });
-  };
-
   const handleDeleteCategory = async () => {
     if (!deletingCategory) {
       return;
@@ -896,49 +881,147 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
 
         {currentTab === 0 && (
           <>
-            <Box style={{ marginBottom: '24px' }}>
-              <Typography variant="subtitle1" style={{ marginBottom: '12px', fontWeight: 600 }}>
-                Merge Categories
-              </Typography>
-              <Typography variant="body2" color={theme.palette.text.secondary} style={{ marginBottom: '16px' }}>
-                Select multiple categories to merge them into a new consolidated category.
-                All transactions from the selected categories will be moved to the new category.
-              </Typography>
+            {/* Top Row: Selected Categories + Merge Form */}
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              {/* Selected Categories - Compact */}
+              <Grid item xs={12} md={6}>
+                <Box
+                  sx={{
+                    background: theme.palette.mode === 'dark'
+                      ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%)'
+                      : 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: `2px dashed ${selectedCategories.length >= 2 ? '#3b82f6' : theme.palette.divider}`,
+                    minHeight: '120px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <MergeIcon sx={{ color: '#3b82f6', fontSize: 20 }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      Selected to Merge ({selectedCategories.length})
+                    </Typography>
+                  </Box>
 
-              <TextField
-                fullWidth
-                label="New Category Name"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                placeholder="Enter name for merged category..."
-                style={{ marginBottom: '16px' }}
-                disabled={isLoading}
-              />
+                  {selectedCategories.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                      Click categories below to select
+                    </Typography>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selectedCategories.map((catName) => (
+                        <Chip
+                          key={catName}
+                          label={catName}
+                          size="small"
+                          onDelete={() => handleCategoryToggle(catName)}
+                          sx={{
+                            background: categoryColors[catName] || '#3b82f6',
+                            color: '#fff',
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' }
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              </Grid>
 
-              <Button
-                variant="contained"
-                startIcon={<MergeIcon />}
-                onClick={handleMerge}
-                disabled={selectedCategories.length < 2 || !newCategoryName.trim() || isLoading}
-                style={{
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  borderRadius: '12px',
-                  padding: '10px 24px',
-                  textTransform: 'none',
-                  fontWeight: 600
-                }}
-              >
-                {isLoading ? <CircularProgress size={20} color="inherit" /> : 'Merge Selected Categories'}
-              </Button>
-            </Box>
+              {/* Merge Form - Compact */}
+              <Grid item xs={12} md={6}>
+                <Box
+                  sx={{
+                    background: theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.03)'
+                      : '#fff',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    minHeight: '120px'
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                    New Category Name
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="e.g., Food & Dining"
+                    disabled={isLoading || selectedCategories.length < 2}
+                    sx={{
+                      mb: 1,
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '8px'
+                      }
+                    }}
+                  />
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    size="small"
+                    startIcon={isLoading ? null : <MergeIcon />}
+                    onClick={handleMerge}
+                    disabled={selectedCategories.length < 2 || !newCategoryName.trim() || isLoading}
+                    sx={{
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                      color: 'white',
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      '&:disabled': {
+                        background: theme.palette.action.disabledBackground
+                      }
+                    }}
+                  >
+                    {isLoading ? <CircularProgress size={20} color="inherit" /> : 'Merge Categories'}
+                  </Button>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    Auto-mapping will be created for future imports
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
 
-            <Divider style={{ margin: '24px 0' }} />
-
+            {/* All Categories - Full Width */}
             <Box>
-              <Typography variant="subtitle1" style={{ marginBottom: '16px', fontWeight: 600 }}>
-                Available Categories ({categories.length})
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, gap: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  All Categories ({categories.filter(c => c.name.toLowerCase().includes(categorySearchFilter.toLowerCase())).length})
+                </Typography>
+                <TextField
+                  size="small"
+                  placeholder="Search categories..."
+                  value={categorySearchFilter}
+                  onChange={(e) => setCategorySearchFilter(e.target.value)}
+                  sx={{
+                    width: '250px',
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '8px',
+                      background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : '#fff'
+                    }
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: categorySearchFilter && (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setCategorySearchFilter('')}>
+                          <CloseIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
+                />
+              </Box>
 
               {isLoading ? (
                 <Box display="flex" justifyContent="center" padding="32px">
@@ -946,80 +1029,84 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
                 </Box>
               ) : (
                 <Box
-                  style={{
-                    maxHeight: '400px',
+                  sx={{
+                    maxHeight: '450px',
                     overflow: 'auto',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '8px'
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: 'repeat(2, 1fr)',
+                      sm: 'repeat(4, 1fr)',
+                      md: 'repeat(5, 1fr)',
+                      lg: 'repeat(6, 1fr)'
+                    },
+                    gap: 1,
+                    '&::-webkit-scrollbar': { width: '6px' },
+                    '&::-webkit-scrollbar-track': { background: 'transparent' },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                      borderRadius: '10px'
+                    }
                   }}
                 >
-                  {categories.map((category, index) => (
-                    <Box key={category.name} style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                      <Chip
-                        label={category.name}
+                  {categories
+                    .filter(c => c.name.toLowerCase().includes(categorySearchFilter.toLowerCase()))
+                    .map((category) => (
+                      <Card
+                        key={category.name}
                         onClick={() => handleCategoryToggle(category.name)}
-                        onDelete={selectedCategories.includes(category.name) ? () => handleCategoryToggle(category.name) : undefined}
-                        deleteIcon={<Checkbox
-                          checked={selectedCategories.includes(category.name)}
-                          style={{ color: 'white' }}
-                        />}
-                        style={{
-                          backgroundColor: selectedCategories.includes(category.name)
-                            ? categoryColors[category.name] || '#3b82f6'
-                            : (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#f8f9fa'),
-                          color: selectedCategories.includes(category.name)
-                            ? 'white'
-                            : theme.palette.text.primary,
-                          border: selectedCategories.includes(category.name)
-                            ? 'none'
-                            : `1px solid ${selectedCategories.includes(category.name) ? (categoryColors[category.name] || '#3b82f6') : (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : (categoryColors[category.name] || '#3b82f6'))}`,
+                        sx={{
+                          borderRadius: '8px',
                           cursor: 'pointer',
-                          transition: 'all 0.2s ease-in-out',
-                          fontWeight: selectedCategories.includes(category.name) ? '600' : '500',
-                          fontSize: '14px',
-                          height: '32px'
-                        }}
-                        sx={{
+                          border: selectedCategories.includes(category.name)
+                            ? `2px solid ${categoryColors[category.name] || '#3b82f6'}`
+                            : `1px solid ${theme.palette.divider}`,
+                          background: selectedCategories.includes(category.name)
+                            ? `linear-gradient(135deg, ${categoryColors[category.name] || '#3b82f6'}15 0%, ${categoryColors[category.name] || '#3b82f6'}05 100%)`
+                            : theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#fff',
+                          transition: 'all 0.15s ease',
                           '&:hover': {
-                            backgroundColor: selectedCategories.includes(category.name)
-                              ? categoryColors[category.name] || '#3b82f6'
-                              : (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.1)'),
-                            transform: 'translateY(-1px)',
-                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.08)',
+                            borderColor: categoryColors[category.name] || '#3b82f6'
                           }
                         }}
-                      />
-                      <IconButton
-                        size="medium"
-                        onClick={(e) => openRenameDialog(category.name, e)}
-                        sx={{
-                          padding: { xs: '8px', sm: '4px' },
-                          color: categoryColors[category.name] || '#3b82f6',
-                          '& .MuiSvgIcon-root': {
-                            fontSize: { xs: '20px', sm: '16px' }
-                          }
-                        }}
-                        title={`Rename "${category.name}"`}
                       >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="medium"
-                        onClick={(e) => openDeleteDialog(category.name, e)}
-                        sx={{
-                          padding: { xs: '8px', sm: '4px' },
-                          color: '#ef4444',
-                          '& .MuiSvgIcon-root': {
-                            fontSize: { xs: '20px', sm: '16px' }
-                          }
-                        }}
-                        title={`Delete "${category.name}"`}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  ))}
+                        <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            <Box
+                              sx={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: '3px',
+                                border: selectedCategories.includes(category.name)
+                                  ? 'none'
+                                  : `1.5px solid ${theme.palette.divider}`,
+                                background: selectedCategories.includes(category.name)
+                                  ? categoryColors[category.name] || '#3b82f6'
+                                  : 'transparent',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                              }}
+                            >
+                              {selectedCategories.includes(category.name) && (
+                                <CheckIcon sx={{ fontSize: 12, color: '#fff' }} />
+                              )}
+                            </Box>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 500,
+                                fontSize: '0.8rem',
+                                lineHeight: 1.2
+                              }}
+                            >
+                              {category.name}
+                            </Typography>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    ))}
                 </Box>
               )}
             </Box>
