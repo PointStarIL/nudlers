@@ -1098,9 +1098,8 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
                         maxHeight: '400px',
                         overflow: 'auto',
                         display: 'grid',
-                        gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                        gap: 1.5,
-                        pr: 1,
+                        gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' },
+                        gap: 1,
                         '&::-webkit-scrollbar': { width: '6px' },
                         '&::-webkit-scrollbar-track': { background: 'transparent' },
                         '&::-webkit-scrollbar-thumb': {
@@ -1114,7 +1113,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
                           key={category.name}
                           onClick={() => handleCategoryToggle(category.name)}
                           sx={{
-                            borderRadius: '10px',
+                            borderRadius: '8px',
                             cursor: 'pointer',
                             border: selectedCategories.includes(category.name)
                               ? `2px solid ${categoryColors[category.name] || '#3b82f6'}`
@@ -1122,44 +1121,42 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
                             background: selectedCategories.includes(category.name)
                               ? `linear-gradient(135deg, ${categoryColors[category.name] || '#3b82f6'}15 0%, ${categoryColors[category.name] || '#3b82f6'}05 100%)`
                               : theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#fff',
-                            transition: 'all 0.2s ease',
+                            transition: 'all 0.15s ease',
                             '&:hover': {
-                              transform: 'translateY(-1px)',
-                              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.08)',
                               borderColor: categoryColors[category.name] || '#3b82f6'
                             }
                           }}
                         >
-                          <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                               <Box
                                 sx={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: '4px',
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: '3px',
                                   border: selectedCategories.includes(category.name)
                                     ? 'none'
-                                    : `2px solid ${theme.palette.divider}`,
+                                    : `1.5px solid ${theme.palette.divider}`,
                                   background: selectedCategories.includes(category.name)
                                     ? categoryColors[category.name] || '#3b82f6'
                                     : 'transparent',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  flexShrink: 0,
-                                  transition: 'all 0.2s ease'
+                                  flexShrink: 0
                                 }}
                               >
                                 {selectedCategories.includes(category.name) && (
-                                  <CheckIcon sx={{ fontSize: 14, color: '#fff' }} />
+                                  <CheckIcon sx={{ fontSize: 12, color: '#fff' }} />
                                 )}
                               </Box>
                               <Typography
                                 variant="body2"
                                 sx={{
                                   fontWeight: 500,
-                                  lineHeight: 1.3,
-                                  wordBreak: 'break-word'
+                                  fontSize: '0.8rem',
+                                  lineHeight: 1.2
                                 }}
                               >
                                 {category.name}
