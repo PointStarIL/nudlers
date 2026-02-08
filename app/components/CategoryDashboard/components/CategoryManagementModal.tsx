@@ -896,280 +896,204 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
 
         {currentTab === 0 && (
           <>
-            <Grid container spacing={3}>
-              {/* Left Column - Selected Categories */}
-              <Grid item xs={12} md={5}>
+            {/* Top Row: Selected Categories + Merge Form */}
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              {/* Selected Categories - Compact */}
+              <Grid item xs={12} md={6}>
                 <Box
                   sx={{
                     background: theme.palette.mode === 'dark'
                       ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%)'
                       : 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%)',
-                    borderRadius: '20px',
-                    padding: '24px',
+                    borderRadius: '12px',
+                    padding: '16px',
                     border: `2px dashed ${selectedCategories.length >= 2 ? '#3b82f6' : theme.palette.divider}`,
-                    minHeight: '400px',
+                    minHeight: '120px',
                     display: 'flex',
                     flexDirection: 'column',
                     transition: 'all 0.3s ease'
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <MergeIcon sx={{ color: '#3b82f6', fontSize: 24 }} />
-                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                      Selected to Merge
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <MergeIcon sx={{ color: '#3b82f6', fontSize: 20 }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      Selected to Merge ({selectedCategories.length})
                     </Typography>
                   </Box>
 
                   {selectedCategories.length === 0 ? (
-                    <Box
-                      sx={{
-                        flex: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        textAlign: 'center',
-                        color: theme.palette.text.secondary,
-                        gap: 2
-                      }}
-                    >
-                      <MergeIcon sx={{ fontSize: 64, opacity: 0.2 }} />
-                      <Typography variant="body2">
-                        Select at least 2 categories from the list below to merge them
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <>
-                      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
-                        {selectedCategories.map((catName, idx) => {
-                          const category = categories.find(c => c.name === catName);
-                          return (
-                            <Card
-                              key={catName}
-                              sx={{
-                                background: categoryColors[catName] || '#3b82f6',
-                                borderRadius: '12px',
-                                overflow: 'hidden',
-                                position: 'relative',
-                                animation: 'slideIn 0.3s ease',
-                                '@keyframes slideIn': {
-                                  from: { opacity: 0, transform: 'translateX(-20px)' },
-                                  to: { opacity: 1, transform: 'translateX(0)' }
-                                }
-                              }}
-                            >
-                              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                  <Typography variant="body1" sx={{ color: '#fff', fontWeight: 600, flex: 1 }}>
-                                    {catName}
-                                  </Typography>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleCategoryToggle(catName)}
-                                    sx={{
-                                      color: '#fff',
-                                      backgroundColor: 'rgba(255,255,255,0.2)',
-                                      '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' }
-                                    }}
-                                  >
-                                    <CloseIcon fontSize="small" />
-                                  </IconButton>
-                                </Box>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                      </Box>
-
-                      {selectedCategories.length >= 2 && (
-                        <Box
-                          sx={{
-                            p: 2,
-                            borderRadius: '12px',
-                            background: theme.palette.mode === 'dark'
-                              ? 'rgba(34, 197, 94, 0.1)'
-                              : 'rgba(34, 197, 94, 0.05)',
-                            border: '1px solid rgba(34, 197, 94, 0.3)'
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <CheckIcon fontSize="small" />
-                            Ready to merge {selectedCategories.length} categories
-                          </Typography>
-                        </Box>
-                      )}
-                    </>
-                  )}
-                </Box>
-              </Grid>
-
-              {/* Right Column - Merge Form & Categories List */}
-              <Grid item xs={12} md={7}>
-                {/* Merge Form */}
-                <Card
-                  sx={{
-                    borderRadius: '20px',
-                    mb: 3,
-                    background: theme.palette.mode === 'dark'
-                      ? 'rgba(255, 255, 255, 0.05)'
-                      : '#fff',
-                    border: `1px solid ${theme.palette.divider}`,
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)'
-                  }}
-                >
-                  <CardContent sx={{ p: 3 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
-                      Create Merged Category
+                    <Typography variant="body2" color="text.secondary" sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                      Click categories below to select
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      All transactions from selected categories will be moved to this new category
-                    </Typography>
-                    <Alert severity="info" sx={{ mb: 3, borderRadius: '12px' }}>
-                      <Typography variant="body2">
-                        <strong>Auto-mapping:</strong> When you merge, automatic mappings are created so future imports with the old category names will be mapped to the new category.
-                      </Typography>
-                    </Alert>
-
-                    <TextField
-                      fullWidth
-                      label="New Category Name"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder="e.g., Food & Dining"
-                      disabled={isLoading || selectedCategories.length < 2}
-                      sx={{
-                        mb: 2,
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: '12px',
-                          '&.Mui-focused fieldset': {
-                            borderColor: '#3b82f6',
-                            borderWidth: '2px'
-                          }
-                        }
-                      }}
-                    />
-
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      size="large"
-                      startIcon={isLoading ? null : <MergeIcon />}
-                      onClick={handleMerge}
-                      disabled={selectedCategories.length < 2 || !newCategoryName.trim() || isLoading}
-                      sx={{
-                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                        color: 'white',
-                        borderRadius: '12px',
-                        padding: '12px 24px',
-                        textTransform: 'none',
-                        fontWeight: 700,
-                        fontSize: '16px',
-                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                          boxShadow: '0 6px 16px rgba(59, 130, 246, 0.4)',
-                          transform: 'translateY(-2px)'
-                        },
-                        '&:disabled': {
-                          background: theme.palette.action.disabledBackground,
-                          boxShadow: 'none'
-                        },
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-                      {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Merge Categories'}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Categories List */}
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
-                    All Categories ({categories.length})
-                  </Typography>
-
-                  {isLoading ? (
-                    <Box display="flex" justifyContent="center" padding="32px">
-                      <CircularProgress />
-                    </Box>
                   ) : (
-                    <Box
-                      sx={{
-                        maxHeight: '400px',
-                        overflow: 'auto',
-                        display: 'grid',
-                        gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' },
-                        gap: 1,
-                        '&::-webkit-scrollbar': { width: '6px' },
-                        '&::-webkit-scrollbar-track': { background: 'transparent' },
-                        '&::-webkit-scrollbar-thumb': {
-                          background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                          borderRadius: '10px'
-                        }
-                      }}
-                    >
-                      {categories.map((category) => (
-                        <Card
-                          key={category.name}
-                          onClick={() => handleCategoryToggle(category.name)}
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selectedCategories.map((catName) => (
+                        <Chip
+                          key={catName}
+                          label={catName}
+                          size="small"
+                          onDelete={() => handleCategoryToggle(catName)}
                           sx={{
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            border: selectedCategories.includes(category.name)
-                              ? `2px solid ${categoryColors[category.name] || '#3b82f6'}`
-                              : `1px solid ${theme.palette.divider}`,
-                            background: selectedCategories.includes(category.name)
-                              ? `linear-gradient(135deg, ${categoryColors[category.name] || '#3b82f6'}15 0%, ${categoryColors[category.name] || '#3b82f6'}05 100%)`
-                              : theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#fff',
-                            transition: 'all 0.15s ease',
-                            '&:hover': {
-                              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.08)',
-                              borderColor: categoryColors[category.name] || '#3b82f6'
-                            }
+                            background: categoryColors[catName] || '#3b82f6',
+                            color: '#fff',
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' }
                           }}
-                        >
-                          <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                              <Box
-                                sx={{
-                                  width: 16,
-                                  height: 16,
-                                  borderRadius: '3px',
-                                  border: selectedCategories.includes(category.name)
-                                    ? 'none'
-                                    : `1.5px solid ${theme.palette.divider}`,
-                                  background: selectedCategories.includes(category.name)
-                                    ? categoryColors[category.name] || '#3b82f6'
-                                    : 'transparent',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  flexShrink: 0
-                                }}
-                              >
-                                {selectedCategories.includes(category.name) && (
-                                  <CheckIcon sx={{ fontSize: 12, color: '#fff' }} />
-                                )}
-                              </Box>
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  fontWeight: 500,
-                                  fontSize: '0.8rem',
-                                  lineHeight: 1.2
-                                }}
-                              >
-                                {category.name}
-                              </Typography>
-                            </Box>
-                          </CardContent>
-                        </Card>
+                        />
                       ))}
                     </Box>
                   )}
                 </Box>
               </Grid>
+
+              {/* Merge Form - Compact */}
+              <Grid item xs={12} md={6}>
+                <Box
+                  sx={{
+                    background: theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.03)'
+                      : '#fff',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    minHeight: '120px'
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                    New Category Name
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="e.g., Food & Dining"
+                    disabled={isLoading || selectedCategories.length < 2}
+                    sx={{
+                      mb: 1,
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '8px'
+                      }
+                    }}
+                  />
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    size="small"
+                    startIcon={isLoading ? null : <MergeIcon />}
+                    onClick={handleMerge}
+                    disabled={selectedCategories.length < 2 || !newCategoryName.trim() || isLoading}
+                    sx={{
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                      color: 'white',
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      '&:disabled': {
+                        background: theme.palette.action.disabledBackground
+                      }
+                    }}
+                  >
+                    {isLoading ? <CircularProgress size={20} color="inherit" /> : 'Merge Categories'}
+                  </Button>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    Auto-mapping will be created for future imports
+                  </Typography>
+                </Box>
+              </Grid>
             </Grid>
+
+            {/* All Categories - Full Width */}
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
+                All Categories ({categories.length})
+              </Typography>
+
+              {isLoading ? (
+                <Box display="flex" justifyContent="center" padding="32px">
+                  <CircularProgress />
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    maxHeight: '450px',
+                    overflow: 'auto',
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: 'repeat(2, 1fr)',
+                      sm: 'repeat(4, 1fr)',
+                      md: 'repeat(5, 1fr)',
+                      lg: 'repeat(6, 1fr)'
+                    },
+                    gap: 1,
+                    '&::-webkit-scrollbar': { width: '6px' },
+                    '&::-webkit-scrollbar-track': { background: 'transparent' },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                      borderRadius: '10px'
+                    }
+                  }}
+                >
+                  {categories.map((category) => (
+                    <Card
+                      key={category.name}
+                      onClick={() => handleCategoryToggle(category.name)}
+                      sx={{
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        border: selectedCategories.includes(category.name)
+                          ? `2px solid ${categoryColors[category.name] || '#3b82f6'}`
+                          : `1px solid ${theme.palette.divider}`,
+                        background: selectedCategories.includes(category.name)
+                          ? `linear-gradient(135deg, ${categoryColors[category.name] || '#3b82f6'}15 0%, ${categoryColors[category.name] || '#3b82f6'}05 100%)`
+                          : theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#fff',
+                        transition: 'all 0.15s ease',
+                        '&:hover': {
+                          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.08)',
+                          borderColor: categoryColors[category.name] || '#3b82f6'
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          <Box
+                            sx={{
+                              width: 16,
+                              height: 16,
+                              borderRadius: '3px',
+                              border: selectedCategories.includes(category.name)
+                                ? 'none'
+                                : `1.5px solid ${theme.palette.divider}`,
+                              background: selectedCategories.includes(category.name)
+                                ? categoryColors[category.name] || '#3b82f6'
+                                : 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0
+                            }}
+                          >
+                            {selectedCategories.includes(category.name) && (
+                              <CheckIcon sx={{ fontSize: 12, color: '#fff' }} />
+                            )}
+                          </Box>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: 500,
+                              fontSize: '0.8rem',
+                              lineHeight: 1.2
+                            }}
+                          >
+                            {category.name}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Box>
+              )}
+            </Box>
           </>
         )}
 
