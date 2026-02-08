@@ -31,8 +31,7 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 
 
 import dynamic from 'next/dynamic';
-import DatabaseIndicator from './DatabaseIndicator';
-import SyncStatusIndicator from './SyncStatusIndicator';
+import CombinedStatusIndicator from './CombinedStatusIndicator';
 import { useNotification } from './NotificationContext';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -360,11 +359,10 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
                 <AutoAwesomeIcon />
               </IconButton>
               <VersionIndicator />
-              <SyncStatusIndicator onClick={() => setSyncDrawerOpen(true)} />
+              <CombinedStatusIndicator onClick={() => setSyncDrawerOpen(true)} />
               <IconButton onClick={toggleColorMode} sx={{ color: 'text.primary' }}>
                 {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
               </IconButton>
-              <DatabaseIndicator />
             </Box>
 
             {/* Mobile Status Indicators */}
@@ -373,11 +371,10 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
                 <AutoAwesomeIcon />
               </IconButton>
               <VersionIndicator />
-              <SyncStatusIndicator onClick={() => setSyncDrawerOpen(true)} />
+              <CombinedStatusIndicator onClick={() => setSyncDrawerOpen(true)} />
               <IconButton onClick={toggleColorMode} sx={{ color: 'text.primary' }}>
                 {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
               </IconButton>
-              <DatabaseIndicator />
             </Box>
           </Toolbar>
         </Container>
