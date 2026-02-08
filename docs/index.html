@@ -27,6 +27,7 @@
                 <a href="#features">Features</a>
                 <a href="#credits">Credits</a>
                 <a href="#installation">Install</a>
+                <a href="#faq">FAQ</a>
                 <a href="https://github.com/enudler/nudlers" class="nav-btn" target="_blank" rel="noopener">GitHub</a>
             </div>
             <button class="nav-toggle" aria-label="Toggle menu">
@@ -408,6 +409,134 @@ npm run dev</code></pre>
                 <div class="tech-item">Pino</div>
                 <div class="tech-item">Vitest</div>
                 <div class="tech-item">Docker</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="faq" class="section section-alt">
+        <div class="container">
+            <h2 class="section-title">Frequently Asked Questions</h2>
+            <p class="section-sub">Got questions? We've got answers.</p>
+
+            <div class="faq-list">
+                <details class="faq-item">
+                    <summary class="faq-question">Why would I need Nudlers?</summary>
+                    <div class="faq-answer">
+                        <p>
+                            If you have multiple bank accounts or multiple credit cards in your household, things get
+                            complicated fast.
+                            You want to coordinate spending across all of them, set budgets, and understand how your
+                            bank accounts
+                            are going to look at a specific date after all pending credit card charges settle.
+                        </p>
+                        <p>
+                            Nudlers gives you a single, unified view of all your accounts &mdash; even when you have
+                            several
+                            credit cards and bank accounts spread across the family. One dashboard, full visibility.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">How does the data get into the app?</summary>
+                    <div class="faq-answer">
+                        <p>
+                            Nudlers uses the open-source
+                            <a href="https://github.com/eshaham/israeli-bank-scrapers" target="_blank"
+                                rel="noopener">israeli-bank-scrapers</a>
+                            library. You provide your bank and credit card credentials, and the library logs into your
+                            accounts to fetch your transactions automatically. The scraping runs locally on your own
+                            machine &mdash;
+                            no third-party servers involved.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">Is my data safe? Who can see it?</summary>
+                    <div class="faq-answer">
+                        <p>
+                            Nobody can see your data. Nudlers is a fully self-hosted, local-only application. Your
+                            financial
+                            data never leaves your machine. There are no cloud servers, no analytics, no external data
+                            transmission. It's your data on your hardware &mdash; period.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">How are my bank credentials stored?</summary>
+                    <div class="faq-answer">
+                        <p>
+                            Your credentials are stored encrypted in the database using AES-256 encryption.
+                            The encryption key is provided by you via an environment variable and is never stored
+                            alongside the data. Without the key, the credentials are unreadable.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">Do I need to have an API key for Gemini?</summary>
+                    <div class="faq-answer">
+                        <p>
+                            No, the Gemini API key is optional. Gemini is used only for two features:
+                            chatting with AI about your own data in the app, and preparing the WhatsApp daily message.
+                            If you don't plan to use these features, you don't need an API key.
+                        </p>
+                        <p>
+                            In the future, we will support other AI models. However, the recommended approach
+                            is to use Nudlers through MCP (Model Context Protocol), which allows AI tools like
+                            Claude to interact with your financial data directly.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">Why am I getting Isracard scraping errors?</summary>
+                    <div class="faq-answer">
+                        <p>
+                            Isracard has rate-limiting mechanisms that detect automated access. The scraper can fetch
+                            your transactions list, but to retrieve the category for each transaction, it needs to
+                            query them one by one. When you scrape a large date range, there are many transactions,
+                            and the category lookups can trigger rate limiting.
+                        </p>
+                        <p>
+                            <strong>Tip:</strong> When you start seeing errors, minimize the date range you're scraping.
+                            Shorter periods mean fewer transactions and fewer category requests, which keeps you under
+                            the rate limit.
+                        </p>
+                        <p>
+                            Nudlers also maintains a prefilled card that caches business-to-category mappings,
+                            so matching happens faster and reduces the number of requests needed over time.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">How are WhatsApp messages sent?</summary>
+                    <div class="faq-answer">
+                        <p>
+                            Nudlers uses the
+                            <a href="https://github.com/pedroslopez/whatsapp-web.js" target="_blank"
+                                rel="noopener">whatsapp-web.js</a>
+                            package. Under the hood, it runs a headless browser that connects to WhatsApp Web
+                            and utilizes your session to send messages. You scan a QR code once to link it,
+                            and then reports are delivered automatically.
+                        </p>
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">Who is behind Nudlers?</summary>
+                    <div class="faq-answer">
+                        <p>
+                            It's just me, <a href="https://www.linkedin.com/in/eli-nudler/" target="_blank"
+                                rel="noopener">Eli Nudler</a>. I built Nudlers to scratch my own itch managing finances
+                            across
+                            multiple Israeli bank accounts and credit cards. It's open source and free to use.
+                        </p>
+                    </div>
+                </details>
             </div>
         </div>
     </section>
