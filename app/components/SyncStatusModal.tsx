@@ -1136,7 +1136,7 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
                 loading={isLoadingStartDate}
                 maxDate={new Date()}
               />
-            </Box>
+            </Box >
 
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
@@ -1171,7 +1171,7 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
             >
               Start Sync
             </Button>
-          </StatusCard>
+          </StatusCard >
         ) : showReport ? (
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -1765,7 +1765,7 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
           )}
         </Box>
       </Dialog>
-    </StyledDrawer >
+    </StyledDrawer>
   );
 };
 

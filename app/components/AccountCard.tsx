@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Box,
     Typography,
@@ -9,6 +9,9 @@ import {
     useTheme,
     Chip,
     Switch,
+    TextField,
+    MenuItem,
+    CircularProgress
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import SyncIcon from '@mui/icons-material/Sync';
@@ -126,6 +129,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
 }) => {
     const theme = useTheme();
     const isBank = BANK_VENDORS.includes(account.vendor);
+    const [isLinking, setIsLinking] = useState<number | null>(null);
 
     const formatLastSync = (dateString?: string) => {
         if (!dateString) return 'Never synced';
@@ -175,7 +179,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
                         alignItems: 'center',
                         justifyContent: 'center'
                     }}>
-                        <CardVendorIcon vendor={account.vendor} size={24} />
+                        <CardVendorIcon vendor={account.vendor} size={24} color="#fff" />
                     </Box>
                     <Box>
                         <Typography variant="h6" sx={{ color: 'white', fontWeight: 700, lineHeight: 1.2 }}>
@@ -288,6 +292,8 @@ const AccountCard: React.FC<AccountCardProps> = ({
                     ))}
                 </Box>
             )}
+
+            {/* Linking Modal/Popover would go here, but for now we keep it simple */}
         </PremiumCard>
     );
 };

@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Dependencies
 # =============================================================================
-FROM --platform=linux/amd64 node:22-bookworm-slim AS deps
+FROM node:22-bookworm-slim AS deps
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ RUN npm ci
 # =============================================================================
 # Stage 2: Builder
 # =============================================================================
-FROM --platform=linux/amd64 node:22-bookworm-slim AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -35,7 +35,7 @@ RUN npm run build
 # Stage 3: Runner
 # =============================================================================
 # Use a slim Node image and install ONLY the required system dependencies for Chromium
-FROM --platform=linux/amd64 node:22-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
 

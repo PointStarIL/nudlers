@@ -55,17 +55,25 @@ jobs:
           NUDLERS_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
         run: cd app && npm test
 
-  build-branch-image:
+  build:
     if: github.event_name == 'push'
-    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Prepare platform pair
+        id: prep
+        run: echo "pair=${platform//\//-}" >> $GITHUB_OUTPUT
+        env:
+          platform: ${{ matrix.platform }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -80,18 +88,131 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          provenance: false
+          cache-from: type=gha,scope=build-${{ steps.prep.outputs.pair }}
+          cache-to: type=gha,scope=build-${{ steps.prep.outputs.pair }},mode=max
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ steps.prep.outputs.pair }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  push-manifest:
+    if: github.event_name == 'push'
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
       - name: Extract branch name
         id: branch_name
         run: echo "branch=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+      - name: Download digests
+        uses: actions/download-artifact@v4
         with:
-          context: ./app
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.branch_name.outputs.branch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.branch_name.outputs.branch }} \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+  smoke-test:
+    if: github.event_name == 'push'
+    needs: [push-manifest]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    steps:
+      - name: Set up QEMU
+        if: matrix.platform == 'linux/arm64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Extract branch name
+        id: branch_name
+        run: echo "branch=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image
+        run: |
+          docker pull --platform ${{ matrix.platform }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.branch_name.outputs.branch }}
+
+      - name: Verify architecture
+        run: |
+          EXPECTED_ARCH="${{ matrix.platform == 'linux/arm64' && 'arm64' || 'amd64' }}"
+          ACTUAL_ARCH=$(docker inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.branch_name.outputs.branch }} \
+            --format '{{.Architecture}}')
+          echo "Expected: $EXPECTED_ARCH, Actual: $ACTUAL_ARCH"
+          [ "$ACTUAL_ARCH" = "$EXPECTED_ARCH" ] || { echo "Architecture mismatch!"; exit 1; }
+
+      - name: Start container
+        run: |
+          docker run -d --name smoke-test \
+            --platform ${{ matrix.platform }} \
+            -p 3000:3000 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.branch_name.outputs.branch }}
+
+      - name: Wait for server to respond
+        run: |
+          echo "Waiting for server to start..."
+          for i in $(seq 1 120); do
+            if ! docker ps -q -f name=smoke-test | grep -q .; then
+              echo "::error::Container exited prematurely"
+              docker logs smoke-test
+              exit 1
+            fi
+            if curl -so /dev/null --max-time 2 http://localhost:3000 2>/dev/null; then
+              echo "Server responded on port 3000 after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Server did not respond within 120 seconds"
+          docker logs smoke-test
+          exit 1
+
+      - name: Show container logs
+        if: always()
+        run: docker logs smoke-test 2>&1 || true

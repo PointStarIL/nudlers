@@ -26,7 +26,7 @@ import AccountCard from './AccountCard';
 import SyncHistoryModal from './SyncHistoryModal';
 import { useNotification } from './NotificationContext';
 import { useView } from './Layout';
-import { CREDIT_CARD_VENDORS, BANK_VENDORS, STANDARD_BANK_VENDORS } from '../utils/constants';
+import { CREDIT_CARD_VENDORS, BANK_VENDORS, BEINLEUMI_GROUP_VENDORS, STANDARD_BANK_VENDORS } from '../utils/constants';
 import { logger } from '../utils/client-logger';
 import PageHeader from './PageHeader';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';

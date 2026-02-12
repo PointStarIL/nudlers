@@ -25,8 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
-
+    outputs:
+      version_number: ${{ steps.next_version.outputs.version_number }}
+      major_version: ${{ steps.next_version.outputs.major_version }}
+      new_version: ${{ steps.next_version.outputs.new_version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,16 +49,16 @@ jobs:
         run: |
           LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
           VERSION_TYPE="${{ github.event.inputs.version_type }}"
-          
+
           # Remove 'v' prefix and split into parts
           VERSION=${LATEST_TAG#v}
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-          
+
           # Default to 0 if empty
           MAJOR=${MAJOR:-0}
           MINOR=${MINOR:-0}
           PATCH=${PATCH:-0}
-          
+
           # Bump version based on type
           case $VERSION_TYPE in
             major)
@@ -72,7 +74,7 @@ jobs:
               PATCH=$((PATCH + 1))
               ;;
           esac
-          
+
           NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
           echo "New version: $NEW_VERSION"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
@@ -107,7 +109,7 @@ jobs:
         run: |
           LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
           NEW_VERSION="${{ steps.next_version.outputs.new_version }}"
-          
+
           # Generate changelog from commits since last tag
           if [ "$LATEST_TAG" = "v0.0.0" ]; then
             # First release - get all commits
@@ -116,12 +118,12 @@ jobs:
             # Get commits since last tag
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges ${LATEST_TAG}..HEAD | head -50)
           fi
-          
+
           # Handle empty changelog
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No changes since last release"
           fi
-          
+
           # Save to file to preserve newlines
           echo "$CHANGELOG" > changelog.txt
 
@@ -137,9 +139,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  build:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Prepare platform pair
+        id: prep
+        run: echo "pair=${platform//\//-}" >> $GITHUB_OUTPUT
+        env:
+          platform: ${{ matrix.platform }}
 
-      # Docker build steps
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -153,35 +172,78 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: ./app
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.next_version.outputs.version_number }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.next_version.outputs.major_version }}-latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          platforms: ${{ matrix.platform }}
           labels: |
             org.opencontainers.image.title=${{ github.repository }}
-            org.opencontainers.image.version=${{ steps.next_version.outputs.version_number }}
+            org.opencontainers.image.version=${{ needs.release.outputs.version_number }}
             org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          provenance: false
+          cache-from: type=gha,scope=build-${{ steps.prep.outputs.pair }}
+          cache-to: type=gha,scope=build-${{ steps.prep.outputs.pair }},mode=max
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ steps.prep.outputs.pair }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  push-manifest:
+    needs: [release, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.version_number }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.major_version }}-latest \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
 
       - name: Summary
         run: |
-          echo "## 🚀 Release Created!" >> $GITHUB_STEP_SUMMARY
+          echo "## Release Created!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.next_version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.release.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Type:** ${{ github.event.inputs.version_type }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🐳 Docker Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Image Published (linux/amd64 + linux/arm64)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Docker image tags:" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.next_version.outputs.version_number }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.next_version.outputs.major_version }}-latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.version_number }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.major_version }}-latest\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
