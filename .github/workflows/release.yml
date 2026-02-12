@@ -47,35 +47,42 @@ jobs:
       - name: Calculate next version
         id: next_version
         run: |
-          LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
-          VERSION_TYPE="${{ github.event.inputs.version_type }}"
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            NEW_VERSION="${{ github.ref_name }}"
+            VERSION_NUMBER="${NEW_VERSION#v}"
+            # Extract major version
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NUMBER"
+          else
+            LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
+            VERSION_TYPE="${{ github.event.inputs.version_type || 'patch' }}"
 
-          # Remove 'v' prefix and split into parts
-          VERSION=${LATEST_TAG#v}
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            # Remove 'v' prefix and split into parts
+            VERSION=${LATEST_TAG#v}
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
 
-          # Default to 0 if empty
-          MAJOR=${MAJOR:-0}
-          MINOR=${MINOR:-0}
-          PATCH=${PATCH:-0}
+            # Default to 0 if empty
+            MAJOR=${MAJOR:-0}
+            MINOR=${MINOR:-0}
+            PATCH=${PATCH:-0}
 
-          # Bump version based on type
-          case $VERSION_TYPE in
-            major)
-              MAJOR=$((MAJOR + 1))
-              MINOR=0
-              PATCH=0
-              ;;
-            minor)
-              MINOR=$((MINOR + 1))
-              PATCH=0
-              ;;
-            patch)
-              PATCH=$((PATCH + 1))
-              ;;
-          esac
+            # Bump version based on type
+            case $VERSION_TYPE in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+            NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
 
-          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
           echo "New version: $NEW_VERSION"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "version_number=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
@@ -152,6 +159,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.new_version || github.ref }}
+
 
       - name: Prepare platform pair
         id: prep
