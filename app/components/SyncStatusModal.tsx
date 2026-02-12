@@ -15,6 +15,7 @@ import {
   Avatar,
   Button,
   LinearProgress,
+  Switch,
   useMediaQuery
 } from '@mui/material';
 import { logger } from '../utils/client-logger';
@@ -312,6 +313,17 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const [selectedErrorEvent, setSelectedErrorEvent] = useState<SyncEvent | null>(null);
 
+  // Pending sync request from AccountsView or inline sync button
+  interface PendingSyncRequest {
+    accountId: number;
+    vendor: string;
+    nickname: string;
+  }
+  const [pendingSyncRequest, setPendingSyncRequest] = useState<PendingSyncRequest | null>(null);
+  const [syncOptionsStartDate, setSyncOptionsStartDate] = useState<string>('');
+  const [syncOptionsShowBrowser, setSyncOptionsShowBrowser] = useState(false);
+  const [isLoadingStartDate, setIsLoadingStartDate] = useState(false);
+
   // Resizing state
   const [isResizing, setIsResizing] = useState(false);
 
@@ -406,6 +418,23 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
     }
   }, [open, fetchStatus, setFullPolling]);
 
+  // Listen for triggerSync events from AccountsView
+  useEffect(() => {
+    const handleTriggerSync = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.accountId) {
+        prepareSyncOptionsForAccount(detail.accountId, detail.vendor, detail.nickname || detail.vendor);
+      }
+    };
+    window.addEventListener('triggerSync', handleTriggerSync);
+    return () => window.removeEventListener('triggerSync', handleTriggerSync);
+  }, [status?.settings?.daysBack]);
+
+  // Clear pending sync request when drawer closes
+  useEffect(() => {
+    if (!open) setPendingSyncRequest(null);
+  }, [open]);
+
   // No local polling, managed by StatusContext
 
   const fetchLastTransactionDate = async (vendor: string): Promise<Date | null> => {
@@ -421,6 +450,25 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
       logger.error('Failed to fetch last transaction date', err, { vendor });
     }
     return null;
+  };
+
+  const prepareSyncOptionsForAccount = async (accountId: number, vendor: string, nickname: string) => {
+    setSyncOptionsShowBrowser(vendor === 'hapoalim');
+    setIsLoadingStartDate(true);
+    setPendingSyncRequest({ accountId, vendor, nickname });
+    try {
+      const lastDate = await fetchLastTransactionDate(vendor);
+      const startDate = lastDate ? new Date(lastDate) : new Date();
+      const daysBack = status?.settings?.daysBack || 30;
+      startDate.setDate(startDate.getDate() - daysBack);
+      setSyncOptionsStartDate(startDate.toISOString().split('T')[0]);
+    } catch {
+      const fallback = new Date();
+      fallback.setDate(fallback.getDate() - 30);
+      setSyncOptionsStartDate(fallback.toISOString().split('T')[0]);
+    } finally {
+      setIsLoadingStartDate(false);
+    }
   };
 
   interface SyncAccountCredentials {
@@ -655,7 +703,7 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
     runSync();
   };
 
-  const handleSyncSingle = async (accountId: number, initialNickname?: string, initialVendor?: string) => {
+  const handleSyncSingle = async (accountId: number, initialNickname?: string, initialVendor?: string, overrideStartDate?: string, overrideShowBrowser?: boolean) => {
     if (isSyncing || isInitializing) return;
 
     // Optimistic UI update - set state immediately for instant feedback
@@ -701,18 +749,24 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
       abortControllerRef.current = new AbortController();
 
       try {
-        const lastDate = await fetchLastTransactionDate(account.vendor);
-        const startDate = lastDate ? new Date(lastDate) : new Date();
-        const daysBack = status?.settings?.daysBack || 30;
-        startDate.setDate(startDate.getDate() - daysBack);
+        let computedStartDate: string;
+        if (overrideStartDate) {
+          computedStartDate = overrideStartDate;
+        } else {
+          const lastDate = await fetchLastTransactionDate(account.vendor);
+          const startDate = lastDate ? new Date(lastDate) : new Date();
+          const daysBack = status?.settings?.daysBack || 30;
+          startDate.setDate(startDate.getDate() - daysBack);
+          computedStartDate = startDate.toISOString().split('T')[0];
+        }
 
         const credentials = prepareCredentials(account, account.vendor);
         const config = {
           options: {
             companyId: account.vendor,
-            startDate: startDate.toISOString().split('T')[0],
+            startDate: computedStartDate,
             combineInstallments: false,
-            showBrowser: false,
+            showBrowser: overrideShowBrowser !== undefined ? overrideShowBrowser : false,
             additionalTransactionInformation: true
           },
           credentials: credentials,
@@ -840,6 +894,13 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
     };
 
     runSingle();
+  };
+
+  const handleStartSyncWithOptions = () => {
+    if (!pendingSyncRequest) return;
+    const { accountId, nickname, vendor } = pendingSyncRequest;
+    setPendingSyncRequest(null);
+    handleSyncSingle(accountId, nickname, vendor, syncOptionsStartDate, syncOptionsShowBrowser);
   };
 
   interface SyncEvent {
@@ -1022,7 +1083,93 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
 
       {/* Content */}
       <Box sx={{ p: 2, overflowY: 'auto', flex: 1 }}>
-        {showReport ? (
+        {pendingSyncRequest && !isSyncing && !showReport ? (
+          <StatusCard sx={{
+            background: `linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(96, 165, 250, 0.05) 100%)`,
+            borderColor: 'rgba(96, 165, 250, 0.4)'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                {getVendorIcon(pendingSyncRequest.vendor)}
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {pendingSyncRequest.nickname}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.disabled }}>
+                    {pendingSyncRequest.vendor}
+                  </Typography>
+                </Box>
+              </Box>
+              <IconButton size="small" onClick={() => setPendingSyncRequest(null)}>
+                <CloseIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Box>
+
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: 'block', mb: 0.5 }}>
+                Start Date
+              </Typography>
+              {isLoadingStartDate ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={16} />
+                  <Typography variant="caption" sx={{ color: theme.palette.text.disabled }}>Calculating...</Typography>
+                </Box>
+              ) : (
+                <input
+                  type="date"
+                  value={syncOptionsStartDate}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setSyncOptionsStartDate(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    background: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : '#fff',
+                    color: theme.palette.text.primary,
+                    fontSize: '0.875rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              )}
+            </Box>
+
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: 'block' }}>
+                  Show Browser
+                </Typography>
+                {pendingSyncRequest.vendor === 'hapoalim' && (
+                  <Typography variant="caption" sx={{ color: '#3b82f6', fontSize: '10px' }}>
+                    Recommended for 2FA verification
+                  </Typography>
+                )}
+              </Box>
+              <Switch
+                checked={syncOptionsShowBrowser}
+                onChange={(e) => setSyncOptionsShowBrowser(e.target.checked)}
+                size="small"
+              />
+            </Box>
+
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleStartSyncWithOptions}
+              disabled={isLoadingStartDate || !syncOptionsStartDate}
+              startIcon={<PlayArrowIcon />}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                background: '#22c55e',
+                '&:hover': { background: '#16a34a' }
+              }}
+            >
+              Start Sync
+            </Button>
+          </StatusCard>
+        ) : showReport ? (
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">Sync Report</Typography>
@@ -1311,7 +1458,7 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
                           <Tooltip title="Sync this account only">
                             <IconButton
                               size="small"
-                              onClick={() => handleSyncSingle(account.id)}
+                              onClick={() => prepareSyncOptionsForAccount(account.id, account.vendor, account.nickname || account.vendor)}
                               disabled={isSyncing || isInitializing || isStopping}
                               sx={{
                                 color: '#60a5fa',

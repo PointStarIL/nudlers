@@ -9,6 +9,7 @@ const handler = createApiHandler({
           co.vendor,
           co.account_number,
           co.credential_id,
+          co.is_hidden,
           co.linked_bank_account_id,
           co.custom_bank_account_number,
           co.custom_bank_account_nickname,

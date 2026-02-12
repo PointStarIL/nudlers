@@ -55,8 +55,8 @@ const SyncStatusModal = dynamic(() => import('./SyncStatusModal'), { ssr: false 
 
 
 interface ResponsiveAppBarProps {
-  currentView?: 'dashboard' | 'summary' | 'budget' | 'chat' | 'audit' | 'recurring' | 'design' | 'breakdown' | 'projection';
-  onViewChange?: (view: 'dashboard' | 'summary' | 'budget' | 'chat' | 'audit' | 'recurring' | 'design' | 'breakdown' | 'projection') => void;
+  currentView?: 'dashboard' | 'summary' | 'budget' | 'chat' | 'audit' | 'recurring' | 'design' | 'breakdown' | 'projection' | 'accounts';
+  onViewChange?: (view: 'dashboard' | 'summary' | 'budget' | 'chat' | 'audit' | 'recurring' | 'design' | 'breakdown' | 'projection' | 'accounts') => void;
 }
 
 
@@ -103,7 +103,6 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
   const [mobileDrawerOpen, setMobileDrawerOpen] = React.useState(false);
   const [desktopDrawerOpen, setDesktopDrawerOpen] = React.useState(true); // Persistent drawer for desktop
   const [isScrapeModalOpen, setIsScrapeModalOpen] = React.useState(false);
-  const [isAccountsModalOpen, setIsAccountsModalOpen] = React.useState(false);
   const [isCategoryManagementOpen, setIsCategoryManagementOpen] = React.useState(false);
   const [isCardVendorsOpen, setIsCardVendorsOpen] = React.useState(false);
   const [isBackupOpen, setIsBackupOpen] = React.useState(false);
@@ -176,9 +175,9 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
   ];
 
 
-  const settingsMenuItems = [
+  const settingsMenuItems: Array<{ label: string; icon: React.ReactNode; action?: () => void; view?: 'accounts'; color?: string }> = [
+    { label: 'Accounts', icon: <PersonIcon />, view: 'accounts' as const, color: 'var(--n-primary)' },
     { label: 'Categories', icon: <SettingsIcon />, action: () => setIsCategoryManagementOpen(true) },
-    { label: 'Accounts', icon: <PersonIcon />, action: () => setIsAccountsModalOpen(true) },
     { label: 'Cards', icon: <CreditCardIcon />, action: () => setIsCardVendorsOpen(true) },
     { label: 'Backup', icon: <BackupIcon />, action: () => setIsBackupOpen(true) },
     { label: 'Settings', icon: <TuneIcon />, action: () => setIsSettingsOpen(true) },
@@ -276,7 +275,11 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
               <ListItem key={item.label} disablePadding>
                 <ListItemButton
                   onClick={() => {
-                    item.action();
+                    if (item.view) {
+                      onViewChange?.(item.view);
+                    } else if (item.action) {
+                      item.action();
+                    }
                     if (isMobile) {
                       handleDrawerToggle();
                     }
@@ -287,15 +290,26 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
                     mb: 0.25,
                     py: 0.5,
                     minHeight: 32,
+                    backgroundColor: item.view && currentView === item.view ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
                     '&:hover': {
                       backgroundColor: theme.palette.action.hover,
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ color: 'text.secondary', minWidth: 32, '& .MuiSvgIcon-root': { fontSize: 18 } }}>
+                  <ListItemIcon sx={{ color: item.view && currentView === item.view ? (item.color || 'text.secondary') : 'text.secondary', minWidth: 32, '& .MuiSvgIcon-root': { fontSize: 18 } }}>
                     {item.icon}
                   </ListItemIcon>
-                  <ListItemText primary={item.label} sx={{ m: 0, '& .MuiTypography-root': { fontSize: '0.8125rem', fontWeight: 500, color: 'text.secondary' } }} />
+                  <ListItemText
+                    primary={item.label}
+                    sx={{
+                      m: 0,
+                      '& .MuiTypography-root': {
+                        fontSize: '0.8125rem',
+                        fontWeight: item.view && currentView === item.view ? 600 : 500,
+                        color: item.view && currentView === item.view ? theme.palette.primary.main : theme.palette.text.secondary,
+                      },
+                    }}
+                  />
                 </ListItemButton>
               </ListItem>
             ))}
@@ -428,10 +442,6 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
         isOpen={isScrapeModalOpen}
         onClose={() => setIsScrapeModalOpen(false)}
         onSuccess={handleScrapeSuccess}
-      />
-      <AccountsModal
-        isOpen={isAccountsModalOpen}
-        onClose={() => setIsAccountsModalOpen(false)}
       />
       <CategoryManagementModal
         open={isCategoryManagementOpen}

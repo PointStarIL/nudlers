@@ -41,6 +41,7 @@ interface PageHeaderProps {
 
     // Extra actions/controls
     extraControls?: React.ReactNode;
+    actions?: React.ReactNode;
 
     // Billing info display
     startDate?: string;
@@ -72,6 +73,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     onSearchSubmit,
     isSearching,
     extraControls,
+    actions,
     startDate,
     endDate
 }) => {
@@ -280,7 +282,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                     flexGrow: { lg: 1 },
                     justifyContent: { lg: 'flex-end' }
                 }}>
-                    {extraControls}
+                    {actions || extraControls}
 
                     {showSearch && onSearchSubmit && (
                         <Box
