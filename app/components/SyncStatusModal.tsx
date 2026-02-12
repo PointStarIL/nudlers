@@ -42,6 +42,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import LockIcon from '@mui/icons-material/Lock';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
+import LockIcon from '@mui/icons-material/Lock';
+import SendIcon from '@mui/icons-material/Send';
 
 interface SyncStatusModalProps {
   open: boolean;
@@ -327,6 +329,13 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
   const [isLoadingStartDate, setIsLoadingStartDate] = useState(false);
   const [syncOptionsDateError, setSyncOptionsDateError] = useState<string | null>(null);
 
+  // OTP State
+  const [otpRequired, setOtpRequired] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSubmitting, setOtpSubmitting] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const otpInputRef = React.useRef<HTMLInputElement>(null);
+
   // Resizing state
   const [isResizing, setIsResizing] = useState(false);
 
@@ -594,6 +603,10 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
     setSessionReport([]);
     setSessionSummary(null);
     setShowReport(false);
+    setOtpRequired(false);
+    setOtpCode('');
+    setOtpSubmitting(false);
+    setOtpError(null);
     setSyncStartTime(Date.now());
     setElapsedSeconds(0);
     setSyncQueue([]);
@@ -665,6 +678,21 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
                   break;
 
                 case 'progress':
+                  if (eventData.step === 'otpRequired') {
+                    setOtpRequired(true);
+                    setOtpError(null);
+                    setTimeout(() => otpInputRef.current?.focus(), 100);
+                  } else if (eventData.step === 'otpSuccess') {
+                    setOtpRequired(false);
+                    setOtpSubmitting(false);
+                    setOtpCode('');
+                  } else if (eventData.step === 'otpFailed') {
+                    setOtpSubmitting(false);
+                    setOtpError(eventData.message || 'Verification failed');
+                    setOtpCode('');
+                    setTimeout(() => otpInputRef.current?.focus(), 100);
+                  }
+
                   setSyncProgress(prev => ({
                     ...prev!,
                     currentStep: eventData.message || prev?.currentStep,
@@ -738,6 +766,29 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
     runSync();
   };
 
+  const handleOtpSubmit = async () => {
+    if (!otpCode.trim()) return;
+
+    setOtpSubmitting(true);
+    setOtpError(null);
+
+    try {
+      const response = await fetch('/api/scrapers/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otpCode: otpCode.trim() })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to submit OTP code');
+      }
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : 'Failed to submit code');
+      setOtpSubmitting(false);
+    }
+  };
+
   const handleSyncSingle = async (accountId: number, initialNickname?: string, initialVendor?: string, overrideStartDate?: string, overrideShowBrowser?: boolean) => {
     if (isVaultLocked) {
       setIsVaultModalOpen(true);
@@ -753,6 +804,10 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
     setSessionReport([]);
     setSessionSummary(null);
     setShowReport(false);
+    setOtpRequired(false);
+    setOtpCode('');
+    setOtpSubmitting(false);
+    setOtpError(null);
     setSyncStartTime(Date.now());
     setElapsedSeconds(0);
     setSyncQueue([{
@@ -856,6 +911,22 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
                 const eventData = JSON.parse(line.slice(6));
 
                 if (currentEvent === 'progress') {
+                  // Handle OTP events
+                  if (eventData.step === 'otpRequired') {
+                    setOtpRequired(true);
+                    setOtpError(null);
+                    setTimeout(() => otpInputRef.current?.focus(), 100);
+                  } else if (eventData.step === 'otpSuccess') {
+                    setOtpRequired(false);
+                    setOtpSubmitting(false);
+                    setOtpCode('');
+                  } else if (eventData.step === 'otpFailed') {
+                    setOtpSubmitting(false);
+                    setOtpError(eventData.message || 'Verification failed');
+                    setOtpCode('');
+                    setTimeout(() => otpInputRef.current?.focus(), 100);
+                  }
+
                   setSyncProgress(prev => ({
                     current: 0,
                     total: 1,
@@ -1331,6 +1402,69 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
                                   }
                                 }}
                               />
+
+                              {otpRequired && (
+                                <Box sx={{
+                                  mt: 1.5,
+                                  p: 1.5,
+                                  borderRadius: 1,
+                                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)',
+                                  border: '1px solid rgba(59, 130, 246, 0.3)'
+                                }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                    <LockIcon sx={{ fontSize: 16, color: '#3b82f6' }} />
+                                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#3b82f6' }}>
+                                      2FA Code Required
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <input
+                                      ref={otpInputRef}
+                                      value={otpCode}
+                                      onChange={(e) => {
+                                        setOtpCode(e.target.value.replace(/\D/g, ''));
+                                        setOtpError(null);
+                                      }}
+                                      onKeyDown={(e) => e.key === 'Enter' && otpCode && handleOtpSubmit()}
+                                      placeholder="Enter code"
+                                      disabled={otpSubmitting}
+                                      maxLength={8}
+                                      style={{
+                                        flex: 1,
+                                        background: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : '#fff',
+                                        border: otpError ? '1px solid #ef4444' : '1px solid rgba(59, 130, 246, 0.3)',
+                                        borderRadius: '4px',
+                                        padding: '4px 8px',
+                                        color: theme.palette.text.primary,
+                                        fontSize: '0.875rem',
+                                        textAlign: 'center',
+                                        letterSpacing: '0.1em',
+                                        outline: 'none'
+                                      }}
+                                    />
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      onClick={handleOtpSubmit}
+                                      disabled={!otpCode || otpSubmitting}
+                                      sx={{
+                                        minWidth: 32,
+                                        p: 0,
+                                        background: '#3b82f6',
+                                        '&:hover': { background: '#2563eb' }
+                                      }}
+                                    >
+                                      {otpSubmitting ? <CircularProgress size={14} color="inherit" /> : <SendIcon sx={{ fontSize: 14 }} />}
+                                    </Button>
+                                  </Box>
+                                  {otpError && (
+                                    <Typography variant="caption" sx={{ color: '#ef4444', mt: 0.5, display: 'block' }}>
+                                      {otpError}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              )}
+
                               {syncProgress?.latestScreenshot && (
                                 <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'center' }}>
                                   <Button

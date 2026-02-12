@@ -2209,7 +2209,9 @@ paths:
       summary: Run scraper (streaming)
       description: |
         Run scraper with Server-Sent Events for progress updates.
-        Returns SSE stream with events: progress, complete, error
+        Returns SSE stream with events: progress, complete, error.
+        For Bank Hapoalim, the stream may emit an `otpRequired` progress event
+        when 2FA verification is needed. Use the /scrapers/otp endpoint to submit the code.
       requestBody:
         required: true
         content:
@@ -2223,6 +2225,86 @@ paths:
             text/event-stream:
               schema:
                 type: string
+
+  /scrapers/otp:
+    get:
+      tags:
+        - Integrations
+      summary: Check OTP status
+      description: |
+        Check if there is a pending 2FA/OTP verification request from a running scraper.
+        Used by the frontend to poll for OTP status.
+      responses:
+        '200':
+          description: OTP status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending:
+                    type: boolean
+                    description: Whether there is a pending OTP request
+                  companyId:
+                    type: string
+                    nullable: true
+                    description: The vendor ID waiting for OTP (e.g. "hapoalim")
+    post:
+      tags:
+        - Integrations
+      summary: Submit OTP code
+      description: |
+        Submit a 2FA/OTP verification code received via SMS during a Bank Hapoalim scrape.
+        The scraper will use this code to complete authentication and continue scraping.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - otpCode
+              properties:
+                otpCode:
+                  type: string
+                  description: The verification code received via SMS
+                  example: "123456"
+      responses:
+        '200':
+          description: OTP code submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Invalid or missing OTP code
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '409':
+          description: No pending OTP request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '405':
+          description: Method not allowed
 
   /scrapers/sync-all-stream:
     post:

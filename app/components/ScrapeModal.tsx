@@ -25,6 +25,8 @@ import SwapVertIcon from '@mui/icons-material/SwapVert';
 import TimerIcon from '@mui/icons-material/Timer';
 import ImageIcon from '@mui/icons-material/Image';
 import CloseIcon from '@mui/icons-material/Close';
+import LockIcon from '@mui/icons-material/Lock';
+import SendIcon from '@mui/icons-material/Send';
 import { useNotification } from './NotificationContext';
 import ModalHeader from './ModalHeader';
 import { useTheme } from '@mui/material/styles';
@@ -125,6 +127,12 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
   const [latestScreenshot, setLatestScreenshot] = useState<{ url: string, filename: string, stepName: string, timestamp: string } | null>(null);
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  // 2FA/OTP state
+  const [otpRequired, setOtpRequired] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSubmitting, setOtpSubmitting] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const otpInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -187,6 +195,11 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       setLatestScreenshot(null);
       setSelectedScreenshot(null);
       setIsCapturing(false);
+      // Reset OTP state
+      setOtpRequired(false);
+      setOtpCode('');
+      setOtpSubmitting(false);
+      setOtpError(null);
       // Abort any ongoing scrape when modal closes
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -393,6 +406,24 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
               };
               setProgress(progressData);
 
+              // Handle OTP events
+              if (data.step === 'otpRequired') {
+                setOtpRequired(true);
+                setOtpError(null);
+                // Auto-focus OTP input after render
+                setTimeout(() => otpInputRef.current?.focus(), 100);
+              } else if (data.step === 'otpSuccess') {
+                setOtpRequired(false);
+                setOtpSubmitting(false);
+                setOtpCode('');
+              } else if (data.step === 'otpFailed') {
+                setOtpSubmitting(false);
+                setOtpError(data.message || 'Verification failed');
+                // Allow retry
+                setOtpCode('');
+                setTimeout(() => otpInputRef.current?.focus(), 100);
+              }
+
               // Track step history for display
               if (data.success !== null || data.message.includes('✓') || data.message.includes('✗')) {
                 setStepHistory(prev => {
@@ -461,7 +492,35 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       });
     } finally {
       setIsLoading(false);
+      setOtpRequired(false);
+      setOtpSubmitting(false);
       abortControllerRef.current = null;
+    }
+  };
+
+  const handleOtpSubmit = async () => {
+    if (!otpCode.trim()) return;
+
+    setOtpSubmitting(true);
+    setOtpError(null);
+
+    try {
+      const response = await fetch('/api/scrapers/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otpCode: otpCode.trim() })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to submit OTP code');
+      }
+
+      // Code submitted — the scraper will continue automatically.
+      // Don't clear otpRequired yet — wait for otpSuccess/otpFailed events.
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : 'Failed to submit code');
+      setOtpSubmitting(false);
     }
   };
 
@@ -867,6 +926,95 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
               </Box>
             ))}
           </Box>
+        )}
+
+        {/* 2FA / OTP Input */}
+        {otpRequired && (
+          <Fade in={otpRequired}>
+            <Box sx={{
+              mt: 2,
+              p: 2.5,
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)'
+                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%)',
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)'}`,
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <LockIcon sx={{ color: '#3b82f6', fontSize: 22 }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
+                  2FA Verification Required
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 2, fontSize: '0.8rem' }}>
+                Bank Hapoalim sent a verification code to your phone. Enter it below to continue.
+              </Typography>
+
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                <TextField
+                  inputRef={otpInputRef}
+                  value={otpCode}
+                  onChange={(e) => {
+                    // Only allow digits
+                    const val = e.target.value.replace(/\D/g, '');
+                    setOtpCode(val);
+                    setOtpError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && otpCode.trim()) {
+                      handleOtpSubmit();
+                    }
+                  }}
+                  placeholder="Enter code"
+                  variant="outlined"
+                  size="small"
+                  disabled={otpSubmitting}
+                  error={!!otpError}
+                  helperText={otpError}
+                  inputProps={{
+                    maxLength: 8,
+                    style: {
+                      textAlign: 'center',
+                      fontSize: '1.3rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.3em',
+                      fontFamily: 'monospace',
+                    }
+                  }}
+                  sx={{
+                    flex: 1,
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : '#fff',
+                    }
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleOtpSubmit}
+                  disabled={!otpCode.trim() || otpSubmitting}
+                  sx={{
+                    minWidth: 48,
+                    height: 40,
+                    background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                    '&:hover': { background: 'linear-gradient(135deg, #2563eb, #7c3aed)' },
+                    '&:disabled': { opacity: 0.5 }
+                  }}
+                >
+                  {otpSubmitting ? (
+                    <CircularProgress size={20} sx={{ color: '#fff' }} />
+                  ) : (
+                    <SendIcon sx={{ fontSize: 20 }} />
+                  )}
+                </Button>
+              </Box>
+
+              {otpSubmitting && (
+                <Typography variant="caption" sx={{ color: '#3b82f6', mt: 1, display: 'block' }}>
+                  Submitting code... The scraper will continue automatically.
+                </Typography>
+              )}
+            </Box>
+          </Fade>
         )}
 
         {/* Network Logs */}

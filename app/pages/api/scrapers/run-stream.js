@@ -174,6 +174,10 @@ async function handler(req, res) {
         'loginSuccess': { message: '✓ Login successful', percent: 35, phase: 'authentication', success: true },
         'loginFailed': { message: '✗ Login failed', percent: 35, phase: 'authentication', success: false },
         'changePassword': { message: 'Password change required', percent: 30, phase: 'authentication', success: false },
+        'otpRequired': { message: '🔐 2FA verification required - enter the SMS code sent to your phone', percent: 25, phase: 'authentication', success: null },
+        'otpSubmitting': { message: 'Submitting verification code...', percent: 28, phase: 'authentication', success: null },
+        'otpSuccess': { message: '✓ 2FA verification successful', percent: 32, phase: 'authentication', success: true },
+        'otpFailed': { message: '✗ 2FA verification failed', percent: 30, phase: 'authentication', success: false },
         'fetchingTransactions': { message: 'Fetching transactions from website...', percent: 45, phase: 'data_fetching', success: null },
         'gettingAccountDetails': { message: 'Retrieving account details...', percent: 50, phase: 'data_fetching', success: null },
         'accountDetailsReceived': { message: '✓ Account details received', percent: 55, phase: 'data_fetching', success: true },
@@ -309,6 +313,22 @@ async function handler(req, res) {
         result = await runScraper(client, scraperOptions, scraperCredentials, progressHandler, () => false);
 
         if (!result.success) {
+          // Don't retry if OTP was involved - the browser session is specific to the OTP attempt
+          if (result.otpPending) {
+            logger.info('[Scrape Stream] OTP flow was triggered but failed - not retrying');
+            if (auditId) {
+              await updateScrapeAudit(client, auditId, 'failed', result.errorMessage || 'OTP verification failed');
+            }
+            if (!res.finished) {
+              sendSSE(res, 'error', {
+                message: result.errorMessage || 'OTP verification failed',
+                hint: 'Please try again and enter the OTP code when prompted.',
+                attemptsMade: attempt + 1
+              });
+              res.end();
+            }
+            return;
+          }
           throw new Error(result.errorMessage || 'Scraper failed');
         }
 

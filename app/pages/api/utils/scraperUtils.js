@@ -24,6 +24,8 @@ import {
 } from '../../../utils/constants.js';
 import { generateTransactionIdentifier } from './transactionUtils.js';
 import { createScraper } from 'israeli-bank-scrapers';
+import { handleHapoalimOtp, isOtpPage } from '../../../scrapers/hapoalimOtp.js';
+import { clearPendingOtp } from '../scrapers/otp.js';
 import logger from '../../../utils/logger.js';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -773,12 +775,23 @@ export async function runScraper(client, scraperOptions, credentials, onProgress
     ? await getIsracardScrapeCategoriesSetting(client)
     : true;
 
+  // For Hapoalim: extend timeout BEFORE creating the scraper so page.setDefaultTimeout uses it
+  const isHapoalim = scraperOptions.companyId === 'hapoalim';
+  let effectiveTimeout = scraperOptions.timeout || DEFAULT_SCRAPER_TIMEOUT;
+  if (isHapoalim) {
+    const otpExtraTimeout = 200000; // 200 seconds extra for OTP flow
+    effectiveTimeout += otpExtraTimeout;
+    logger.info({ originalTimeout: scraperOptions.timeout, effectiveTimeout }, '[Scraper] Extended timeout for Hapoalim OTP');
+  }
+
   let options = {
     ...scraperOptions,
     startDate,
+    timeout: effectiveTimeout,
+    defaultTimeout: effectiveTimeout,
     preparePage: getPreparePage({
       companyId: scraperOptions.companyId,
-      timeout: scraperOptions.timeout,
+      timeout: effectiveTimeout,
       isRateLimited,
       logRequests,
       onProgress,
@@ -825,11 +838,13 @@ export async function runScraper(client, scraperOptions, credentials, onProgress
     scraper = createScraper(options);
   }
 
-  if (scraper && typeof scraper.on === 'function') {
-    scraper.on('progress', (companyId, progress) => {
+  if (scraper && typeof scraper.onProgress === 'function') {
+    scraper.onProgress((companyId, progress) => {
       logger.debug({ companyId, progressType: progress?.type || 'unknown' }, '[Scraper] Progress event');
       if (onProgress) onProgress(companyId, progress);
     });
+  } else {
+    logger.warn('[Scraper] Could not register progress listener - onProgress not available');
   }
 
   // Monkey-patch terminate for smart scraping ONLY
@@ -842,12 +857,178 @@ export async function runScraper(client, scraperOptions, credentials, onProgress
     };
   }
 
+  // For Hapoalim: monkey-patch terminate to keep browser alive for OTP
+  if (isHapoalim && !useSmartScraping) {
+    originalTerminate = scraper.terminate.bind(scraper);
+    scraper.terminate = async () => {
+      logger.info('[Scraper] Prevented auto-termination for Hapoalim OTP handling');
+      return;
+    };
+  }
+
   logger.info('[Scraper] Starting scrape execution');
 
   // Wrap the entire scrape process in a global timeout
-  const globalTimeoutMs = options.timeout || DEFAULT_SCRAPER_TIMEOUT;
+  let globalTimeoutMs = options.timeout || DEFAULT_SCRAPER_TIMEOUT;
 
-  const scrapePromise = scraper.scrape(credentials);
+  // For Hapoalim with OTP, we need much more time (user interaction involved)
+  if (isHapoalim) {
+    globalTimeoutMs = Math.max(globalTimeoutMs, 300000); // Ensure at least 5 minutes
+    logger.info({ globalTimeoutMs }, '[Scraper] Increased timeout for Hapoalim OTP flow');
+  }
+
+  // For Hapoalim, we wrap the scrape in OTP-aware logic
+  let scrapePromise;
+  if (isHapoalim) {
+    scrapePromise = (async () => {
+      logger.info('[Scraper] Hapoalim scrape starting with OTP-aware logic');
+      const result = await scraper.scrape(credentials);
+      logger.info({
+        success: result.success,
+        errorType: result.errorType,
+        errorMessage: result.errorMessage,
+        hasPage: !!scraper.page,
+      }, '[Scraper] Hapoalim scrape() returned');
+
+      // If scrape failed, check if we're on an OTP page
+      if (!result.success) {
+        // Check if the error is specifically about waiting for redirect (strong OTP indicator)
+        const isRedirectTimeout = result.errorMessage &&
+          result.errorMessage.includes('waiting for redirect');
+
+        if (isRedirectTimeout) {
+          logger.info('[Scraper] Hapoalim failed with redirect timeout - likely OTP page shown on same URL');
+        }
+
+        // Check page availability
+        const page = scraper.page;
+        if (!page) {
+          logger.warn('[Scraper] Hapoalim: No page available after failed login');
+        } else {
+          let pageClosed = false;
+          try {
+            pageClosed = page.isClosed();
+          } catch (e) {
+            logger.warn({ error: e.message }, '[Scraper] Failed to check page.isClosed()');
+          }
+
+          let pageUrl = 'UNKNOWN';
+          try {
+            pageUrl = pageClosed ? 'PAGE_CLOSED' : page.url();
+          } catch (e) {
+            logger.warn({ error: e.message }, '[Scraper] Failed to get page URL');
+          }
+
+          logger.info({
+            pageUrl,
+            pageClosed,
+            isRedirectTimeout
+          }, '[Scraper] Hapoalim page state after failed login');
+
+          if (!pageClosed) {
+            // Wait a moment for the page DOM to settle after the timeout
+            // The bank may still be rendering the OTP form
+            logger.info('[Scraper] Waiting 3s for page to settle before OTP detection...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Take a screenshot for debugging (if possible)
+            try {
+              const screenshotPath = `/tmp/hapoalim_otp_debug_latest.png`;
+              await page.screenshot({ path: screenshotPath, fullPage: true });
+              logger.info({ screenshotPath }, '[Scraper] Debug screenshot saved');
+            } catch (e) {
+              logger.warn({ error: e.message }, '[Scraper] Failed to take debug screenshot');
+            }
+
+            const onOtpPage = await isOtpPage(page);
+            logger.info({ onOtpPage }, '[Scraper] OTP page detection result');
+
+            if (onOtpPage) {
+              logger.info('[Scraper] Hapoalim login landed on OTP page, initiating 2FA flow');
+
+              // Handle OTP with proper error catching to prevent retries on timeout
+              let otpSuccess = false;
+              let otpError = null;
+
+              try {
+                otpSuccess = await handleHapoalimOtp(page, onProgress);
+              } catch (e) {
+                otpError = e.message;
+                logger.warn({ error: e.message }, '[Scraper] OTP handling threw an error (likely timeout)');
+              }
+
+              if (otpSuccess) {
+                logger.info('[Scraper] OTP verification successful, fetching account data');
+
+                try {
+                  const data = await scraper.fetchData();
+                  if (data && data.accounts) {
+                    if (originalTerminate) {
+                      await originalTerminate.call(scraper, true);
+                      originalTerminate = null;
+                    }
+                    return { success: true, accounts: data.accounts };
+                  }
+                } catch (fetchError) {
+                  logger.error({ error: fetchError.message }, '[Scraper] Failed to fetch data after OTP');
+                  if (originalTerminate) {
+                    await originalTerminate.call(scraper, false);
+                    originalTerminate = null;
+                  }
+                  throw fetchError;
+                }
+              } else {
+                if (originalTerminate) {
+                  await originalTerminate.call(scraper, false);
+                  originalTerminate = null;
+                }
+                // Return with otpPending flag so retry loop knows not to retry
+                return {
+                  success: false,
+                  errorMessage: otpError || 'OTP verification failed or timed out',
+                  otpPending: true
+                };
+              }
+            } else if (isRedirectTimeout) {
+              // The redirect timed out but we couldn't detect OTP elements.
+              // This might still be an OTP page with unusual rendering.
+              // Log as much info as possible for debugging.
+              logger.warn('[Scraper] Redirect timeout but no OTP elements detected - possible false negative');
+              try {
+                const pageContent = await page.evaluate(() => ({
+                  title: document.title,
+                  bodyTextSnippet: (document.body?.innerText || '').substring(0, 500),
+                  htmlSnippet: (document.body?.innerHTML || '').substring(0, 1000),
+                  inputCount: document.querySelectorAll('input').length,
+                  buttonCount: document.querySelectorAll('button').length,
+                }));
+                logger.info(pageContent, '[Scraper] Page content dump for debugging');
+              } catch (e) {
+                logger.warn({ error: e.message }, '[Scraper] Failed to dump page content');
+              }
+            } else {
+              logger.info('[Scraper] Hapoalim failed but NOT on OTP page - normal login failure');
+            }
+          }
+        }
+      }
+
+      // Terminate normally if we prevented it
+      if (originalTerminate) {
+        try {
+          await originalTerminate.call(scraper, result.success);
+        } catch (e) {
+          logger.warn({ error: e.message }, '[Scraper] Error during deferred terminate');
+        }
+        originalTerminate = null;
+      }
+
+      return result;
+    })();
+  } else {
+    scrapePromise = scraper.scrape(credentials);
+  }
+
   let timeoutId;
   const timeoutPromise = new Promise((_, reject) => {
     timeoutId = setTimeout(() => {
@@ -989,6 +1170,7 @@ export async function runScraper(client, scraperOptions, credentials, onProgress
     return result;
   } catch (err) {
     clearTimeout(timeoutId);
+    clearPendingOtp(); // Clean up any pending OTP request
     logger.error({
       error: err.message,
       stack: err.stack,
@@ -996,7 +1178,7 @@ export async function runScraper(client, scraperOptions, credentials, onProgress
       vendor: scraperOptions.companyId
     }, '[Scraper] Fatal error during scrape');
 
-    // Ensure we close if error happened during smart scrape
+    // Ensure we close if error happened during smart scrape or OTP
     if (originalTerminate) await originalTerminate();
     clearActiveSession();
 
