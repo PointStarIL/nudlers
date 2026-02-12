@@ -184,7 +184,14 @@ jobs:
           ACTUAL_ARCH=$(docker inspect \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.branch_name.outputs.branch }} \
             --format '{{.Architecture}}')
-          echo "Expected: $EXPECTED_ARCH, Actual: $ACTUAL_ARCH"
+          echo "Expected: $EXPECTED_ARCH"
+          echo "Inspecting manifest..."
+          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.branch_name.outputs.branch }} || echo "Manifest inspect failed"
+          echo "Inspecting local image..."
+          docker inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.branch_name.outputs.branch }} > inspect.json
+          cat inspect.json
+          ACTUAL_ARCH=$(jq -r '.[0].Architecture' inspect.json)
+          echo "Actual: $ACTUAL_ARCH"
           [ "$ACTUAL_ARCH" = "$EXPECTED_ARCH" ] || { echo "Architecture mismatch!"; exit 1; }
 
       - name: Start container
