@@ -58,7 +58,7 @@ function getGenerateContentMock() {
     return modelInstance.generateContent;
 }
 
-describe('Summary Generation Edge Cases', () => {
+describe('Summary Generation', () => {
     let mockClient: any;
 
     beforeEach(() => {
@@ -82,6 +82,41 @@ describe('Summary Generation Edge Cases', () => {
             rows: Object.entries(defaults).map(([key, value]) => ({ key, value }))
         };
     }
+
+    it('should calculate burndown rate and construct prompt correctly', async () => {
+        mockClient.query.mockResolvedValueOnce(setupDefaultSettings());
+        mockClient.query.mockResolvedValueOnce({
+            rows: [
+                { date: '2026-01-20', name: 'Test Shop', category: 'Food', price: 100, vendor: 'Visa' }
+            ]
+        });
+        mockClient.query.mockResolvedValueOnce({
+            rows: [{ category: 'Food', budget_limit: 1000 }]
+        });
+        mockClient.query.mockResolvedValueOnce({
+            rows: [
+                { category: 'Food', actual_spent: 200 },
+                { category: 'Unbudgeted', actual_spent: 50 }
+            ]
+        });
+        mockClient.query.mockResolvedValueOnce({
+            rows: [{ budget_limit: 5000 }]
+        });
+
+        const result = await generateDailySummary();
+        expect(result).toBe("AI Summary");
+
+        const prompt = getPromptFromLastCall();
+        expect(prompt).toContain('💰 *סיכום הוצאות יומי* 💰');
+        expect(prompt).toContain('1️⃣ *10 עסקאות אחרונות');
+        expect(prompt).toContain('חובה להציג את כל 10 העסקאות');
+        expect(prompt).toContain('2️⃣ *סטטוס תקציב לפי קטגוריות');
+        expect(prompt).toContain('3️⃣ *תמונת מצב תקציב כולל');
+        expect(prompt).toContain('• *תקציב:* ₪5000');
+        expect(prompt).toContain('*Food:* ₪200/₪1000');
+        expect(prompt).not.toContain('Unbudgeted:');
+        expect(prompt).toContain('20.01: Test Shop - ₪100 (Food)');
+    });
 
     it('should throw when Gemini API key is not configured', async () => {
         mockClient.query.mockResolvedValueOnce({

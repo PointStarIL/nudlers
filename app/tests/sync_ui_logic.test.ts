@@ -33,4 +33,18 @@ describe('Sync UI Logic: getSyncStatusLabel', () => {
         const label = getSyncStatusLabel(null, false, false, null);
         expect(label).toBe('Syncing...');
     });
+
+    it('should cap currentNum at total', () => {
+        const progress: SyncProgress = { current: 5, total: 3 };
+        expect(getSyncStatusLabel(progress, false, false, null)).toBe('Syncing accounts... (3 / 3)');
+    });
+
+    it('should handle zero current', () => {
+        const progress: SyncProgress = { current: 0, total: 5 };
+        expect(getSyncStatusLabel(progress, false, false, null)).toBe('Syncing accounts... (1 / 5)');
+    });
+
+    it('should prioritize stopping over initializing', () => {
+        expect(getSyncStatusLabel(null, true, true, 'Stopping...')).toBe('Stopping...');
+    });
 });

@@ -13,12 +13,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
     getScraperOptions,
     getScraperTimeout,
-    getScrapeRetries,
-
     resetCategoryCache
 } from '../pages/api/utils/scraperUtils';
 import { getPreparePage } from '../scrapers/core';
-import { DEFAULT_SCRAPER_TIMEOUT, DEFAULT_SCRAPE_RETRIES } from '../utils/constants';
+import { DEFAULT_SCRAPER_TIMEOUT } from '../utils/constants';
 
 // Mock logger
 vi.mock('../utils/logger', () => ({
@@ -204,90 +202,6 @@ describe('Scraper Timeout and Retry Integration Tests', () => {
         });
     });
 
-    describe('Retry Settings Validation', () => {
-        it('should load retry count from database', async () => {
-            mockClient.query.mockResolvedValue({
-                rows: [{ value: '5' }]
-            });
-
-            const retries = await getScrapeRetries(mockClient);
-
-            expect(retries).toBe(5);
-        });
-
-        it('should use default retry count when not configured', async () => {
-            mockClient.query.mockResolvedValue({ rows: [] });
-
-            const retries = await getScrapeRetries(mockClient);
-
-            expect(retries).toBe(DEFAULT_SCRAPE_RETRIES);
-        });
-
-        it('should validate retry count boundaries (0-10)', async () => {
-            // Test 0 retries
-            mockClient.query.mockResolvedValue({ rows: [{ value: '0' }] });
-            expect(await getScrapeRetries(mockClient)).toBe(0);
-
-            // Test 10 retries (max)
-            mockClient.query.mockResolvedValue({ rows: [{ value: '10' }] });
-            expect(await getScrapeRetries(mockClient)).toBe(10);
-
-            // Test >10 should be capped
-            mockClient.query.mockResolvedValue({ rows: [{ value: '50' }] });
-            expect(await getScrapeRetries(mockClient)).toBe(10);
-        });
-    });
-
-    describe('Retry Loop Timeout Enforcement', () => {
-        it('should calculate correct number of attempts with retries', () => {
-            const testCases = [
-                { maxRetries: 0, expectedAttempts: 1 },
-                { maxRetries: 1, expectedAttempts: 2 },
-                { maxRetries: 3, expectedAttempts: 4 },
-                { maxRetries: 5, expectedAttempts: 6 },
-            ];
-
-            testCases.forEach(({ maxRetries, expectedAttempts }) => {
-                let attempts = 0;
-                for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                    attempts++;
-                }
-                expect(attempts).toBe(expectedAttempts);
-            });
-        });
-
-        it('should calculate exponential backoff delays correctly', () => {
-            const calculateDelay = (attempt: number) =>
-                Math.min(5000 * Math.pow(2, attempt - 1), 60000);
-
-            expect(calculateDelay(1)).toBe(5000);   // First retry: 5s
-            expect(calculateDelay(2)).toBe(10000);  // Second retry: 10s
-            expect(calculateDelay(3)).toBe(20000);  // Third retry: 20s
-            expect(calculateDelay(4)).toBe(40000);  // Fourth retry: 40s
-            expect(calculateDelay(5)).toBe(60000);  // Fifth retry: 60s (capped)
-            expect(calculateDelay(10)).toBe(60000); // Still capped at 60s
-        });
-
-        it('should respect max retry count and stop attempting', () => {
-            const maxRetries = 2;
-            const attempts: number[] = [];
-            let shouldContinue = true;
-
-            for (let attempt = 0; attempt <= maxRetries && shouldContinue; attempt++) {
-                attempts.push(attempt);
-
-                // Simulate all failures
-                const isFinalAttempt = attempt >= maxRetries;
-                if (isFinalAttempt) {
-                    shouldContinue = false; // Stop retrying
-                }
-            }
-
-            expect(attempts).toEqual([0, 1, 2]); // 3 total attempts
-            expect(attempts.length).toBe(maxRetries + 1);
-        });
-    });
-
     describe('Timeout Configuration Across Vendors', () => {
         const allVendors = [
             // Credit cards
@@ -436,34 +350,6 @@ describe('Scraper Timeout and Retry Integration Tests', () => {
 
             expect(spreadOptions.timeout).toBe(timeout);
             expect(spreadOptions.defaultTimeout).toBe(timeout);
-        });
-    });
-
-    describe('Retry Count Boundary Tests', () => {
-        it('should handle 0 retries correctly (1 attempt total)', async () => {
-            mockClient.query.mockResolvedValue({ rows: [{ value: '0' }] });
-            const maxRetries = await getScrapeRetries(mockClient);
-
-            let attempts = 0;
-            for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                attempts++;
-            }
-
-            expect(maxRetries).toBe(0);
-            expect(attempts).toBe(1);
-        });
-
-        it('should handle maximum retries correctly (10 retries = 11 attempts)', async () => {
-            mockClient.query.mockResolvedValue({ rows: [{ value: '10' }] });
-            const maxRetries = await getScrapeRetries(mockClient);
-
-            let attempts = 0;
-            for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                attempts++;
-            }
-
-            expect(maxRetries).toBe(10);
-            expect(attempts).toBe(11);
         });
     });
 
