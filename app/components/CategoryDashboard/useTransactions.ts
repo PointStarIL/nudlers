@@ -31,9 +31,13 @@ export function useTransactions() {
     sd: string, ed: string, bc?: string, isLoadMore: boolean = false
   ) => {
     if (!isLoadMore) {
-      setLoadingTransactions(true);
+      // If we already have transactions, don't show the main loading spinner 
+      // to prevent the UI from "jumping" during a refresh
+      if (transactions.length === 0) {
+        setLoadingTransactions(true);
+      }
       pageRef.current = 0;
-      setTransactions([]);
+      // Don't clear transactions immediately to keep the UI stable
     } else {
       setLoadingMore(true);
     }
@@ -96,9 +100,12 @@ export function useTransactions() {
     }
 
     if (!isLoadMore) {
-      setLoadingTransactions(true);
+      // If we already have transactions, don't show the main loading spinner
+      if (transactions.length === 0) {
+        setLoadingTransactions(true);
+      }
       pageRef.current = 0;
-      setTransactions([]);
+      // Don't clear transactions immediately to keep the UI stable
     } else {
       setLoadingMore(true);
     }
@@ -174,7 +181,7 @@ export function useTransactions() {
   };
 
   // Keep a stable ref for the refresh handler to avoid re-attaching event listeners
-  const refreshRef = React.useRef(() => {});
+  const refreshRef = React.useRef(() => { });
   React.useEffect(() => {
     refreshRef.current = () => {
       if (startDate && endDate) {
