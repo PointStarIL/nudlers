@@ -161,34 +161,15 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                 });
               }
             } else {
-              // Apply to THIS transaction only - no rule created
-              const response = await fetch(`/api/transactions/${editingTransaction.identifier}|${editingTransaction.vendor}`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  category: editCategory,
-                  ...(priceChanged && { price: priceWithSign })
-                }),
+              // Apply to THIS transaction only - use the onUpdate callback 
+              // which handles both the API call and the optimistic local state update
+              onUpdate?.(editingTransaction, priceWithSign, editCategory);
+
+              setSnackbar({
+                open: true,
+                message: `Category updated to "${editCategory}" for this transaction only.`,
+                severity: 'success'
               });
-
-              if (response.ok) {
-                setSnackbar({
-                  open: true,
-                  message: `Category updated to "${editCategory}" for this transaction only.`,
-                  severity: 'success'
-                });
-
-                // Trigger a refresh of the dashboard data
-                window.dispatchEvent(new CustomEvent('dataRefresh'));
-              } else {
-                setSnackbar({
-                  open: true,
-                  message: 'Failed to update transaction',
-                  severity: 'error'
-                });
-              }
             }
           } else if (priceChanged) {
             // Only price changed, use the regular update callback
