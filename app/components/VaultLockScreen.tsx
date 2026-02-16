@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, TextField, Button, Dialog, DialogContent, InputAdornment, IconButton, CircularProgress, Alert } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Visibility from '@mui/icons-material/Visibility';
@@ -21,25 +21,56 @@ const GlowSphere = styled(Box)(({ color }: { color: string }) => ({
 
 const StyledDialog = styled(Dialog)({
     '& .MuiPaper-root': {
-        borderRadius: '24px',
-        background: 'rgba(30, 41, 59, 0.9)',
+        borderRadius: 'var(--n-radius-2xl)',
+        background: 'var(--n-glass-bg)',
         backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+        border: '1px solid var(--n-glass-border)',
+        boxShadow: 'var(--n-shadow-xl)',
         overflow: 'hidden',
         maxWidth: '450px',
         width: '100%',
     }
 });
 
+type AuthMode = 'passkey' | 'passphrase';
+
 const VaultLockScreen: React.FC = () => {
-    const { unlockVault, initializeVault, migrateVault, unlockWithPasskey, startPasskeyRegistration, isVaultInitialized, needsMigration, isVaultModalOpen, setIsVaultModalOpen } = useStatus();
+    const {
+        unlockVault, initializeVault, migrateVault,
+        unlockWithPasskey, startPasskeyRegistration,
+        isVaultInitialized, needsMigration, hasPasskeys,
+        isVaultModalOpen, setIsVaultModalOpen,
+    } = useStatus();
+
     const [passphrase, setPassphrase] = useState('');
     const [confirmPassphrase, setConfirmPassphrase] = useState('');
     const [showPassphrase, setShowPassphrase] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPasskeySetup, setShowPasskeySetup] = useState(false);
+
+    // Determine mode: migrate > init > unlock
+    const isMigrate = needsMigration;
+    const isInit = !isVaultInitialized && !needsMigration;
+    const isUnlock = isVaultInitialized && !needsMigration;
+
+    // Default to passkey if passkeys are registered and we're in unlock mode
+    const [authMode, setAuthMode] = useState<AuthMode>('passphrase');
+
+    useEffect(() => {
+        if (isUnlock && hasPasskeys && isVaultModalOpen) {
+            setAuthMode('passkey');
+        } else {
+            setAuthMode('passphrase');
+        }
+    }, [isUnlock, hasPasskeys, isVaultModalOpen]);
+
+    // Auto-trigger passkey when modal opens and passkeys are available
+    useEffect(() => {
+        if (isVaultModalOpen && isUnlock && hasPasskeys && authMode === 'passkey' && !loading) {
+            handlePasskeyUnlock();
+        }
+    }, [isVaultModalOpen, authMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleClose = () => {
         if (!loading) {
@@ -51,16 +82,32 @@ const VaultLockScreen: React.FC = () => {
         }
     };
 
+    const handlePasskeyUnlock = async () => {
+        setLoading(true);
+        setError(null);
+        const result = await unlockWithPasskey();
+        if (!result.success) {
+            setError(result.error || 'Passkey authentication failed');
+            // On failure, stay in passkey mode but allow switching
+        } else {
+            setIsVaultModalOpen(false);
+            setPassphrase('');
+        }
+        setLoading(false);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!passphrase) return;
 
-        if (!isVaultInitialized && passphrase !== confirmPassphrase) {
+        const isActionInitOrMigrate = isInit || isMigrate;
+
+        if (isActionInitOrMigrate && passphrase !== confirmPassphrase) {
             setError('Passphrases do not match');
             return;
         }
 
-        if (!isVaultInitialized && passphrase.length < 8) {
+        if (isActionInitOrMigrate && passphrase.length < 8) {
             setError('Passphrase must be at least 8 characters long');
             return;
         }
@@ -69,7 +116,6 @@ const VaultLockScreen: React.FC = () => {
         setError(null);
 
         let result;
-        const isActionInitOrMigrate = isInit || isMigrate;
 
         if (needsMigration) {
             result = await migrateVault(passphrase);
@@ -94,10 +140,6 @@ const VaultLockScreen: React.FC = () => {
         }
     };
 
-    // Determine mode: migrate > init > unlock
-    const isMigrate = needsMigration;
-    const isInit = !isVaultInitialized && !needsMigration;
-
     return (
         <StyledDialog
             open={isVaultModalOpen || false}
@@ -111,12 +153,12 @@ const VaultLockScreen: React.FC = () => {
                 <IconButton
                     onClick={handleClose}
                     disabled={loading}
-                    sx={{ position: 'absolute', right: 16, top: 16, color: '#94a3b8', zIndex: 10 }}
+                    sx={{ position: 'absolute', right: 16, top: 16, color: 'var(--n-text-secondary)', zIndex: 10 }}
                 >
                     <CloseIcon />
                 </IconButton>
 
-                <DialogContent sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#fff', position: 'relative', zIndex: 1 }}>
+                <DialogContent sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--n-text-primary)', position: 'relative', zIndex: 1 }}>
                     {showPasskeySetup ? (
                         <>
                             <Box sx={{
@@ -128,22 +170,29 @@ const VaultLockScreen: React.FC = () => {
                                 alignItems: 'center',
                                 justifyContent: 'center'
                             }}>
-                                <FingerprintIcon sx={{ fontSize: '48px', color: '#10b981' }} />
+                                <FingerprintIcon sx={{ fontSize: '48px', color: 'var(--n-success)' }} />
                             </Box>
 
                             <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, textAlign: 'center' }}>
                                 Enable Biometric?
                             </Typography>
 
-                            <Typography variant="body1" sx={{ color: '#94a3b8', mb: 4, textAlign: 'center' }}>
+                            <Typography variant="body1" sx={{ color: 'var(--n-text-secondary)', mb: 4, textAlign: 'center' }}>
                                 Unlock your vault instantly with TouchID or FaceID next time. No need to type your passphrase.
                             </Typography>
+
+                            {error && (
+                                <Alert severity="error" sx={{ width: '100%', mb: 3, borderRadius: 'var(--n-radius-lg)' }}>
+                                    {error}
+                                </Alert>
+                            )}
 
                             <Button
                                 fullWidth
                                 variant="contained"
                                 onClick={async () => {
                                     setLoading(true);
+                                    setError(null);
                                     const result = await startPasskeyRegistration(passphrase);
                                     if (result.success) {
                                         setIsVaultModalOpen(false);
@@ -151,17 +200,17 @@ const VaultLockScreen: React.FC = () => {
                                         setShowPasskeySetup(false);
                                     } else {
                                         setError(result.error || 'Passkey registration failed');
-                                        setLoading(false);
                                     }
+                                    setLoading(false);
                                 }}
                                 disabled={loading}
                                 sx={{
                                     py: 1.5,
-                                    borderRadius: '16px',
+                                    borderRadius: 'var(--n-radius-xl)',
                                     textTransform: 'none',
                                     fontSize: '1.1rem',
                                     fontWeight: 700,
-                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                    background: 'linear-gradient(135deg, var(--n-success) 0%, #059669 100%)',
                                     boxShadow: '0 10px 15px -12px rgba(16, 185, 129, 0.4)',
                                     '&:hover': {
                                         background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
@@ -182,10 +231,10 @@ const VaultLockScreen: React.FC = () => {
                                 disabled={loading}
                                 sx={{
                                     mt: 2,
-                                    color: '#94a3b8',
+                                    color: 'var(--n-text-secondary)',
                                     textTransform: 'none',
                                     '&:hover': {
-                                        color: '#fff',
+                                        color: 'var(--n-text-primary)',
                                         backgroundColor: 'transparent'
                                     }
                                 }}
@@ -193,7 +242,8 @@ const VaultLockScreen: React.FC = () => {
                                 Skip for now
                             </Button>
                         </>
-                    ) : (
+                    ) : authMode === 'passkey' && isUnlock ? (
+                        // Passkey-first unlock screen
                         <>
                             <Box sx={{
                                 p: 2,
@@ -204,14 +254,91 @@ const VaultLockScreen: React.FC = () => {
                                 alignItems: 'center',
                                 justifyContent: 'center'
                             }}>
-                                <LockOutlinedIcon sx={{ fontSize: '48px', color: '#818cf8' }} />
+                                <FingerprintIcon sx={{ fontSize: '48px', color: 'var(--n-primary-400)' }} />
+                            </Box>
+
+                            <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, textAlign: 'center' }}>
+                                Unlock with Passkey
+                            </Typography>
+
+                            <Typography variant="body1" sx={{ color: 'var(--n-text-secondary)', mb: 4, textAlign: 'center' }}>
+                                Use your biometric or security key to unlock the vault.
+                            </Typography>
+
+                            {error && (
+                                <Alert severity="error" sx={{ width: '100%', mb: 3, borderRadius: 'var(--n-radius-lg)' }}>
+                                    {error}
+                                </Alert>
+                            )}
+
+                            <Button
+                                fullWidth
+                                variant="contained"
+                                onClick={handlePasskeyUnlock}
+                                disabled={loading}
+                                startIcon={loading ? undefined : <FingerprintIcon />}
+                                sx={{
+                                    py: 1.5,
+                                    borderRadius: 'var(--n-radius-xl)',
+                                    textTransform: 'none',
+                                    fontSize: '1.1rem',
+                                    fontWeight: 700,
+                                    background: 'linear-gradient(135deg, var(--n-primary-500) 0%, var(--n-primary-600) 100%)',
+                                    boxShadow: '0 10px 15px -12px rgba(79, 70, 229, 0.4)',
+                                    '&:hover': {
+                                        background: 'linear-gradient(135deg, var(--n-primary-600) 0%, var(--n-primary-700) 100%)',
+                                    },
+                                    '&.Mui-disabled': {
+                                        background: 'rgba(255, 255, 255, 0.1)',
+                                        color: 'rgba(255, 255, 255, 0.3)'
+                                    }
+                                }}
+                            >
+                                {loading ? <CircularProgress size={24} color="inherit" /> : 'Authenticate'}
+                            </Button>
+
+                            <Button
+                                fullWidth
+                                variant="text"
+                                onClick={() => {
+                                    setAuthMode('passphrase');
+                                    setError(null);
+                                }}
+                                disabled={loading}
+                                startIcon={<KeyIcon />}
+                                sx={{
+                                    mt: 2,
+                                    color: 'var(--n-text-secondary)',
+                                    textTransform: 'none',
+                                    '&:hover': {
+                                        color: 'var(--n-text-primary)',
+                                        backgroundColor: 'transparent'
+                                    }
+                                }}
+                            >
+                                Use passphrase instead
+                            </Button>
+                        </>
+                    ) : (
+                        // Passphrase unlock / init / migrate screen
+                        <>
+                            <Box sx={{
+                                p: 2,
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                mb: 3,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <LockOutlinedIcon sx={{ fontSize: '48px', color: 'var(--n-primary-400)' }} />
                             </Box>
 
                             <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, textAlign: 'center' }}>
                                 {isMigrate ? 'Migrate to Vault' : isInit ? 'Setup Vault' : 'Unlock Vault'}
                             </Typography>
 
-                            <Typography variant="body1" sx={{ color: '#94a3b8', mb: 4, textAlign: 'center' }}>
+                            <Typography variant="body1" sx={{ color: 'var(--n-text-secondary)', mb: 4, textAlign: 'center' }}>
                                 {isMigrate
                                     ? 'Your credentials are currently using a legacy encryption key. Create a vault passphrase to upgrade to the secure Memory-Locked Vault.'
                                     : isInit
@@ -220,7 +347,7 @@ const VaultLockScreen: React.FC = () => {
                             </Typography>
 
                             {error && (
-                                <Alert severity="error" sx={{ width: '100%', mb: 3, borderRadius: '12px' }}>
+                                <Alert severity="error" sx={{ width: '100%', mb: 3, borderRadius: 'var(--n-radius-lg)' }}>
                                     {error}
                                 </Alert>
                             )}
@@ -238,7 +365,7 @@ const VaultLockScreen: React.FC = () => {
                                     InputProps={{
                                         startAdornment: (
                                             <InputAdornment position="start">
-                                                <KeyIcon sx={{ color: '#6366f1' }} />
+                                                <KeyIcon sx={{ color: 'var(--n-primary-500)' }} />
                                             </InputAdornment>
                                         ),
                                         endAdornment: (
@@ -246,19 +373,19 @@ const VaultLockScreen: React.FC = () => {
                                                 <IconButton
                                                     onClick={() => setShowPassphrase(!showPassphrase)}
                                                     edge="end"
-                                                    sx={{ color: '#94a3b8' }}
+                                                    sx={{ color: 'var(--n-text-secondary)' }}
                                                 >
                                                     {showPassphrase ? <VisibilityOff /> : <Visibility />}
                                                 </IconButton>
                                             </InputAdornment>
                                         ),
                                         sx: {
-                                            borderRadius: '16px',
-                                            backgroundColor: 'rgba(15, 23, 42, 0.5)',
-                                            color: '#fff',
-                                            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' },
-                                            '&:hover fieldset': { borderColor: 'rgba(99, 102, 241, 0.5) !important' },
-                                            '&.Mui-focused fieldset': { borderColor: '#6366f1 !important' },
+                                            borderRadius: 'var(--n-radius-xl)',
+                                            backgroundColor: 'var(--n-bg-surface-alt)',
+                                            color: 'var(--n-text-primary)',
+                                            '& fieldset': { borderColor: 'var(--n-border)' },
+                                            '&:hover fieldset': { borderColor: 'var(--n-primary-400) !important' },
+                                            '&.Mui-focused fieldset': { borderColor: 'var(--n-primary-500) !important' },
                                         }
                                     }}
                                     sx={{ mb: (isInit || isMigrate) ? 2 : 3 }}
@@ -276,16 +403,16 @@ const VaultLockScreen: React.FC = () => {
                                         InputProps={{
                                             startAdornment: (
                                                 <InputAdornment position="start">
-                                                    <KeyIcon sx={{ color: '#6366f1' }} />
+                                                    <KeyIcon sx={{ color: 'var(--n-primary-500)' }} />
                                                 </InputAdornment>
                                             ),
                                             sx: {
-                                                borderRadius: '16px',
-                                                backgroundColor: 'rgba(15, 23, 42, 0.5)',
-                                                color: '#fff',
-                                                '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' },
-                                                '&:hover fieldset': { borderColor: 'rgba(99, 102, 241, 0.5) !important' },
-                                                '&.Mui-focused fieldset': { borderColor: '#6366f1 !important' },
+                                                borderRadius: 'var(--n-radius-xl)',
+                                                backgroundColor: 'var(--n-bg-surface-alt)',
+                                                color: 'var(--n-text-primary)',
+                                                '& fieldset': { borderColor: 'var(--n-border)' },
+                                                '&:hover fieldset': { borderColor: 'var(--n-primary-400) !important' },
+                                                '&.Mui-focused fieldset': { borderColor: 'var(--n-primary-500) !important' },
                                             }
                                         }}
                                         sx={{ mb: 3 }}
@@ -299,14 +426,14 @@ const VaultLockScreen: React.FC = () => {
                                     disabled={loading || !passphrase || ((isInit || isMigrate) && !confirmPassphrase)}
                                     sx={{
                                         py: 1.5,
-                                        borderRadius: '16px',
+                                        borderRadius: 'var(--n-radius-xl)',
                                         textTransform: 'none',
                                         fontSize: '1.1rem',
                                         fontWeight: 700,
-                                        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                                        background: 'linear-gradient(135deg, var(--n-primary-500) 0%, var(--n-primary-600) 100%)',
                                         boxShadow: '0 10px 15px -12px rgba(79, 70, 229, 0.4)',
                                         '&:hover': {
-                                            background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
+                                            background: 'linear-gradient(135deg, var(--n-primary-600) 0%, var(--n-primary-700) 100%)',
                                         },
                                         '&.Mui-disabled': {
                                             background: 'rgba(255, 255, 255, 0.1)',
@@ -317,46 +444,32 @@ const VaultLockScreen: React.FC = () => {
                                     {loading ? <CircularProgress size={24} color="inherit" /> : (isMigrate ? 'Migrate to Vault' : isInit ? 'Initialize Vault' : 'Unlock Vault')}
                                 </Button>
 
-                                {!isInit && !isMigrate && (
+                                {isUnlock && hasPasskeys && (
                                     <Button
                                         fullWidth
-                                        variant="outlined"
-                                        onClick={async () => {
-                                            setLoading(true);
+                                        variant="text"
+                                        onClick={() => {
+                                            setAuthMode('passkey');
                                             setError(null);
-                                            const result = await unlockWithPasskey();
-                                            if (!result.success) {
-                                                setError(result.error || 'Passkey authentication failed');
-                                                setLoading(false);
-                                            } else {
-                                                setLoading(false);
-                                                setIsVaultModalOpen(false);
-                                                setPassphrase('');
-                                            }
                                         }}
                                         disabled={loading}
-                                        startIcon={<KeyIcon />}
+                                        startIcon={<FingerprintIcon />}
                                         sx={{
                                             mt: 2,
-                                            py: 1.5,
-                                            borderRadius: '16px',
+                                            color: 'var(--n-text-secondary)',
                                             textTransform: 'none',
-                                            fontSize: '1rem',
-                                            fontWeight: 600,
-                                            color: '#818cf8',
-                                            borderColor: 'rgba(129, 140, 248, 0.3)',
                                             '&:hover': {
-                                                borderColor: '#818cf8',
-                                                backgroundColor: 'rgba(129, 140, 248, 0.05)',
-                                            },
+                                                color: 'var(--n-text-primary)',
+                                                backgroundColor: 'transparent'
+                                            }
                                         }}
                                     >
-                                        Unlock with Passkey
+                                        Use passkey instead
                                     </Button>
                                 )}
                             </form>
 
-                            <Typography variant="body2" sx={{ color: '#475569', mt: 3, textAlign: 'center', fontSize: '0.75rem' }}>
+                            <Typography variant="body2" sx={{ color: 'var(--n-text-muted)', mt: 3, textAlign: 'center', fontSize: '0.75rem' }}>
                                 Unlocking is only required for syncing and credential management.
                                 Data viewing and navigation are fully available.
                             </Typography>

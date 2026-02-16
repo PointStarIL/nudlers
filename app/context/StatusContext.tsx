@@ -39,12 +39,20 @@ interface SyncStatus {
     }>;
 }
 
+interface PasskeyInfo {
+    id: number;
+    credentialId: string;
+    createdAt: string;
+}
+
 interface StatusContextType {
     isDbConnected: boolean;
     dbError: boolean;
     isVaultLocked: boolean;
     isVaultInitialized: boolean;
     needsMigration: boolean;
+    hasPasskeys: boolean;
+    passkeysCount: number;
     isVaultModalOpen: boolean;
     setIsVaultModalOpen: (open: boolean) => void;
     syncStatus: SyncStatus | null;
@@ -57,6 +65,8 @@ interface StatusContextType {
     startPasskeyRegistration: (passphrase: string) => Promise<{ success: boolean; error?: string }>;
     unlockWithPasskey: () => Promise<{ success: boolean; error?: string }>;
     clearPasskeys: () => Promise<{ success: boolean; cleared?: number; error?: string }>;
+    deletePasskey: (id: number) => Promise<{ success: boolean; error?: string }>;
+    fetchPasskeys: () => Promise<PasskeyInfo[]>;
     changePassphrase: (currentPassphrase: string, newPassphrase: string) => Promise<{ success: boolean; passkeysCleared?: number; error?: string }>;
     setFullPolling: (full: boolean) => void;
 }
@@ -79,6 +89,8 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [isVaultLocked, setIsVaultLocked] = useState(false);
     const [isVaultInitialized, setIsVaultInitialized] = useState(false);
     const [needsMigration, setNeedsMigration] = useState(false);
+    const [hasPasskeys, setHasPasskeys] = useState(false);
+    const [passkeysCount, setPasskeysCount] = useState(0);
     const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
     const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
     const [isFullPolling, setIsFullPolling] = useState(false);
@@ -119,6 +131,8 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 setIsVaultLocked(vaultData.locked);
                 setIsVaultInitialized(vaultData.initialized);
                 setNeedsMigration(vaultData.needsMigration || false);
+                setHasPasskeys(vaultData.hasPasskeys || false);
+                setPasskeysCount(vaultData.passkeysCount || 0);
             }
 
             // 2. Refresh Sync Status
@@ -239,15 +253,16 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             });
 
             const verifyData = await verifyResp.json();
-            if (verifyResp.ok && verifyData.verified) {
+            if (verifyResp.ok && verifyData.success) {
+                await refreshStatus();
                 return { success: true };
             }
             return { success: false, error: verifyData.error || 'Failed to verify passkey' };
         } catch (error) {
-            console.error('Passkey registration failed:', error);
+            logger.error('Passkey registration failed', error as Error);
             return { success: false, error: (error as Error).message };
         }
-    }, []);
+    }, [refreshStatus]);
 
     const unlockWithPasskey = useCallback(async () => {
         try {
@@ -276,24 +291,55 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }
             return { success: false, error: verifyData.error || 'Failed to verify passkey' };
         } catch (error) {
-            console.error('Passkey login failed:', error);
+            logger.error('Passkey login failed', error as Error);
             return { success: false, error: (error as Error).message };
         }
     }, [refreshStatus]);
 
     const clearPasskeys = useCallback(async () => {
         try {
-            const response = await fetch('/api/vault/passkey/clear', {
+            const response = await fetch('/api/vault/passkey', {
                 method: 'DELETE'
             });
 
             const data = await response.json();
             if (response.ok) {
+                await refreshStatus();
                 return { success: true, cleared: data.cleared };
             }
             return { success: false, error: data.error || 'Failed to clear passkeys' };
         } catch (error) {
             return { success: false, error: (error as Error).message };
+        }
+    }, [refreshStatus]);
+
+    const deletePasskey = useCallback(async (id: number) => {
+        try {
+            const response = await fetch(`/api/vault/passkey/${id}`, {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                await refreshStatus();
+                return { success: true };
+            }
+            return { success: false, error: data.error || 'Failed to delete passkey' };
+        } catch (error) {
+            return { success: false, error: (error as Error).message };
+        }
+    }, [refreshStatus]);
+
+    const fetchPasskeys = useCallback(async (): Promise<PasskeyInfo[]> => {
+        try {
+            const response = await fetch('/api/vault/passkey');
+            if (response.ok) {
+                const data = await response.json();
+                return data.passkeys || [];
+            }
+            return [];
+        } catch {
+            return [];
         }
     }, []);
 
@@ -384,6 +430,8 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isVaultLocked,
         isVaultInitialized,
         needsMigration,
+        hasPasskeys,
+        passkeysCount,
         isVaultModalOpen,
         setIsVaultModalOpen,
         syncStatus,
@@ -396,6 +444,8 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         startPasskeyRegistration,
         unlockWithPasskey,
         clearPasskeys,
+        deletePasskey,
+        fetchPasskeys,
         changePassphrase,
         setFullPolling
     };

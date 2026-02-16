@@ -207,7 +207,7 @@ const StyledSelect = styled(Select)(({ theme }) => ({
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const theme = useTheme();
-  const { isVaultLocked, startPasskeyRegistration, clearPasskeys, changePassphrase } = useStatus();
+  const { isVaultLocked, startPasskeyRegistration, clearPasskeys, deletePasskey, fetchPasskeys, changePassphrase, hasPasskeys, passkeysCount } = useStatus();
   const [settings, setSettings] = useState<Settings>({
     sync_enabled: false,
     sync_hour: 3,
@@ -316,6 +316,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   // Security settings state
   const [clearingPasskeys, setClearingPasskeys] = useState(false);
   const [clearPasskeyConfirm, setClearPasskeyConfirm] = useState(false);
+  const [passkeyList, setPasskeyList] = useState<Array<{ id: number; credentialId: string; createdAt: string }>>([]);
+  const [loadingPasskeys, setLoadingPasskeys] = useState(false);
+  const [deletingPasskeyId, setDeletingPasskeyId] = useState<number | null>(null);
   const [changingPassphrase, setChangingPassphrase] = useState(false);
   const [showChangePassphrase, setShowChangePassphrase] = useState(false);
   const [currentPass, setCurrentPass] = useState('');
@@ -1145,112 +1148,181 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <SettingRow>
                 <Box>
                   <Typography variant="body1">Passkey Authentication</Typography>
-                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                  <Typography variant="caption" sx={{ color: 'var(--n-text-secondary)' }}>
                     Use biometric or security key to unlock your vault without a passphrase.
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   {!isVaultLocked ? (
-                    <>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<FingerprintIcon />}
-                        onClick={async () => {
-                          const pass = prompt("Please enter your current vault passphrase to register a passkey:");
-                          if (pass) {
-                            const result = await startPasskeyRegistration(pass);
-                            if (result.success) {
-                              setSecurityResult({ type: 'success', message: 'Passkey registered successfully!' });
-                            } else {
-                              setSecurityResult({ type: 'error', message: 'Failed to register passkey: ' + result.error });
-                            }
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<FingerprintIcon />}
+                      onClick={async () => {
+                        const pass = prompt("Please enter your current vault passphrase to register a passkey:");
+                        if (pass) {
+                          const result = await startPasskeyRegistration(pass);
+                          if (result.success) {
+                            setSecurityResult({ type: 'success', message: 'Passkey registered successfully!' });
+                            // Refresh the passkey list
+                            const passkeys = await fetchPasskeys();
+                            setPasskeyList(passkeys);
+                          } else {
+                            setSecurityResult({ type: 'error', message: 'Failed to register passkey: ' + result.error });
                           }
-                        }}
-                        sx={{
-                          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
-                          },
-                        }}
-                      >
-                        Register Passkey
-                      </Button>
-                    </>
+                        }
+                      }}
+                      sx={{
+                        background: 'linear-gradient(135deg, var(--n-primary-500) 0%, var(--n-primary-600) 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, var(--n-primary-600) 0%, var(--n-primary-700) 100%)',
+                        },
+                      }}
+                    >
+                      Register Passkey
+                    </Button>
                   ) : (
-                    <Typography variant="caption" sx={{ color: '#f87171', fontWeight: 600 }}>
+                    <Typography variant="caption" sx={{ color: 'var(--n-error)', fontWeight: 600 }}>
                       Unlock vault to manage passkeys
                     </Typography>
                   )}
                 </Box>
               </SettingRow>
 
-              {/* Clear Passkeys */}
-              <SettingRow>
-                <Box>
-                  <Typography variant="body1">Clear All Passkeys</Typography>
-                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Remove all registered passkeys. You will need to re-register to use biometric unlock.
-                  </Typography>
+              {/* Registered Passkeys List */}
+              <SettingRow sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Box>
+                    <Typography variant="body1">Registered Passkeys ({passkeysCount})</Typography>
+                    <Typography variant="caption" sx={{ color: 'var(--n-text-secondary)' }}>
+                      Manage your registered passkeys individually.
+                    </Typography>
+                  </Box>
+                  {!isVaultLocked && passkeyList.length === 0 && !loadingPasskeys && (
+                    <Button
+                      variant="text"
+                      size="small"
+                      onClick={async () => {
+                        setLoadingPasskeys(true);
+                        const passkeys = await fetchPasskeys();
+                        setPasskeyList(passkeys);
+                        setLoadingPasskeys(false);
+                      }}
+                    >
+                      Load
+                    </Button>
+                  )}
                 </Box>
-                <Box>
-                  {!isVaultLocked ? (
-                    !clearPasskeyConfirm ? (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<DeleteIcon />}
-                        onClick={() => setClearPasskeyConfirm(true)}
-                        disabled={clearingPasskeys}
+
+                {loadingPasskeys && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                )}
+
+                {passkeyList.length > 0 && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {passkeyList.map((pk) => (
+                      <Box
+                        key={pk.id}
                         sx={{
-                          borderColor: '#f87171',
-                          color: '#f87171',
-                          '&:hover': {
-                            borderColor: '#ef4444',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                          },
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          p: 1.5,
+                          borderRadius: 'var(--n-radius-md)',
+                          border: '1px solid var(--n-border)',
+                          backgroundColor: 'var(--n-bg-surface-alt)',
                         }}
                       >
-                        Clear Passkeys
-                      </Button>
-                    ) : (
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button
-                          variant="contained"
-                          size="small"
-                          color="error"
-                          disabled={clearingPasskeys}
-                          onClick={async () => {
-                            setClearingPasskeys(true);
-                            const result = await clearPasskeys();
-                            if (result.success) {
-                              setSecurityResult({ type: 'success', message: `Cleared ${result.cleared || 0} passkey(s)` });
-                            } else {
-                              setSecurityResult({ type: 'error', message: result.error || 'Failed to clear passkeys' });
-                            }
-                            setClearingPasskeys(false);
-                            setClearPasskeyConfirm(false);
-                          }}
-                        >
-                          {clearingPasskeys ? <CircularProgress size={20} color="inherit" /> : 'Confirm'}
-                        </Button>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <FingerprintIcon sx={{ color: 'var(--n-primary-500)', fontSize: 20 }} />
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              Passkey #{pk.id}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'var(--n-text-secondary)' }}>
+                              Registered {new Date(pk.createdAt).toLocaleDateString()}
+                            </Typography>
+                          </Box>
+                        </Box>
                         <Button
                           variant="outlined"
                           size="small"
-                          onClick={() => setClearPasskeyConfirm(false)}
-                          disabled={clearingPasskeys}
-                          sx={{ borderColor: theme.palette.divider, color: theme.palette.text.secondary }}
+                          color="error"
+                          disabled={deletingPasskeyId === pk.id || isVaultLocked}
+                          onClick={async () => {
+                            setDeletingPasskeyId(pk.id);
+                            const result = await deletePasskey(pk.id);
+                            if (result.success) {
+                              setPasskeyList(prev => prev.filter(p => p.id !== pk.id));
+                              setSecurityResult({ type: 'success', message: 'Passkey deleted' });
+                            } else {
+                              setSecurityResult({ type: 'error', message: result.error || 'Failed to delete passkey' });
+                            }
+                            setDeletingPasskeyId(null);
+                          }}
+                          sx={{ minWidth: 'auto', px: 1.5 }}
                         >
-                          Cancel
+                          {deletingPasskeyId === pk.id ? <CircularProgress size={16} color="inherit" /> : <DeleteIcon fontSize="small" />}
                         </Button>
                       </Box>
-                    )
-                  ) : (
-                    <Typography variant="caption" sx={{ color: '#f87171', fontWeight: 600 }}>
-                      Unlock vault first
-                    </Typography>
-                  )}
-                </Box>
+                    ))}
+
+                    {/* Clear All button below the list */}
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                      {!clearPasskeyConfirm ? (
+                        <Button
+                          variant="text"
+                          size="small"
+                          color="error"
+                          startIcon={<DeleteIcon />}
+                          onClick={() => setClearPasskeyConfirm(true)}
+                          disabled={clearingPasskeys || isVaultLocked}
+                        >
+                          Clear All
+                        </Button>
+                      ) : (
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            color="error"
+                            disabled={clearingPasskeys}
+                            onClick={async () => {
+                              setClearingPasskeys(true);
+                              const result = await clearPasskeys();
+                              if (result.success) {
+                                setPasskeyList([]);
+                                setSecurityResult({ type: 'success', message: `Cleared ${result.cleared || 0} passkey(s)` });
+                              } else {
+                                setSecurityResult({ type: 'error', message: result.error || 'Failed to clear passkeys' });
+                              }
+                              setClearingPasskeys(false);
+                              setClearPasskeyConfirm(false);
+                            }}
+                          >
+                            {clearingPasskeys ? <CircularProgress size={20} color="inherit" /> : 'Confirm Clear All'}
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => setClearPasskeyConfirm(false)}
+                            disabled={clearingPasskeys}
+                          >
+                            Cancel
+                          </Button>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                )}
+
+                {!isVaultLocked && passkeyList.length === 0 && !loadingPasskeys && passkeysCount === 0 && (
+                  <Typography variant="caption" sx={{ color: 'var(--n-text-muted)', fontStyle: 'italic' }}>
+                    No passkeys registered yet. Register one above to enable biometric unlock.
+                  </Typography>
+                )}
               </SettingRow>
 
               {/* Change Passphrase */}

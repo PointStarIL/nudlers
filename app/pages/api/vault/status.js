@@ -4,15 +4,16 @@ import { getLegacyKey } from "../utils/encryption";
 
 export default async function handler(req, res) {
     if (req.method !== 'GET') {
-        return res.status(405).end();
+        res.setHeader('Allow', ['GET']);
+        return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 
     res.setHeader('Cache-Control', 'no-store, max-age=0');
 
+    let client;
     try {
-        const client = await getDB();
+        client = await getDB();
         const result = await client.query("SELECT value FROM app_settings WHERE key = 'wrapped_master_key'");
-        client.release();
 
         const dbKey = result.rows[0]?.value;
         let isInitialized = false;
@@ -30,12 +31,25 @@ export default async function handler(req, res) {
 
         const hasLegacyKey = getLegacyKey() !== null;
 
+        // Check passkey count
+        let passkeysCount = 0;
+        try {
+            const passkeyResult = await client.query('SELECT COUNT(*) FROM vault_passkeys');
+            passkeysCount = parseInt(passkeyResult.rows[0].count, 10);
+        } catch (e) {
+            // Table might not exist yet before migration
+        }
+
         res.status(200).json({
             locked: VaultStore.isLocked(),
             initialized: isInitialized,
-            needsMigration: hasLegacyKey && !isInitialized
+            needsMigration: hasLegacyKey && !isInitialized,
+            hasPasskeys: passkeysCount > 0,
+            passkeysCount,
         });
     } catch (err) {
         res.status(500).json({ error: 'Failed to check vault status' });
+    } finally {
+        if (client) client.release();
     }
 }

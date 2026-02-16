@@ -126,19 +126,77 @@ Your credentials never leave your machine unencrypted.
 - **AES-256-GCM Encryption** — Industry-standard encryption for all credentials
 - **Local Processing** — No cloud service sees your bank passwords
 - **Secure by Design** — Credentials decrypted only at scraping time
-- **Memory-Locked Vault** — Mandatory security layer. Your master key exists only in RAM. Even if your server is compromised, credentials remain unreadable without your passphrase. High security for peace of mind.
+- **Memory-Locked Vault** — Mandatory security layer. Your master key exists only in RAM. Even if your server is compromised, credentials remain unreadable without your passphrase
+- **Passkey / Biometric Unlock** — Use TouchID, FaceID, or a hardware security key to unlock the vault without typing your passphrase
 
 ### 🔒 Memory-Locked Credentials (Vault)
 
-Nudlers uses a **Memory-Locked Vault** for all credential encryption. In this mode, your master encryption key is "wrapped" with a passphrase and stored in the database. When the application starts, it remains in a "locked" state until you provide the passphrase via the UI.
+Nudlers uses a **Memory-Locked Vault** for all credential encryption. Your master encryption key is "wrapped" with a passphrase and stored in the database. When the application starts, it remains in a "locked" state until you provide the passphrase (or use a passkey) via the UI.
 
 - **Non-Persistent**: The decrypted key exists only in the application's memory (RAM).
 - **Auto-Lock**: If the app restarts or the server reboots, the vault automatically locks.
 - **Brute-Force Protected**: Key derivation uses `scrypt` with a custom salt.
 
-#### How to enable Vault mode:
+#### How It Works
 
-- **Automatic (Recommended)**: Launch Nudlers in a fresh environment. The UI will automatically detect that the vault is uninitialized and guide you through creating a passphrase. This will generate a secure master key and store the wrapped version in your database.
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   First-Time Setup                           │
+│                                                             │
+│  1. User creates a passphrase (8+ chars)                    │
+│  2. Random 256-bit master key is generated                  │
+│  3. Master key is wrapped with passphrase (scrypt + AES)    │
+│  4. Wrapped key stored in database                          │
+│  5. Master key held in memory → vault is unlocked           │
+│  6. User optionally registers a passkey (biometric)         │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                   Subsequent Unlocks                         │
+│                                                             │
+│  Option A: Passkey (default when registered)                │
+│    1. Browser triggers WebAuthn challenge                    │
+│    2. User authenticates with biometric/security key         │
+│    3. Server verifies, retrieves encrypted passphrase        │
+│    4. Passphrase unwraps master key → vault unlocked         │
+│                                                             │
+│  Option B: Passphrase                                       │
+│    1. User types passphrase                                 │
+│    2. Passphrase derives wrapping key via scrypt             │
+│    3. Wrapping key decrypts master key → vault unlocked      │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                   Legacy Migration                           │
+│                                                             │
+│  If upgrading from env-var encryption:                       │
+│    1. UI detects NUDLERS_ENCRYPTION_KEY in environment       │
+│    2. Prompts user to create a vault passphrase              │
+│    3. All credentials re-encrypted with new master key       │
+│    4. Legacy env var can be removed after migration          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Setup Guide
+
+- **New Installation**: Launch Nudlers. The UI automatically detects that the vault is uninitialized and guides you through creating a passphrase. After setup, you'll be prompted to optionally register a passkey for biometric unlock.
+- **Legacy Migration**: If you have `NUDLERS_ENCRYPTION_KEY` set, the UI will guide you through migrating to the vault. All credentials are re-encrypted in a single transaction. You can remove the env var after migration.
+
+#### Passkey Management
+
+- Register multiple passkeys (e.g., laptop fingerprint + phone FaceID)
+- View and delete individual passkeys in **Settings → Vault Security**
+- When passkeys are registered, the vault defaults to passkey authentication
+- You can always switch to passphrase entry by clicking "Use passphrase instead"
+- Changing your passphrase invalidates all registered passkeys (re-register required)
+
+#### Environment Variables for Vault
+
+| Variable | Required | Description |
+|----------|:--------:|-------------|
+| `PASSKEY_ENCRYPTION_SECRET` | | Server-side secret for encrypting passkey data. Auto-generated default used if not set. |
+| `WEBAUTHN_RP_ID` | | WebAuthn Relying Party ID. Defaults to `localhost`. Set to your domain in production. |
+| `WEBAUTHN_ORIGIN` | | WebAuthn expected origin. Defaults to `http://localhost:6969`. Set to your app URL in production. |
 
 ### 🍓 Runs Anywhere
 

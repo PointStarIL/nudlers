@@ -2,9 +2,10 @@ import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { getDB } from '../../db';
 import crypto from 'crypto';
 import { unlockVaultWithPassphrase } from '../../../../utils/vault-utils';
+import logger from '../../../../utils/logger.js';
 
-const rpID = 'localhost';
-const origin = 'http://localhost:6969';
+const rpID = process.env.WEBAUTHN_RP_ID || 'localhost';
+const origin = process.env.WEBAUTHN_ORIGIN || 'http://localhost:6969';
 const PASSKEY_ENCRYPTION_SECRET = process.env.PASSKEY_ENCRYPTION_SECRET || 'nudlers-passkey-default-secret-change-it';
 
 function decryptPassphrase(encryptedData) {
@@ -20,7 +21,8 @@ function decryptPassphrase(encryptedData) {
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
+        res.setHeader('Allow', ['POST']);
+        return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 
     const { authenticationResponse } = req.body;
@@ -29,13 +31,13 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Missing authentication response' });
     }
 
+    let db;
     try {
-        const db = await getDB();
+        db = await getDB();
 
         // 1. Get the challenge
         const challengeResult = await db.query("SELECT value FROM app_settings WHERE key = 'passkey_authentication_challenge'");
         if (challengeResult.rows.length === 0) {
-            db.release();
             return res.status(400).json({ error: 'Authentication challenge not found or expired' });
         }
         const expectedChallenge = challengeResult.rows[0].value;
@@ -43,7 +45,6 @@ export default async function handler(req, res) {
         // 2. Get the credential from DB
         const credentialResult = await db.query("SELECT * FROM vault_passkeys WHERE credential_id = $1", [authenticationResponse.id]);
         if (credentialResult.rows.length === 0) {
-            db.release();
             return res.status(404).json({ error: 'Credential not found' });
         }
         const dbCredential = credentialResult.rows[0];
@@ -61,35 +62,35 @@ export default async function handler(req, res) {
             },
         });
 
-        if (verification.verified) {
-            const { authenticationInfo } = verification;
-            const { newCounter } = authenticationInfo;
+        if (!verification.verified) {
+            return res.status(400).json({ error: 'Passkey verification failed' });
+        }
 
-            // Update counter
-            await db.query("UPDATE vault_passkeys SET counter = $1 WHERE credential_id = $2", [newCounter, dbCredential.credential_id]);
+        const { authenticationInfo } = verification;
+        const { newCounter } = authenticationInfo;
 
-            // 4. Decrypt passphrase
-            const passphrase = decryptPassphrase(dbCredential.encrypted_passphrase);
+        // Update counter
+        await db.query("UPDATE vault_passkeys SET counter = $1 WHERE credential_id = $2", [newCounter, dbCredential.credential_id]);
 
-            // 5. Unlock vault
-            const unlockResult = await unlockVaultWithPassphrase(passphrase);
+        // 4. Decrypt passphrase
+        const passphrase = decryptPassphrase(dbCredential.encrypted_passphrase);
 
-            // Cleanup challenge
-            await db.query("DELETE FROM app_settings WHERE key = 'passkey_authentication_challenge'");
+        // 5. Unlock vault
+        const unlockResult = await unlockVaultWithPassphrase(passphrase);
 
-            db.release();
+        // Cleanup challenge
+        await db.query("DELETE FROM app_settings WHERE key = 'passkey_authentication_challenge'");
 
-            if (unlockResult.success) {
-                return res.status(200).json({ success: true, message: 'Vault unlocked via passkey' });
-            } else {
-                return res.status(401).json({ error: unlockResult.error });
-            }
+        if (unlockResult.success) {
+            logger.info('Vault unlocked via passkey');
+            return res.status(200).json({ success: true, message: 'Vault unlocked via passkey' });
         } else {
-            db.release();
-            return res.status(400).json({ verified: false, error: 'Verification failed' });
+            return res.status(401).json({ error: unlockResult.error });
         }
     } catch (error) {
-        console.error('Authentication verification failed:', error);
-        return res.status(500).json({ error: error.message });
+        logger.error({ error: error.message }, 'Passkey authentication verification failed');
+        return res.status(500).json({ error: 'Failed to verify passkey' });
+    } finally {
+        if (db) db.release();
     }
 }

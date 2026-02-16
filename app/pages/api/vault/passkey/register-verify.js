@@ -1,11 +1,11 @@
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { getDB } from '../../db';
 import crypto from 'crypto';
+import logger from '../../../../utils/logger.js';
+import VaultStore from '../../utils/VaultStore';
 
-const rpID = 'localhost';
-const origin = 'http://localhost:6969';
-
-// Server-side secret to encrypt the passphrase before storing in DB
+const rpID = process.env.WEBAUTHN_RP_ID || 'localhost';
+const origin = process.env.WEBAUTHN_ORIGIN || 'http://localhost:6969';
 const PASSKEY_ENCRYPTION_SECRET = process.env.PASSKEY_ENCRYPTION_SECRET || 'nudlers-passkey-default-secret-change-it';
 
 function encryptPassphrase(passphrase) {
@@ -19,22 +19,27 @@ function encryptPassphrase(passphrase) {
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
+        res.setHeader('Allow', ['POST']);
+        return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    }
+
+    if (VaultStore.isLocked()) {
+        return res.status(403).json({ error: 'Vault must be unlocked to register passkeys' });
     }
 
     const { registrationResponse, passphrase } = req.body;
 
     if (!registrationResponse || !passphrase) {
-        return res.status(400).json({ error: 'Missing required fields' });
+        return res.status(400).json({ error: 'Missing required fields: registrationResponse and passphrase' });
     }
 
+    let db;
     try {
-        const db = await getDB();
+        db = await getDB();
 
         // 1. Get the challenge we stored
         const challengeResult = await db.query("SELECT value FROM app_settings WHERE key = 'passkey_registration_challenge'");
         if (challengeResult.rows.length === 0) {
-            db.release();
             return res.status(400).json({ error: 'Registration challenge not found or expired' });
         }
         const expectedChallenge = challengeResult.rows[0].value;
@@ -47,19 +52,24 @@ export default async function handler(req, res) {
             expectedRPID: rpID,
         });
 
-        if (verification.verified) {
-            const { registrationInfo } = verification;
-            const { credential } = registrationInfo;
-            const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
+        if (!verification.verified) {
+            return res.status(400).json({ error: 'Passkey verification failed' });
+        }
 
-            // 3. Encrypt the passphrase
-            const encryptedPassphrase = encryptPassphrase(passphrase);
+        const { registrationInfo } = verification;
+        const { credential } = registrationInfo;
+        const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
 
-            // 4. Store the credential
+        // 3. Encrypt the passphrase
+        const encryptedPassphrase = encryptPassphrase(passphrase);
+
+        // 4. Store the credential and cleanup challenge in a transaction
+        await db.query('BEGIN');
+        try {
             await db.query(`
-        INSERT INTO vault_passkeys (credential_id, public_key, counter, transports, encrypted_passphrase)
-        VALUES ($1, $2, $3, $4, $5)
-      `, [
+                INSERT INTO vault_passkeys (credential_id, public_key, counter, transports, encrypted_passphrase)
+                VALUES ($1, $2, $3, $4, $5)
+            `, [
                 registrationResponse.id,
                 Buffer.from(credentialPublicKey),
                 counter,
@@ -67,17 +77,19 @@ export default async function handler(req, res) {
                 encryptedPassphrase
             ]);
 
-            // Cleanup challenge
             await db.query("DELETE FROM app_settings WHERE key = 'passkey_registration_challenge'");
-
-            db.release();
-            return res.status(200).json({ verified: true });
-        } else {
-            db.release();
-            return res.status(400).json({ verified: false, error: 'Verification failed' });
+            await db.query('COMMIT');
+        } catch (txErr) {
+            await db.query('ROLLBACK').catch(() => { });
+            throw txErr;
         }
+
+        logger.info('Passkey registered successfully');
+        return res.status(201).json({ success: true, message: 'Passkey registered successfully' });
     } catch (error) {
-        console.error('Registration verification failed:', error);
-        return res.status(500).json({ error: error.message });
+        logger.error({ error: error.message }, 'Passkey registration verification failed');
+        return res.status(500).json({ error: 'Failed to register passkey' });
+    } finally {
+        if (db) db.release();
     }
 }

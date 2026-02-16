@@ -1471,82 +1471,36 @@ paths:
         '500':
           description: Server configuration error
 
-  /vault/passkey/register-options:
+  /vault/passkey:
     get:
       tags:
         - Operations
-      summary: Get passkey registration options
+      summary: List registered passkeys
+      description: Returns all registered passkeys with their IDs and creation dates.
       responses:
         '200':
-          description: Registration options
+          description: Passkey list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  passkeys:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        credentialId:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                  total:
+                    type: integer
         '500':
           description: Server error
-
-  /vault/passkey/register-verify:
-    post:
-      tags:
-        - Operations
-      summary: Verify passkey registration
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - registrationResponse
-                - passphrase
-              properties:
-                registrationResponse:
-                  type: object
-                passphrase:
-                  type: string
-      responses:
-        '200':
-          description: Passkey registered successfully
-        '400':
-          description: Verification failed
-        '500':
-          description: Server error
-
-  /vault/passkey/login-options:
-    get:
-      tags:
-        - Operations
-      summary: Get passkey login options
-      responses:
-        '200':
-          description: Authentication options
-        '500':
-          description: Server error
-
-  /vault/passkey/login-verify:
-    post:
-      tags:
-        - Operations
-      summary: Verify passkey login and unlock vault
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - authenticationResponse
-              properties:
-                authenticationResponse:
-                  type: object
-      responses:
-        '200':
-          description: Vault unlocked successfully
-        '400':
-          description: Verification failed
-        '401':
-          description: Unlock failed
-        '500':
-          description: Server error
-
-  /vault/passkey/clear:
     delete:
       tags:
         - Operations
@@ -1569,6 +1523,130 @@ paths:
                     description: Number of passkeys removed
         '403':
           description: Vault is locked
+        '500':
+          description: Server error
+
+  /vault/passkey/{id}:
+    delete:
+      tags:
+        - Operations
+      summary: Delete a specific passkey
+      description: Removes a single registered passkey by ID. Requires the vault to be unlocked.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Passkey ID to delete
+      responses:
+        '200':
+          description: Passkey deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          description: Invalid passkey ID
+        '403':
+          description: Vault is locked
+        '404':
+          description: Passkey not found
+        '500':
+          description: Server error
+
+  /vault/passkey/register-options:
+    get:
+      tags:
+        - Operations
+      summary: Get passkey registration options
+      description: Returns WebAuthn registration options for creating a new passkey.
+      responses:
+        '200':
+          description: Registration options (WebAuthn PublicKeyCredentialCreationOptions)
+        '500':
+          description: Server error
+
+  /vault/passkey/register-verify:
+    post:
+      tags:
+        - Operations
+      summary: Verify passkey registration
+      description: |
+        Verifies the WebAuthn registration response and stores the credential.
+        Requires the vault to be unlocked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - registrationResponse
+                - passphrase
+              properties:
+                registrationResponse:
+                  type: object
+                  description: WebAuthn registration response from the browser
+                passphrase:
+                  type: string
+                  description: Current vault passphrase (encrypted and stored with the passkey)
+      responses:
+        '201':
+          description: Passkey registered successfully
+        '400':
+          description: Verification failed or challenge not found
+        '403':
+          description: Vault is locked
+        '500':
+          description: Server error
+
+  /vault/passkey/login-options:
+    get:
+      tags:
+        - Operations
+      summary: Get passkey login options
+      description: Returns WebAuthn authentication options for passkey-based unlock.
+      responses:
+        '200':
+          description: Authentication options (WebAuthn PublicKeyCredentialRequestOptions)
+        '404':
+          description: No passkeys registered
+        '500':
+          description: Server error
+
+  /vault/passkey/login-verify:
+    post:
+      tags:
+        - Operations
+      summary: Verify passkey login and unlock vault
+      description: |
+        Verifies the WebAuthn authentication response, decrypts the stored passphrase,
+        and unlocks the vault.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - authenticationResponse
+              properties:
+                authenticationResponse:
+                  type: object
+                  description: WebAuthn authentication response from the browser
+      responses:
+        '200':
+          description: Vault unlocked successfully
+        '400':
+          description: Verification failed or challenge not found
+        '401':
+          description: Vault unlock failed with decrypted passphrase
+        '404':
+          description: Credential not found
         '500':
           description: Server error
 
@@ -1626,7 +1704,7 @@ paths:
       tags:
         - Operations
       summary: Get vault status
-      description: Returns whether the vault is currently locked or unlocked.
+      description: Returns the current vault state including lock status, initialization, and passkey information.
       responses:
         '200':
           description: Vault status
@@ -1643,6 +1721,12 @@ paths:
                   needsMigration:
                     type: boolean
                     description: True if a legacy NUDLERS_ENCRYPTION_KEY is detected and vault is not yet initialized.
+                  hasPasskeys:
+                    type: boolean
+                    description: True if at least one passkey is registered.
+                  passkeysCount:
+                    type: integer
+                    description: Number of registered passkeys.
 
   /vault/migrate:
     post:

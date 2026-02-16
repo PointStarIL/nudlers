@@ -26,6 +26,8 @@ const mockStatusValue = (health: string, accounts?: number) => ({
     isVaultLocked: false,
     isVaultInitialized: true,
     needsMigration: false,
+    hasPasskeys: false,
+    passkeysCount: 0,
     isVaultModalOpen: false,
     setIsVaultModalOpen: () => { },
     syncStatus: makeSyncStatus(health, accounts),
@@ -37,6 +39,10 @@ const mockStatusValue = (health: string, accounts?: number) => ({
     lockVault: async () => ({ success: true as const }),
     unlockWithPasskey: async () => ({ success: true as const }),
     startPasskeyRegistration: async () => ({ success: true as const }),
+    clearPasskeys: async () => ({ success: true as const, cleared: 0 }),
+    deletePasskey: async () => ({ success: true as const }),
+    fetchPasskeys: async () => ([]),
+    changePassphrase: async () => ({ success: true as const }),
     setFullPolling: () => { },
 });
 

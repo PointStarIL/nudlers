@@ -5,7 +5,8 @@ import logger from '../../../utils/logger.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
-        return res.status(405).end();
+        res.setHeader('Allow', ['POST']);
+        return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 
     const { passphrase } = req.body;
@@ -13,15 +14,15 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Passphrase must be at least 8 characters long' });
     }
 
+    let client;
     try {
-        const client = await getDB();
+        client = await getDB();
 
         // 1. Check if already initialized
         const checkResult = await client.query("SELECT value FROM app_settings WHERE key = 'wrapped_master_key'");
         const existingValue = checkResult.rows[0]?.value;
 
         if (existingValue && existingValue.length > 0) {
-            client.release();
             return res.status(400).json({ error: 'Vault is already initialized. Use unlock instead.' });
         }
 
@@ -41,12 +42,11 @@ export default async function handler(req, res) {
 
         // 4. Save to DB (UPSERT)
         await client.query(
-            `INSERT INTO app_settings (key, value, description) 
+            `INSERT INTO app_settings (key, value, description)
              VALUES ('wrapped_master_key', $1, 'The master key wrapped with a passphrase for memory-locked credentials')
              ON CONFLICT (key) DO UPDATE SET value = $1`,
             [JSON.stringify(wrappedStr)]
         );
-        client.release();
 
         // 5. Instantly unlock it in memory
         VaultStore.setKey(masterKey);
@@ -55,9 +55,11 @@ export default async function handler(req, res) {
         wrappingKey.fill(0);
 
         logger.info("Vault initialized and unlocked successfully");
-        res.status(200).json({ success: true, message: 'Vault initialized' });
+        res.status(201).json({ success: true, message: 'Vault initialized' });
     } catch (err) {
         logger.error({ error: err.message }, "Failed to initialize vault");
         res.status(500).json({ error: 'Failed to initialize vault' });
+    } finally {
+        if (client) client.release();
     }
 }
