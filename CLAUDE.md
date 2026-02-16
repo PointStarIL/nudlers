@@ -275,8 +275,7 @@ NUDLERS_DB_NAME=
 NUDLERS_DB_PASSWORD=
 NUDLERS_DB_PORT=5432
 
-# Encryption
-ENCRYPTION_KEY=   # 32-byte hex for credential encryption
+# Vault (stored in database app_settings table, not in env vars)
 
 # Resource Mode
 RESOURCE_MODE=normal  # normal | low
@@ -331,7 +330,7 @@ LOG_LEVEL=info        # Logging level
 ## Gotchas and Tips
 
 1. **Database connections**: Always call `client.release()` in a `finally` block
-2. **Encryption**: Credentials are encrypted at rest; use `encrypt()`/`decrypt()` from `utils/encryption.js`
+2. **Encryption**: Credentials are encrypted at rest; the application uses a Memory-Locked Vault. Ensure you handle `VaultLockedError` and use `encrypt()`/`decrypt()` from `utils/encryption.js`.
 3. **Scraper timeouts**: Default 90s, configurable via settings or resource mode
 4. **Theme colors**: Always use CSS variables (`var(--n-*)`) for theme compatibility
 5. **Date handling**: Use `date-fns` for date manipulation

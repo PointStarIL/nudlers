@@ -126,6 +126,19 @@ Your credentials never leave your machine unencrypted.
 - **AES-256-GCM Encryption** — Industry-standard encryption for all credentials
 - **Local Processing** — No cloud service sees your bank passwords
 - **Secure by Design** — Credentials decrypted only at scraping time
+- **Memory-Locked Vault** — Mandatory security layer. Your master key exists only in RAM. Even if your server is compromised, credentials remain unreadable without your passphrase. High security for peace of mind.
+
+### 🔒 Memory-Locked Credentials (Vault)
+
+Nudlers uses a **Memory-Locked Vault** for all credential encryption. In this mode, your master encryption key is "wrapped" with a passphrase and stored in the database. When the application starts, it remains in a "locked" state until you provide the passphrase via the UI.
+
+- **Non-Persistent**: The decrypted key exists only in the application's memory (RAM).
+- **Auto-Lock**: If the app restarts or the server reboots, the vault automatically locks.
+- **Brute-Force Protected**: Key derivation uses `scrypt` with a custom salt.
+
+#### How to enable Vault mode:
+
+- **Automatic (Recommended)**: Launch Nudlers in a fresh environment. The UI will automatically detect that the vault is uninitialized and guide you through creating a passphrase. This will generate a secure master key and store the wrapped version in your database.
 
 ### 🍓 Runs Anywhere
 
@@ -170,15 +183,10 @@ cd nudlers
 
 # Configure environment
 cp .env_example .env
-# Edit .env with your database password and encryption key
+# Edit .env with your database password
 
 # Start everything
 docker-compose up -d
-```
-
-**Generate your encryption key:**
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 Open **http://localhost:3000** and start adding your accounts!
@@ -231,7 +239,6 @@ npm run dev
 | `NUDLERS_DB_NAME` | ✅ | Database name |
 | `NUDLERS_DB_PASSWORD` | ✅ | Database password |
 | `NUDLERS_DB_PORT` | | Database port (default: `5432`) |
-| `NUDLERS_ENCRYPTION_KEY` | ✅ | 64-character hex key for credential encryption |
 | `RESOURCE_MODE` | | `normal` or `low` (default: `normal`) |
 
 ### Application Settings

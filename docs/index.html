@@ -305,8 +305,7 @@ NUDLERS_DB_NAME=nudlers
 NUDLERS_DB_PASSWORD=your_secure_password
 NUDLERS_DB_PORT=5432
 
-# Encryption (32-byte hex key for credential storage)
-ENCRYPTION_KEY=your_64_char_hex_key_here
+# Vault: configured automatically via the UI on first run
 
 # Resource Mode (normal | low)
 RESOURCE_MODE=normal
@@ -469,8 +468,9 @@ npm run dev</code></pre>
                     <div class="faq-answer">
                         <p>
                             Your credentials are stored encrypted in the database using AES-256 encryption.
-                            The encryption key is provided by you via an environment variable and is never stored
-                            alongside the data. Without the key, the credentials are unreadable.
+                            Nudlers uses a Memory-Locked Vault where your master key exists only in RAM
+                            while the vault is unlocked. Even if your database is compromised,
+                            your credentials remain secure.
                         </p>
                     </div>
                 </details>

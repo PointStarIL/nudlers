@@ -43,7 +43,8 @@ services:
       - NUDLERS_DB_NAME=${NUDLERS_DB_NAME:-nudlers}
       - NUDLERS_DB_PASSWORD=${NUDLERS_DB_PASSWORD:?NUDLERS_DB_PASSWORD is required}
       - NUDLERS_DB_PORT=5432
-      - NUDLERS_ENCRYPTION_KEY=${NUDLERS_ENCRYPTION_KEY:?NUDLERS_ENCRYPTION_KEY is required}
+      # Legacy encryption key (pass through for vault migration)
+      - NUDLERS_ENCRYPTION_KEY=${NUDLERS_ENCRYPTION_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       # Resource mode: normal | low (defaults to low for NAS)
       - RESOURCE_MODE=${RESOURCE_MODE:-low}
