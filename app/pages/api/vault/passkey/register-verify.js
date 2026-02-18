@@ -4,8 +4,8 @@ import crypto from 'crypto';
 import logger from '../../../../utils/logger.js';
 import VaultStore from '../../utils/VaultStore';
 
-const rpID = process.env.WEBAUTHN_RP_ID || 'localhost';
-const origin = process.env.WEBAUTHN_ORIGIN || 'http://localhost:6969';
+import { getRpID, getOrigin } from './utils';
+
 const PASSKEY_ENCRYPTION_SECRET = process.env.PASSKEY_ENCRYPTION_SECRET || 'nudlers-passkey-default-secret-change-it';
 const PASSKEY_SCRYPT_SALT = 'nudlers-passkey-scrypt-salt';
 
@@ -49,8 +49,8 @@ export default async function handler(req, res) {
         const verification = await verifyRegistrationResponse({
             response: registrationResponse,
             expectedChallenge,
-            expectedOrigin: origin,
-            expectedRPID: rpID,
+            expectedOrigin: getOrigin(req),
+            expectedRPID: getRpID(req),
         });
 
         if (!verification.verified) {

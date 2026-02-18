@@ -2,7 +2,7 @@ import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { getDB } from '../../db';
 import logger from '../../../../utils/logger.js';
 
-const rpID = process.env.WEBAUTHN_RP_ID || 'localhost';
+import { getRpID } from './utils';
 
 export default async function handler(req, res) {
     if (req.method !== 'GET') {
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
         }
 
         const options = await generateAuthenticationOptions({
-            rpID,
+            rpID: getRpID(req),
             allowCredentials: credentialsResult.rows.map(row => ({
                 id: row.credential_id,
                 transports: typeof row.transports === 'string' ? JSON.parse(row.transports) : (row.transports || []),

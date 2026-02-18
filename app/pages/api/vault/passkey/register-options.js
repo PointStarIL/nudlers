@@ -2,8 +2,9 @@ import { generateRegistrationOptions } from '@simplewebauthn/server';
 import { getDB } from '../../db';
 import logger from '../../../../utils/logger.js';
 
+import { getRpID } from './utils';
+
 const rpName = 'Nudlers Finance';
-const rpID = process.env.WEBAUTHN_RP_ID || 'localhost';
 
 export default async function handler(req, res) {
     if (req.method !== 'GET') {
@@ -15,7 +16,7 @@ export default async function handler(req, res) {
     try {
         const options = await generateRegistrationOptions({
             rpName,
-            rpID,
+            rpID: getRpID(req),
             userID: Buffer.from('user'),
             userName: 'user@nudlers.finance',
             attestationType: 'none',
