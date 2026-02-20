@@ -11,7 +11,15 @@ vi.mock('../utils/logger.js', () => ({
 // Mock encryption with deterministic behavior
 vi.mock('../pages/api/utils/encryption', () => ({
     encrypt: vi.fn((text) => `encrypted:${text}`),
-    decrypt: vi.fn((text) => text.replace('encrypted:', ''))
+    decrypt: vi.fn((text) => text.replace('encrypted:', '')),
+    safeDecrypt: vi.fn((text) => text.replace('encrypted:', '')),
+    VaultLockedError: class VaultLockedError extends Error {
+        constructor() {
+            super('Vault is locked');
+            this.name = 'VaultLockedError';
+            this.status = 401;
+        }
+    }
 }));
 
 import { getDB } from '../pages/api/db';
@@ -273,16 +281,16 @@ describe('Credential by ID API (/api/credentials/[id])', () => {
             expect(params).toEqual(['1', false]);
         });
 
-        it('should return 500 when is_active is not boolean', async () => {
-            mockClient.query.mockRejectedValue(new Error('is_active must be a boolean'));
-
+        it('should return 400 when is_active is not boolean', async () => {
             await credentialByIdHandler({
                 method: 'PATCH',
                 query: { id: '1' },
                 body: { is_active: 'yes' }
             } as any, mockRes as any);
 
-            expect(mockRes.status).toHaveBeenCalledWith(500);
+            // Validation catches this before hitting the DB
+            expect(mockClient.query).not.toHaveBeenCalled();
+            expect(mockRes.status).toHaveBeenCalledWith(400);
         });
     });
 
@@ -348,12 +356,13 @@ describe('Credential by ID API (/api/credentials/[id])', () => {
             expect(mockRes.status).toHaveBeenCalledWith(400);
         });
 
-        it('should return 400 for unsupported methods', async () => {
+        it('should return 405 for unsupported methods', async () => {
             await credentialByIdHandler({
                 method: 'POST', query: { id: '1' }
             } as any, mockRes as any);
 
-            expect(mockRes.status).toHaveBeenCalledWith(400);
+            expect(mockRes.setHeader).toHaveBeenCalledWith('Allow', ['DELETE', 'GET', 'PATCH', 'PUT']);
+            expect(mockRes.status).toHaveBeenCalledWith(405);
         });
     });
 });

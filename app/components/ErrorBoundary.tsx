@@ -10,25 +10,46 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  isChunkError: boolean;
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, isChunkError: false };
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+    const isChunkError = error.name === 'ChunkLoadError' ||
+      error.message?.includes('Loading chunk') ||
+      error.message?.includes('Failed to load chunk') ||
+      error.message?.includes('Loading CSS chunk');
+    return { hasError: true, error, isChunkError };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log to console in development; in production this could go to a logging service
+    const isChunkError = error.name === 'ChunkLoadError' ||
+      error.message?.includes('Loading chunk') ||
+      error.message?.includes('Failed to load chunk') ||
+      error.message?.includes('Loading CSS chunk');
+
+    if (isChunkError) {
+      // Chunk load errors usually mean a new deployment happened.
+      // Auto-reload once to get the fresh chunks.
+      const reloadKey = 'chunk-error-reload';
+      const lastReload = sessionStorage.getItem(reloadKey);
+      if (!lastReload || Date.now() - Number(lastReload) > 30000) {
+        sessionStorage.setItem(reloadKey, String(Date.now()));
+        window.location.reload();
+        return;
+      }
+    }
+
     console.error('[ErrorBoundary]', error, errorInfo.componentStack);
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, isChunkError: false });
   };
 
   render() {
@@ -45,17 +66,19 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           textAlign: 'center'
         }}>
           <Typography variant="h5" color="error">
-            Something went wrong
+            {this.state.isChunkError ? 'Update Available' : 'Something went wrong'}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            An unexpected error occurred. Please try again.
+            {this.state.isChunkError
+              ? 'A newer version is available. Please reload the page.'
+              : 'An unexpected error occurred. Please try again.'}
           </Typography>
           <Button
             variant="contained"
-            onClick={this.handleReset}
+            onClick={this.state.isChunkError ? () => window.location.reload() : this.handleReset}
             sx={{ mt: 2 }}
           >
-            Try Again
+            {this.state.isChunkError ? 'Reload Page' : 'Try Again'}
           </Button>
         </Box>
       );

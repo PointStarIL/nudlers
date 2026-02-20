@@ -28,6 +28,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useNotification } from './NotificationContext';
 import ModalHeader from './ModalHeader';
 import { useTheme } from '@mui/material/styles';
+import { useStatus } from '../context/StatusContext';
 import { BEINLEUMI_GROUP_VENDORS, STANDARD_BANK_VENDORS } from '../utils/constants';
 import dynamic from 'next/dynamic';
 import { ScrapeReportTransaction } from './ScrapeReport';
@@ -107,6 +108,7 @@ interface RateLimitState {
 
 export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig }: ScrapeModalProps) {
   const theme = useTheme();
+  const { setIsVaultModalOpen } = useStatus();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressState | null>(null);
@@ -310,6 +312,10 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
           errorMsg = errorData.message || errorMsg;
           if (errorData.type === 'CONCURRENCY_ERROR') {
             setErrorType('CONCURRENCY_ERROR');
+          } else if (errorData.type === 'VAULT_LOCKED') {
+            setIsVaultModalOpen(true);
+            onClose();
+            return;
           }
         } catch {
           // not json, stick with default
@@ -426,6 +432,10 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
             } else if (currentEvent === 'error') {
               if (data.type === 'CONCURRENCY_ERROR') {
                 setErrorType('CONCURRENCY_ERROR');
+              } else if (data.type === 'VAULT_LOCKED') {
+                setIsVaultModalOpen(true);
+                onClose();
+                return;
               }
               const errorWithHint = data.hint ? `${data.message}\n\n💡 Hint: ${data.hint}` : data.message;
               throw new Error(errorWithHint);

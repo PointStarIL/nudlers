@@ -14,8 +14,10 @@ import {
     TextField,
     MenuItem,
     IconButton,
-    Container
+    Container,
+    Tooltip
 } from '@mui/material';
+import LockIcon from '@mui/icons-material/Lock';
 import AddIcon from '@mui/icons-material/Add';
 import HistoryIcon from '@mui/icons-material/History';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -30,6 +32,7 @@ import { CREDIT_CARD_VENDORS, BANK_VENDORS, BEINLEUMI_GROUP_VENDORS, STANDARD_BA
 import { logger } from '../utils/client-logger';
 import PageHeader from './PageHeader';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import { useStatus } from '../context/StatusContext';
 
 interface Account {
     id: number;
@@ -110,10 +113,12 @@ const AccountsView: React.FC = () => {
         }
     }, []);
 
+    const { isVaultLocked } = useStatus();
+
     useEffect(() => {
         fetchAccounts();
         fetchCardOwnership();
-    }, [fetchAccounts, fetchCardOwnership]);
+    }, [fetchAccounts, fetchCardOwnership, isVaultLocked]);
 
     const handleToggleActive = async (account: Account) => {
         try {
@@ -302,20 +307,27 @@ const AccountsView: React.FC = () => {
                         >
                             History
                         </Button>
-                        <Button
-                            variant="contained"
-                            startIcon={<AddIcon />}
-                            onClick={openAddModal}
-                            sx={{
-                                borderRadius: '12px',
-                                textTransform: 'none',
-                                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-                                boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)',
-                                '&:hover': { background: 'linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)' }
-                            }}
-                        >
-                            Add Connection
-                        </Button>
+                        <Tooltip title={isVaultLocked ? "Unlock vault to add a connection" : ""}>
+                            <span>
+                                <Button
+                                    variant="contained"
+                                    startIcon={isVaultLocked ? <LockIcon /> : <AddIcon />}
+                                    onClick={openAddModal}
+                                    disabled={isVaultLocked}
+                                    sx={{
+                                        borderRadius: '12px',
+                                        textTransform: 'none',
+                                        background: isVaultLocked
+                                            ? alpha(theme.palette.text.disabled, 0.1)
+                                            : 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                                        boxShadow: isVaultLocked ? 'none' : '0 4px 15px rgba(99, 102, 241, 0.3)',
+                                        '&:hover': { background: isVaultLocked ? 'none' : 'linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)' }
+                                    }}
+                                >
+                                    Add Connection
+                                </Button>
+                            </span>
+                        </Tooltip>
                     </Box>
                 }
             />
@@ -339,6 +351,7 @@ const AccountsView: React.FC = () => {
                                     <Grid item xs={12} sm={6} lg={4} key={account.id}>
                                         <AccountCard
                                             account={account}
+                                            isVaultLocked={isVaultLocked}
                                             onEdit={openEditModal}
                                             onSync={handleSync}
                                             onTruncate={(a) => setTruncateConfirm({ isOpen: true, account: a })}
@@ -369,6 +382,7 @@ const AccountsView: React.FC = () => {
                                     <Grid item xs={12} sm={6} lg={4} key={account.id}>
                                         <AccountCard
                                             account={account}
+                                            isVaultLocked={isVaultLocked}
                                             ownedCards={cardOwnership.filter(co => co.credential_id === account.id)}
                                             onEdit={openEditModal}
                                             onSync={handleSync}

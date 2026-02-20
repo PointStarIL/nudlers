@@ -1,5 +1,6 @@
 import { getDB } from "../db";
 import logger from '../../../utils/logger.js';
+import { VaultLockedError } from "./encryption";
 
 /**
  * Generic API handler utility for database operations
@@ -30,6 +31,12 @@ export function createApiHandler({ query, validate, transform }) {
       }
       res.status(200).json(data);
     } catch (error) {
+      if (error instanceof VaultLockedError) {
+        return res.status(401).json({
+          error: error.message,
+          type: 'VAULT_LOCKED'
+        });
+      }
       logger.error({ error: error.message, stack: error.stack }, "Error executing query");
       res.status(500).json({ error: "Internal Server Error" });
     } finally {

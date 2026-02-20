@@ -21,6 +21,7 @@ import {
     checkScraperConcurrency,
 } from '../utils/scraperUtils';
 import { BANK_VENDORS } from '../../../utils/constants';
+import { VaultLockedError } from '../utils/encryption';
 
 // Helper to send SSE messages to the local client
 function sendSSE(res, event, data) {
@@ -262,6 +263,14 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
+        if (error instanceof VaultLockedError) {
+            sendSSE(res, 'error', {
+                message: error.message,
+                type: 'VAULT_LOCKED'
+            });
+            res.end();
+            return;
+        }
         logger.error({ error: error.message }, '[Sync All Stream] Fatal error');
         sendSSE(res, 'error', { message: error.message });
     } finally {

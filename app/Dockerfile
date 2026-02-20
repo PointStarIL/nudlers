@@ -27,8 +27,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build the application
+# Give the build enough heap space (NAS devices may have limited RAM)
 ENV NEXT_TELEMETRY_DISABLED=1 \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    NODE_OPTIONS="--max-old-space-size=1536"
 RUN npm run build
 
 # =============================================================================

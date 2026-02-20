@@ -1,5 +1,5 @@
 import { createApiHandler } from "../utils/apiHandler";
-import { encrypt, decrypt } from "../utils/encryption";
+import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 
 const handler = createApiHandler({
   validate: (req) => {
@@ -30,7 +30,7 @@ const handler = createApiHandler({
       }
       if (req.method === 'POST') {
         const { vendor, username, password, id_number, card6_digits, nickname, bank_account_number } = req.body;
-        
+
         // Encrypt sensitive data
         const encryptedData = {
           vendor,
@@ -60,7 +60,7 @@ const handler = createApiHandler({
         };
       }
     } finally {
-      
+
     }
   },
   transform: (result) => {
@@ -68,11 +68,11 @@ const handler = createApiHandler({
       return result.rows.map(row => ({
         id: row.id,
         vendor: row.vendor,
-        username: row.username ? decrypt(row.username) : null,
+        username: row.username ? safeDecrypt(row.username) : null,
         // SECURITY: Never return passwords to the client
         // password field is omitted for security
-        id_number: row.id_number ? decrypt(row.id_number) : null,
-        card6_digits: row.card6_digits ? decrypt(row.card6_digits) : null,
+        id_number: row.id_number ? safeDecrypt(row.id_number) : null,
+        card6_digits: row.card6_digits ? safeDecrypt(row.card6_digits) : null,
         nickname: row.nickname,
         bank_account_number: row.bank_account_number,
         is_active: row.is_active !== false, // Default to true if null

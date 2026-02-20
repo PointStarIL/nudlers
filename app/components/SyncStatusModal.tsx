@@ -39,6 +39,7 @@ import { ScrapeReportSummary, ScrapeReportTransaction } from './ScrapeReport';
 const ScrapeReport = dynamic(() => import('./ScrapeReport'), { ssr: false });
 import ImageIcon from '@mui/icons-material/Image';
 import CloseIcon from '@mui/icons-material/Close';
+import LockIcon from '@mui/icons-material/Lock';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 
@@ -246,7 +247,7 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { showNotification } = useNotification();
-  const { syncStatus: status, refreshStatus: fetchStatus, setFullPolling } = useStatus();
+  const { syncStatus: status, refreshStatus: fetchStatus, setFullPolling, setIsVaultModalOpen, isVaultLocked } = useStatus();
   const loading = !status;
   const [isSyncing, setIsSyncing] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -544,6 +545,12 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
   };
 
   const handleSyncAll = async () => {
+    if (isVaultLocked) {
+      setIsVaultModalOpen(true);
+      onClose();
+      return;
+    }
+
     if (isSyncing) {
       if (isStopping) return;
       setIsStopping(true);
@@ -707,7 +714,13 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
                   return;
 
                 case 'error':
-                  throw new Error(eventData.message);
+                  if (eventData.type === 'VAULT_LOCKED') {
+                    setIsVaultModalOpen(true);
+                    onClose();
+                    return;
+                  }
+                  const errorWithHint = eventData.hint ? `${eventData.message}\n\n💡 Hint: ${eventData.hint}` : eventData.message;
+                  throw new Error(errorWithHint);
               }
             }
           }
@@ -726,6 +739,12 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
   };
 
   const handleSyncSingle = async (accountId: number, initialNickname?: string, initialVendor?: string, overrideStartDate?: string, overrideShowBrowser?: boolean) => {
+    if (isVaultLocked) {
+      setIsVaultModalOpen(true);
+      onClose();
+      return;
+    }
+
     if (isSyncing || isInitializing) return;
 
     // Optimistic UI update - set state immediately for instant feedback
@@ -802,7 +821,19 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
           signal: abortControllerRef.current.signal
         });
 
-        if (!syncResponse.ok) throw new Error(`Failed to sync ${account.nickname || account.vendor}`);
+        if (!syncResponse.ok) {
+          try {
+            const errorData = await syncResponse.json();
+            if (errorData.type === 'VAULT_LOCKED') {
+              setIsVaultModalOpen(true);
+              onClose();
+              return;
+            }
+          } catch {
+            // not json
+          }
+          throw new Error(`Failed to sync ${account.nickname || account.vendor}`);
+        }
 
         const reader = syncResponse.body?.getReader();
         const decoder = new TextDecoder();
@@ -1066,18 +1097,20 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {status && status.activeAccounts > 0 && (
-            <Tooltip title={isSyncing ? "Stop sync immediately" : "Sync all accounts now"}>
+            <Tooltip title={isSyncing ? "Stop sync immediately" : isVaultLocked ? "Unlock vault to sync" : "Sync all accounts now"}>
               <Button
                 onClick={handleSyncAll}
                 variant="contained"
                 size="small"
-                disabled={isStopping || isInitializing}
+                disabled={isStopping || isInitializing || isVaultLocked}
                 color={isSyncing ? "error" : "success"}
                 startIcon={
                   isStopping || isInitializing ? (
                     <CircularProgress size={16} sx={{ color: 'inherit' }} />
                   ) : isSyncing ? (
                     <CircularProgress size={16} sx={{ color: 'inherit' }} />
+                  ) : isVaultLocked ? (
+                    <LockIcon />
                   ) : (
                     <PlayArrowIcon />
                   )
@@ -1090,7 +1123,7 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
                   minWidth: '110px'
                 }}
               >
-                {isStopping ? 'Stopping...' : isInitializing ? 'Starting...' : isSyncing ? 'Stop Now' : 'Sync Now'}
+                {isStopping ? 'Stopping...' : isInitializing ? 'Starting...' : isSyncing ? 'Stop Now' : isVaultLocked ? 'Locked' : 'Sync Now'}
               </Button>
             </Tooltip>
           )}
@@ -1160,16 +1193,16 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
               variant="contained"
               fullWidth
               onClick={handleStartSyncWithOptions}
-              disabled={isLoadingStartDate || !syncOptionsStartDate || !!syncOptionsDateError}
-              startIcon={<PlayArrowIcon />}
+              disabled={isLoadingStartDate || !syncOptionsStartDate || !!syncOptionsDateError || isVaultLocked}
+              startIcon={isVaultLocked ? <LockIcon /> : <PlayArrowIcon />}
               sx={{
                 textTransform: 'none',
                 fontWeight: 600,
-                background: '#22c55e',
-                '&:hover': { background: '#16a34a' }
+                background: isVaultLocked ? theme.palette.action.disabledBackground : '#22c55e',
+                '&:hover': { background: isVaultLocked ? theme.palette.action.disabledBackground : '#16a34a' }
               }}
             >
-              Start Sync
+              {isVaultLocked ? 'Vault Locked' : 'Start Sync'}
             </Button>
           </StatusCard >
         ) : showReport ? (
@@ -1458,18 +1491,18 @@ const SyncStatusModal: React.FC<SyncStatusModalProps> = ({ open, onClose, width,
                           }
                         />
                         <ListItemSecondaryAction sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <Tooltip title="Sync this account only">
+                          <Tooltip title={isVaultLocked ? "Unlock vault to sync" : "Sync this account only"}>
                             <IconButton
                               size="small"
                               onClick={() => prepareSyncOptionsForAccount(account.id, account.vendor, account.nickname || account.vendor)}
-                              disabled={isSyncing || isInitializing || isStopping}
+                              disabled={isSyncing || isInitializing || isStopping || isVaultLocked}
                               sx={{
-                                color: '#60a5fa',
+                                color: isVaultLocked ? theme.palette.text.disabled : '#60a5fa',
                                 p: 0.5,
-                                '&:hover': { backgroundColor: 'rgba(96, 165, 250, 0.1)' }
+                                '&:hover': { backgroundColor: isVaultLocked ? 'transparent' : 'rgba(96, 165, 250, 0.1)' }
                               }}
                             >
-                              <RefreshIcon sx={{ fontSize: 18 }} />
+                              {isVaultLocked ? <LockIcon sx={{ fontSize: 18 }} /> : <RefreshIcon sx={{ fontSize: 18 }} />}
                             </IconButton>
                           </Tooltip>
                           <Chip

@@ -20,6 +20,7 @@ import {
   processScrapedAccounts,
   checkScraperConcurrency,
 } from '../utils/scraperUtils';
+import { VaultLockedError } from '../utils/encryption';
 
 const CompanyTypes = {
   hapoalim: 'hapoalim',
@@ -438,6 +439,14 @@ async function handler(req, res) {
     });
 
   } catch (error) {
+    if (error instanceof VaultLockedError) {
+      sendSSE(res, 'error', {
+        message: error.message,
+        type: 'VAULT_LOCKED'
+      });
+      res.end();
+      return;
+    }
     logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Scrape stream outer catch');
     if (!res.finished) {
       sendSSE(res, 'error', { message: error instanceof Error ? error.message : 'Unknown error' });

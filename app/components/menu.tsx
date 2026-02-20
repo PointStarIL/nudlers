@@ -43,6 +43,9 @@ import Image from 'next/image';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useAI } from '../context/AIContext';
 import VersionIndicator from './VersionIndicator';
+import LockIcon from '@mui/icons-material/Lock';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import { useStatus } from '../context/StatusContext';
 
 const ScrapeModal = dynamic(() => import('./ScrapeModal'), { ssr: false });
 const AccountsModal = dynamic(() => import('./AccountsModal'), { ssr: false });
@@ -111,6 +114,7 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
   // Use global sync drawer state
   const { syncDrawerOpen, setSyncDrawerOpen, syncDrawerWidth, setSyncDrawerWidth } = useView();
   const { toggleAI, isOpen: isAIOpen } = useAI();
+  const { isVaultLocked, setIsVaultModalOpen, lockVault } = useStatus();
 
   const { showNotification } = useNotification();
 
@@ -375,6 +379,19 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
               </IconButton>
               <VersionIndicator />
               <SyncStatusIndicator onClick={() => setSyncDrawerOpen(true)} />
+              <IconButton
+                onClick={() => { if (isVaultLocked) { setIsVaultModalOpen(true); } else { lockVault(); } }}
+                sx={{
+                  color: isVaultLocked ? '#f87171' : '#4ade80',
+                  background: isVaultLocked ? 'rgba(248, 113, 113, 0.05)' : 'rgba(74, 222, 128, 0.05)',
+                  '&:hover': {
+                    background: isVaultLocked ? 'rgba(248, 113, 113, 0.1)' : 'rgba(74, 222, 128, 0.1)',
+                  }
+                }}
+                title={isVaultLocked ? "Vault Locked - Click to Unlock" : "Vault Unlocked - Click to Lock"}
+              >
+                {isVaultLocked ? <LockIcon /> : <LockOpenIcon />}
+              </IconButton>
               <IconButton onClick={toggleColorMode} sx={{ color: 'text.primary' }}>
                 {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
               </IconButton>
@@ -388,6 +405,13 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
               </IconButton>
               <VersionIndicator />
               <SyncStatusIndicator onClick={() => setSyncDrawerOpen(true)} />
+              <IconButton
+                onClick={() => { if (isVaultLocked) { setIsVaultModalOpen(true); } else { lockVault(); } }}
+                sx={{ color: isVaultLocked ? '#f87171' : '#4ade80' }}
+                title={isVaultLocked ? "Vault Locked" : "Vault Unlocked - Click to Lock"}
+              >
+                {isVaultLocked ? <LockIcon /> : <LockOpenIcon />}
+              </IconButton>
               <IconButton onClick={toggleColorMode} sx={{ color: 'text.primary' }}>
                 {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
               </IconButton>

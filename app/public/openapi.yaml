@@ -35,8 +35,391 @@ tags:
     description: Interactive financial assistant
   - name: Operations
     description: System maintenance, health checks, and migrations
+  - name: Vault
+    description: Security, encryption, and passkey management
 
 paths:
+  /vault/status:
+    get:
+      tags:
+        - Vault
+      summary: Get vault status
+      description: Check if the vault is initialized, locked, or needs migration.
+      responses:
+        '200':
+          description: Vault status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initialized:
+                    type: boolean
+                  locked:
+                    type: boolean
+                  needsMigration:
+                    type: boolean
+                  hasPasskeys:
+                    type: boolean
+                  passkeysCount:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/initialize:
+    post:
+      tags:
+        - Vault
+      summary: Initialize vault
+      description: Set the initial passphrase for a new vault.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - passphrase
+              properties:
+                passphrase:
+                  type: string
+                  minLength: 8
+      responses:
+        '201':
+          description: Vault initialized successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/unlock:
+    post:
+      tags:
+        - Vault
+      summary: Unlock vault
+      description: Unlock the vault using the passphrase.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - passphrase
+              properties:
+                passphrase:
+                  type: string
+      responses:
+        '200':
+          description: Vault unlocked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          description: Invalid passphrase
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/lock:
+    post:
+      tags:
+        - Vault
+      summary: Lock vault
+      description: Lock the vault and clear the master key from memory.
+      responses:
+        '200':
+          description: Vault locked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  locked:
+                    type: boolean
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/change-passphrase:
+    post:
+      tags:
+        - Vault
+      summary: Change passphrase
+      description: Change the vault passphrase. Requires encryption of old key with new passphrase.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassphrase
+                - newPassphrase
+              properties:
+                currentPassphrase:
+                  type: string
+                newPassphrase:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Passphrase changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  passkeysCleared:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Forbidden - Vault must be unlocked
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/migrate:
+    post:
+      tags:
+        - Vault
+      summary: Migrate legacy key
+      description: Migrate from legacy environment variable key to Memory-Locked Vault.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - passphrase
+              properties:
+                passphrase:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Migration successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/passkey:
+    get:
+      tags:
+        - Vault
+      summary: List passkeys
+      description: List all registered passkeys (without sensitive data).
+      responses:
+        '200':
+          description: List of passkeys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  passkeys:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        credentialId:
+                          type: string
+                        createdAt:
+                          type: string
+                  total:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags:
+        - Vault
+      summary: Clear all passkeys
+      description: Remove all registered passkeys. Requires unlocked vault.
+      responses:
+        '200':
+          description: All passkeys cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  cleared:
+                    type: integer
+        '403':
+          description: Forbidden - Vault must be unlocked
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/passkey/{id}:
+    delete:
+      tags:
+        - Vault
+      summary: Delete a passkey
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Passkey deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '403':
+          description: Forbidden - Vault must be unlocked
+        '404':
+          description: Passkey not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/passkey/register-options:
+    get:
+      tags:
+        - Vault
+      summary: Get registration options
+      description: Generate WebAuthn registration options.
+      responses:
+        '200':
+          description: Registration options
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/passkey/register-verify:
+    post:
+      tags:
+        - Vault
+      summary: Verify registration
+      description: Verify WebAuthn registration response and store credential.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - registrationResponse
+                - passphrase
+              properties:
+                registrationResponse:
+                  type: object
+                passphrase:
+                  type: string
+      responses:
+        '201':
+          description: Passkey registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Forbidden - Vault must be unlocked
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/passkey/login-options:
+    get:
+      tags:
+        - Vault
+      summary: Get login options
+      description: Generate WebAuthn authentication options.
+      responses:
+        '200':
+          description: Authentication options
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: No passkeys registered
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vault/passkey/login-verify:
+    post:
+      tags:
+        - Vault
+      summary: Verify login
+      description: Verify WebAuthn authentication response and unlock vault.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - authenticationResponse
+              properties:
+                authenticationResponse:
+                  type: object
+      responses:
+        '200':
+          description: Vault unlocked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /transactions:
     get:
       tags:
@@ -1440,6 +1823,334 @@ paths:
       responses:
         '200':
           description: Credential deleted
+
+  /vault/unlock:
+    post:
+      tags:
+        - Operations
+      summary: Unlock the credential vault
+      description: |
+        Decrypts the master key using the provided passphrase and stores it in memory.
+        This allows the application to decrypt stored credentials.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - passphrase
+              properties:
+                passphrase:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Vault unlocked successfully
+        '400':
+          description: Missing passphrase
+        '401':
+          description: Invalid passphrase
+        '500':
+          description: Server configuration error
+
+  /vault/passkey:
+    get:
+      tags:
+        - Operations
+      summary: List registered passkeys
+      description: Returns all registered passkeys with their IDs and creation dates.
+      responses:
+        '200':
+          description: Passkey list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  passkeys:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        credentialId:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                  total:
+                    type: integer
+        '500':
+          description: Server error
+    delete:
+      tags:
+        - Operations
+      summary: Clear all registered passkeys
+      description: |
+        Removes all registered passkeys from the database.
+        Requires the vault to be unlocked.
+      responses:
+        '200':
+          description: Passkeys cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  cleared:
+                    type: integer
+                    description: Number of passkeys removed
+        '403':
+          description: Vault is locked
+        '500':
+          description: Server error
+
+  /vault/passkey/{id}:
+    delete:
+      tags:
+        - Operations
+      summary: Delete a specific passkey
+      description: Removes a single registered passkey by ID. Requires the vault to be unlocked.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Passkey ID to delete
+      responses:
+        '200':
+          description: Passkey deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          description: Invalid passkey ID
+        '403':
+          description: Vault is locked
+        '404':
+          description: Passkey not found
+        '500':
+          description: Server error
+
+  /vault/passkey/register-options:
+    get:
+      tags:
+        - Operations
+      summary: Get passkey registration options
+      description: Returns WebAuthn registration options for creating a new passkey.
+      responses:
+        '200':
+          description: Registration options (WebAuthn PublicKeyCredentialCreationOptions)
+        '500':
+          description: Server error
+
+  /vault/passkey/register-verify:
+    post:
+      tags:
+        - Operations
+      summary: Verify passkey registration
+      description: |
+        Verifies the WebAuthn registration response and stores the credential.
+        Requires the vault to be unlocked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - registrationResponse
+                - passphrase
+              properties:
+                registrationResponse:
+                  type: object
+                  description: WebAuthn registration response from the browser
+                passphrase:
+                  type: string
+                  description: Current vault passphrase (encrypted and stored with the passkey)
+      responses:
+        '201':
+          description: Passkey registered successfully
+        '400':
+          description: Verification failed or challenge not found
+        '403':
+          description: Vault is locked
+        '500':
+          description: Server error
+
+  /vault/passkey/login-options:
+    get:
+      tags:
+        - Operations
+      summary: Get passkey login options
+      description: Returns WebAuthn authentication options for passkey-based unlock.
+      responses:
+        '200':
+          description: Authentication options (WebAuthn PublicKeyCredentialRequestOptions)
+        '404':
+          description: No passkeys registered
+        '500':
+          description: Server error
+
+  /vault/passkey/login-verify:
+    post:
+      tags:
+        - Operations
+      summary: Verify passkey login and unlock vault
+      description: |
+        Verifies the WebAuthn authentication response, decrypts the stored passphrase,
+        and unlocks the vault.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - authenticationResponse
+              properties:
+                authenticationResponse:
+                  type: object
+                  description: WebAuthn authentication response from the browser
+      responses:
+        '200':
+          description: Vault unlocked successfully
+        '400':
+          description: Verification failed or challenge not found
+        '401':
+          description: Vault unlock failed with decrypted passphrase
+        '404':
+          description: Credential not found
+        '500':
+          description: Server error
+
+  /vault/change-passphrase:
+    post:
+      tags:
+        - Operations
+      summary: Change vault passphrase
+      description: |
+        Re-wraps the master key with a new passphrase. Requires the current passphrase
+        for verification. All registered passkeys are invalidated since they store
+        an encrypted copy of the old passphrase.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassphrase
+                - newPassphrase
+              properties:
+                currentPassphrase:
+                  type: string
+                  format: password
+                newPassphrase:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '200':
+          description: Passphrase changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  passkeysCleared:
+                    type: integer
+        '400':
+          description: Invalid input (missing fields, passphrase too short, or same passphrase)
+        '401':
+          description: Current passphrase is incorrect
+        '403':
+          description: Vault is locked
+        '500':
+          description: Server error
+
+  /vault/status:
+    get:
+      tags:
+        - Operations
+      summary: Get vault status
+      description: Returns the current vault state including lock status, initialization, and passkey information.
+      responses:
+        '200':
+          description: Vault status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  locked:
+                    type: boolean
+                  initialized:
+                    type: boolean
+                    description: True if the vault is initialized in the database.
+                  needsMigration:
+                    type: boolean
+                    description: True if a legacy NUDLERS_ENCRYPTION_KEY is detected and vault is not yet initialized.
+                  hasPasskeys:
+                    type: boolean
+                    description: True if at least one passkey is registered.
+                  passkeysCount:
+                    type: integer
+                    description: Number of registered passkeys.
+
+  /vault/migrate:
+    post:
+      tags:
+        - Operations
+      summary: Migrate from legacy encryption to vault
+      description: |
+        Re-encrypts all stored credentials from the legacy NUDLERS_ENCRYPTION_KEY
+        to a new vault master key, wrapped with the provided passphrase.
+        This is a one-time operation for users upgrading from the old encryption system.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - passphrase
+              properties:
+                passphrase:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '200':
+          description: Migration completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  migratedCount:
+                    type: integer
+        '400':
+          description: No legacy key found or vault already initialized
+        '500':
+          description: Migration failed (no data changed)
 
   /scrapers/run:
     post:

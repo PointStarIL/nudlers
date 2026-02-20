@@ -44,6 +44,7 @@ interface Account {
 
 interface AccountCardProps {
     account: Account;
+    isVaultLocked: boolean;
     ownedCards?: CardOwnership[];
     onEdit: (account: Account) => void;
     onSync: (account: Account) => void;
@@ -110,6 +111,7 @@ const CardActions = styled(Box)({
 
 const AccountCard: React.FC<AccountCardProps> = ({
     account,
+    isVaultLocked,
     ownedCards = [],
     onEdit,
     onSync,
@@ -130,32 +132,56 @@ const AccountCard: React.FC<AccountCardProps> = ({
     return (
         <PremiumCard isBank={isBank} isActive={account.is_active}>
             <CardActions className="card-actions">
-                <Tooltip title="Edit">
-                    <IconButton
-                        size="small"
-                        onClick={(e) => { e.stopPropagation(); onEdit(account); }}
-                        sx={{ color: 'white', bgcolor: alpha('#fff', 0.1), '&:hover': { bgcolor: alpha('#fff', 0.2) } }}
-                    >
-                        <EditIcon fontSize="small" />
-                    </IconButton>
+                <Tooltip title={isVaultLocked ? "Unlock vault to edit" : "Edit"}>
+                    <span>
+                        <IconButton
+                            size="small"
+                            disabled={isVaultLocked}
+                            onClick={(e) => { e.stopPropagation(); onEdit(account); }}
+                            sx={{
+                                color: 'white',
+                                bgcolor: alpha('#fff', 0.1),
+                                '&:hover': { bgcolor: alpha('#fff', 0.2) },
+                                '&.Mui-disabled': { color: alpha('#fff', 0.3), bgcolor: alpha('#fff', 0.05) }
+                            }}
+                        >
+                            <EditIcon fontSize="small" />
+                        </IconButton>
+                    </span>
                 </Tooltip>
-                <Tooltip title="Delete All Data">
-                    <IconButton
-                        size="small"
-                        onClick={(e) => { e.stopPropagation(); onTruncate(account); }}
-                        sx={{ color: 'white', bgcolor: alpha('#fff', 0.1), '&:hover': { bgcolor: alpha('#fff', 0.2) } }}
-                    >
-                        <DeleteSweepIcon fontSize="small" />
-                    </IconButton>
+                <Tooltip title={isVaultLocked ? "Unlock vault to delete history" : "Delete All Data"}>
+                    <span>
+                        <IconButton
+                            size="small"
+                            disabled={isVaultLocked}
+                            onClick={(e) => { e.stopPropagation(); onTruncate(account); }}
+                            sx={{
+                                color: 'white',
+                                bgcolor: alpha('#fff', 0.1),
+                                '&:hover': { bgcolor: alpha('#fff', 0.2) },
+                                '&.Mui-disabled': { color: alpha('#fff', 0.3), bgcolor: alpha('#fff', 0.05) }
+                            }}
+                        >
+                            <DeleteSweepIcon fontSize="small" />
+                        </IconButton>
+                    </span>
                 </Tooltip>
-                <Tooltip title="Remove">
-                    <IconButton
-                        size="small"
-                        onClick={(e) => { e.stopPropagation(); onDelete(account.id); }}
-                        sx={{ color: 'white', bgcolor: alpha('#fff', 0.1), '&:hover': { bgcolor: alpha('#fff', 0.2) } }}
-                    >
-                        <DeleteIcon fontSize="small" />
-                    </IconButton>
+                <Tooltip title={isVaultLocked ? "Unlock vault to remove connection" : "Remove"}>
+                    <span>
+                        <IconButton
+                            size="small"
+                            disabled={isVaultLocked}
+                            onClick={(e) => { e.stopPropagation(); onDelete(account.id); }}
+                            sx={{
+                                color: 'white',
+                                bgcolor: alpha('#fff', 0.1),
+                                '&:hover': { bgcolor: alpha('#fff', 0.2) },
+                                '&.Mui-disabled': { color: alpha('#fff', 0.3), bgcolor: alpha('#fff', 0.05) }
+                            }}
+                        >
+                            <DeleteIcon fontSize="small" />
+                        </IconButton>
+                    </span>
                 </Tooltip>
             </CardActions>
 
@@ -210,19 +236,23 @@ const AccountCard: React.FC<AccountCardProps> = ({
                             '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: alpha('#fff', 0.5) }
                         }}
                     />
-                    <IconButton
-                        size="small"
-                        disabled={!account.is_active}
-                        onClick={(e) => { e.stopPropagation(); onSync(account); }}
-                        sx={{
-                            color: 'white',
-                            bgcolor: alpha('#fff', 0.2),
-                            '&:hover': { bgcolor: alpha('#fff', 0.3) },
-                            '&.Mui-disabled': { color: alpha('#fff', 0.3), bgcolor: alpha('#fff', 0.05) }
-                        }}
-                    >
-                        <SyncIcon fontSize="small" />
-                    </IconButton>
+                    <Tooltip title={isVaultLocked ? "Unlock vault to sync" : "Sync Now"}>
+                        <span>
+                            <IconButton
+                                size="small"
+                                disabled={!account.is_active || isVaultLocked}
+                                onClick={(e) => { e.stopPropagation(); onSync(account); }}
+                                sx={{
+                                    color: 'white',
+                                    bgcolor: alpha('#fff', 0.2),
+                                    '&:hover': { bgcolor: alpha('#fff', 0.3) },
+                                    '&.Mui-disabled': { color: alpha('#fff', 0.3), bgcolor: alpha('#fff', 0.05) }
+                                }}
+                            >
+                                <SyncIcon fontSize="small" />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
                 </Box>
             </Box>
 

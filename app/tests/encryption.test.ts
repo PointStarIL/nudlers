@@ -1,15 +1,22 @@
-
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import crypto from 'crypto';
-import { encrypt, decrypt } from '../pages/api/utils/encryption';
+import VaultStore from '../pages/api/utils/VaultStore';
+import { encrypt, decrypt, encryptWithKey, decryptWithKey, getLegacyKey, VaultLockedError } from '../pages/api/utils/encryption';
 
 describe('Encryption Utility Security', () => {
-    // Set a valid 32-byte hex key for testing
-    // 32 bytes = 64 hex characters
-    const MOCK_KEY = 'a'.repeat(64);
+    // Set a valid 32-byte key for testing
+    const MOCK_KEY = Buffer.alloc(32, 'a');
 
     beforeEach(() => {
-        process.env.ENCRYPTION_KEY = MOCK_KEY;
+        VaultStore.setKey(MOCK_KEY);
+        delete process.env.NUDLERS_ENCRYPTION_KEY;
+        delete process.env.ENCRYPTION_KEY;
+    });
+
+    afterEach(() => {
+        VaultStore.clear();
+        delete process.env.NUDLERS_ENCRYPTION_KEY;
+        delete process.env.ENCRYPTION_KEY;
     });
 
     const testData = 'SensitivePassword123!';
@@ -52,12 +59,7 @@ describe('Encryption Utility Security', () => {
     it('should fail to decrypt if a different key is used', () => {
         const encrypted = encrypt(testData);
 
-        // We need to simulate a different key. 
-        // Since the key is fixed in the module, we can either use a manual implementation of decrypt 
-        // with a different key to show it fails, or re-import.
-        // Let's implement a manual decrypt with a wrong key for verification.
-
-        const WRONG_KEY = 'f'.repeat(64); // Different from any likely test key
+        const WRONG_KEY = 'f'.repeat(64);
         const WRONG_KEY_BUFFER = Buffer.from(WRONG_KEY, 'hex');
         const ALGORITHM = 'aes-256-gcm';
 
@@ -71,5 +73,58 @@ describe('Encryption Utility Security', () => {
             let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
             decrypted += decipher.final('utf8');
         }).toThrow();
+    });
+
+    it('should fall back to legacy env var when VaultStore is empty', () => {
+        VaultStore.clear();
+        const legacyKey = crypto.randomBytes(32);
+        process.env.NUDLERS_ENCRYPTION_KEY = legacyKey.toString('hex');
+
+        const encrypted = encrypt(testData);
+        expect(encrypted).not.toBe(testData);
+        expect(decrypt(encrypted)).toBe(testData);
+    });
+
+    it('should throw VaultLockedError when no key source is available', () => {
+        VaultStore.clear();
+        expect(() => encrypt(testData)).toThrow(VaultLockedError);
+    });
+
+    it('should NOT fall back to legacy key when Vault is initialized but locked', () => {
+        VaultStore.clear();
+        VaultStore.setInitialized(true);
+        const legacyKey = crypto.randomBytes(32);
+        process.env.NUDLERS_ENCRYPTION_KEY = legacyKey.toString('hex');
+
+        // Should throw VaultLockedError instead of using legacy key
+        expect(() => encrypt(testData)).toThrow(VaultLockedError);
+        expect(() => decrypt('any:data:here')).toThrow(VaultLockedError);
+    });
+
+    it('should decrypt with legacy key data encrypted with encryptWithKey', () => {
+        const legacyKey = crypto.randomBytes(32);
+        const newKey = crypto.randomBytes(32);
+
+        // Simulate migration: encrypt with legacy, decrypt with legacy, re-encrypt with new
+        const encryptedWithLegacy = encryptWithKey(testData, legacyKey);
+        const plaintext = decryptWithKey(encryptedWithLegacy, legacyKey);
+        expect(plaintext).toBe(testData);
+
+        const reEncrypted = encryptWithKey(plaintext, newKey);
+        const finalPlaintext = decryptWithKey(reEncrypted, newKey);
+        expect(finalPlaintext).toBe(testData);
+
+        // Verify cross-key decryption fails
+        expect(() => decryptWithKey(reEncrypted, legacyKey)).toThrow();
+    });
+
+    it('should detect legacy key from env', () => {
+        expect(getLegacyKey()).toBeNull();
+
+        const key = crypto.randomBytes(32);
+        process.env.NUDLERS_ENCRYPTION_KEY = key.toString('hex');
+        const legacyKey = getLegacyKey();
+        expect(legacyKey).not.toBeNull();
+        expect(legacyKey).toEqual(key);
     });
 });

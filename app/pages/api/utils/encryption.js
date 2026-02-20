@@ -1,23 +1,81 @@
 import crypto from 'crypto';
+import VaultStore from './VaultStore';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 
+export class VaultLockedError extends Error {
+  constructor() {
+    super('Vault is locked. Please unlock the vault with your passphrase.');
+    this.name = 'VaultLockedError';
+    this.status = 401;
+  }
+}
+
+/**
+ * Returns the legacy encryption key from env vars, or null if not set.
+ */
+export function getLegacyKey() {
+  const hex = process.env.NUDLERS_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
+  if (!hex) return null;
+  return Buffer.from(hex, 'hex');
+}
+
 function getEncryptionKey() {
-  const key = process.env.NUDLERS_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
-  if (!key) {
-    throw new Error('ENCRYPTION_KEY environment variable is required');
+  // 1. Get key from memory (VaultStore)
+  const memoryKey = VaultStore.getKey();
+  if (memoryKey) {
+    return memoryKey;
   }
 
-  const buffer = Buffer.from(key, 'hex');
-  if (buffer.length !== 32) {
-    throw new Error(`Invalid encryption key: charLen=${key.length}, bufferLen=${buffer.length}. Expected 32 byte buffer from 64-character hex string.`);
+  // 2. If vault is initialized but locked, throw VaultLockedError (no fallback to legacy)
+  if (VaultStore.isInitialized()) {
+    throw new VaultLockedError();
   }
-  return buffer;
+
+  // 3. If NOT initialized, fall back to legacy env var (backward compat)
+  const legacyKey = getLegacyKey();
+  if (legacyKey) {
+    return legacyKey;
+  }
+
+  // 4. No key available
+  throw new VaultLockedError();
 }
+
 
 export function encrypt(text) {
   const keyBuffer = getEncryptionKey();
+  return encryptWithKey(text, keyBuffer);
+}
+
+export function decrypt(encryptedText) {
+  const keyBuffer = getEncryptionKey();
+  return decryptWithKey(encryptedText, keyBuffer);
+}
+
+/**
+ * Decrypt text but return '[Locked]' instead of throwing if the vault is locked
+ * or if decryption fails. Useful for listing operations where we want to show
+ * that data exists without revealing its value.
+ */
+export function safeDecrypt(encryptedText) {
+  try {
+    const keyBuffer = getEncryptionKey();
+    return decryptWithKey(encryptedText, keyBuffer);
+  } catch (err) {
+    if (err instanceof VaultLockedError || err.message.includes('Decryption failed')) {
+      return '[Locked]';
+    }
+    throw err;
+  }
+}
+
+/**
+ * Encrypt text with an explicitly provided key buffer.
+ * Used by the migration flow to encrypt with the new master key.
+ */
+export function encryptWithKey(text, keyBuffer) {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, keyBuffer, iv);
 
@@ -26,12 +84,14 @@ export function encrypt(text) {
 
   const authTag = cipher.getAuthTag();
 
-  // Combine IV, encrypted data, and auth tag
   return `${iv.toString('hex')}:${encrypted}:${authTag.toString('hex')}`;
 }
 
-export function decrypt(encryptedText) {
-  const keyBuffer = getEncryptionKey();
+/**
+ * Decrypt text with an explicitly provided key buffer.
+ * Used by the migration flow to decrypt with the legacy key.
+ */
+export function decryptWithKey(encryptedText, keyBuffer) {
   const [ivHex, encryptedData, authTagHex] = encryptedText.split(':');
 
   if (!ivHex || !encryptedData || !authTagHex) {

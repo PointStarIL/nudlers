@@ -16,7 +16,13 @@ vi.mock('../utils/logger.js', () => ({
 // Mock encryption to avoid env var requirement
 vi.mock('../pages/api/utils/encryption', () => ({
     decrypt: vi.fn(),
-    encrypt: vi.fn()
+    encrypt: vi.fn(),
+    VaultLockedError: class VaultLockedError extends Error {
+        constructor() {
+            super('Vault is locked');
+            this.name = 'VaultLockedError';
+        }
+    }
 }));
 
 

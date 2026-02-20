@@ -25,6 +25,7 @@ const DesignSystemShowcase = dynamic(() => import("./DesignSystemShowcase"), { s
 const BreakdownView = dynamic(() => import("./BreakdownView"), { ssr: false });
 const ProjectionView = dynamic(() => import("./ProjectionView"), { ssr: false });
 const AccountsView = dynamic(() => import("./AccountsView"), { ssr: false });
+const VaultLockScreen = dynamic(() => import("./VaultLockScreen"), { ssr: false });
 
 type ViewType = 'dashboard' | 'summary' | 'budget' | 'chat' | 'audit' | 'recurring' | 'design' | 'breakdown' | 'projection' | 'accounts';
 
@@ -88,7 +89,7 @@ const Layout: React.FC<LayoutProps> = ({ children, defaultView = 'summary' }) =>
   const [screenContext, setScreenContext] = useState<ScreenContext>({ view: 'summary' });
   const [syncDrawerOpen, setSyncDrawerOpen] = useState(false);
   const [syncDrawerWidth, setSyncDrawerWidth] = useState(600);
-  const { dbError, checkDb } = useStatus();
+  const { dbError, checkDb, isVaultLocked, isVaultInitialized } = useStatus();
   const [isRetrying, setIsRetrying] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
 
@@ -172,6 +173,7 @@ const Layout: React.FC<LayoutProps> = ({ children, defaultView = 'summary' }) =>
   return (
     <AIProvider>
       <DateSelectionProvider>
+        <VaultLockScreen />
         <LayoutContent
           contextValue={contextValue}
           currentView={currentView}
