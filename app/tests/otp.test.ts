@@ -279,7 +279,14 @@ describe('Hapoalim OTP Handler', () => {
 
             const mockPage = {
                 url: () => 'https://login.bankhapoalim.co.il/somepage',
-                evaluate: vi.fn().mockResolvedValue(true), // Has OTP keywords in page content
+                evaluate: vi.fn().mockResolvedValueOnce({
+                    matched: true,
+                    matchedKeyword: 'קוד אימות',
+                    hasLoginForm: false,
+                    textLength: 100,
+                    textSnippet: 'הזן קוד אימות'
+                }),
+                frames: vi.fn().mockReturnValue([]),
             };
 
             const result = await isOtpPage(mockPage as any);
@@ -331,70 +338,91 @@ describe('Hapoalim OTP Handler', () => {
     });
 
     describe('handleHapoalimOtp', () => {
-        it('should emit otpRequired progress event', async () => {
+        it('should emit otpRequired progress event and handle OTP timeout', async () => {
             const { handleHapoalimOtp } = await import('../scrapers/hapoalimOtp');
-            const { waitForOtp, clearPendingOtp } = await import('../pages/api/scrapers/otp');
 
             const onProgress = vi.fn();
             const mockPage = createMockPuppeteerPage();
 
-            // Start OTP handling in background
+            // Use a very short timeout by mocking waitForOtp to reject quickly
+            const otpMod = await import('../pages/api/scrapers/otp');
+
+            // Make waitForOtp reject with OTP timeout immediately (avoids long retry loops)
+            const spy = vi.spyOn(otpMod, 'waitForOtp').mockRejectedValue(new Error('OTP timeout'));
+
             const otpPromise = handleHapoalimOtp(mockPage as any, onProgress);
 
-            // Wait for the waitForOtp to be called
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await expect(otpPromise).rejects.toThrow('OTP timeout');
 
-            // Verify progress was emitted
+            // Verify progress was emitted before the timeout
             expect(onProgress).toHaveBeenCalledWith('hapoalim', expect.objectContaining({
                 type: 'otpRequired'
             }));
 
-            // Clean up
-            clearPendingOtp();
-            try { await otpPromise; } catch { /* Ignore the error from cleanup */ }
+            // Restore so subsequent tests use real waitForOtp
+            spy.mockRestore();
         });
 
-        it('should submit OTP code to the page input', async () => {
+        it('should submit OTP code to separated digit inputs', async () => {
             const { handleHapoalimOtp } = await import('../scrapers/hapoalimOtp');
 
             const onProgress = vi.fn();
             const mockPage = createMockPuppeteerPage();
 
-            // Simulate finding an input and OTP submission
-            mockPage.$.mockResolvedValue({
-                isIntersectingViewport: vi.fn().mockResolvedValue(true)
+            // Create mock separated digit inputs
+            const mockDigitInputs = Array.from({ length: 5 }, () => ({
+                click: vi.fn().mockResolvedValue(undefined),
+                type: vi.fn().mockResolvedValue(undefined),
+                press: vi.fn().mockResolvedValue(undefined),
+                boundingBox: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 40, height: 40 }),
+            }));
+
+            // Track whether OTP has been submitted to switch $$ behavior
+            let otpSubmitted = false;
+
+            // $$ returns separated inputs when queried with the right selector
+            mockPage.$$.mockImplementation((selector: string) => {
+                if (selector === 'input[data-testid^="separated-"]') {
+                    return Promise.resolve(otpSubmitted ? [] : mockDigitInputs);
+                }
+                return Promise.resolve([]);
             });
-            mockPage.$$.mockResolvedValue([{
-                isIntersectingViewport: vi.fn().mockResolvedValue(true),
-                click: vi.fn()
-            }]);
 
             // After OTP, page goes to homepage
             let urlAfterOtp = 'https://login.bankhapoalim.co.il/otp-page';
             mockPage.url.mockImplementation(() => urlAfterOtp);
-            mockPage.evaluate.mockResolvedValue(false); // Not on OTP page anymore after submit
+            // evaluate: DOM traversal button click returns true
+            mockPage.evaluate.mockResolvedValue(true);
 
             // Start OTP handling
             const otpPromise = handleHapoalimOtp(mockPage as any, onProgress);
 
             // Wait a bit for waitForOtp to be set up
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             // Submit the code
-            const resolve = (global as any).otpStore.resolve;
-            expect(resolve).not.toBeNull();
-
-            // Simulate URL change after OTP submission
-            urlAfterOtp = 'https://login.bankhapoalim.co.il/ng-portals/rb/he/homepage';
+            const resolveOtp = (global as any).otpStore.resolve;
+            expect(resolveOtp).not.toBeNull();
 
             (global as any).otpStore.resolve = null;
             (global as any).otpStore.reject = null;
-            resolve('654321');
+            resolveOtp('65432');
+
+            // Wait for the code to be typed before switching the URL/inputs
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Simulate URL change and input disappearance after OTP submission
+            urlAfterOtp = 'https://login.bankhapoalim.co.il/ng-portals/rb/he/homepage';
+            otpSubmitted = true;
 
             const result = await otpPromise;
             expect(result).toBe(true);
-            expect(mockPage.type).toHaveBeenCalled();
-        });
+            // Verify each digit was typed into its input
+            for (let i = 0; i < 5; i++) {
+                expect(mockDigitInputs[i].click).toHaveBeenCalled();
+                expect(mockDigitInputs[i].type).toHaveBeenCalledWith('65432'[i], expect.any(Object));
+            }
+        }, 30000);
     });
 });
 
@@ -408,9 +436,11 @@ function createMockRes() {
 
 // Helper to create a mock Puppeteer page
 function createMockPuppeteerPage() {
-    return {
+    const mainFrame = { url: () => 'main' };
+    const page: any = {
         url: vi.fn().mockReturnValue('https://login.bankhapoalim.co.il/some-page'),
         evaluate: vi.fn().mockResolvedValue(false),
+        evaluateHandle: vi.fn().mockResolvedValue({ asElement: () => null }),
         $: vi.fn().mockResolvedValue(null),
         $$: vi.fn().mockResolvedValue([]),
         click: vi.fn().mockResolvedValue(undefined),
@@ -419,7 +449,11 @@ function createMockPuppeteerPage() {
             press: vi.fn().mockResolvedValue(undefined)
         },
         waitForNavigation: vi.fn().mockResolvedValue(undefined),
-        takeScreenshot: null,
+        waitForFunction: vi.fn().mockResolvedValue(undefined),
+        screenshot: vi.fn().mockResolvedValue(undefined),
+        mainFrame: vi.fn().mockReturnValue(mainFrame),
+        frames: vi.fn().mockReturnValue([mainFrame]),
         isClosed: vi.fn().mockReturnValue(false),
     };
+    return page;
 }

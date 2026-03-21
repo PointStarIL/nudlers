@@ -51,8 +51,12 @@ const OTP_KEYWORDS = [
     'enter otp',
 ];
 
+// Hapoalim uses separated single-digit inputs with data-testid="separated-N"
+const SEPARATED_OTP_SELECTOR = 'input[data-testid^="separated-"]';
+
 // Known OTP input selectors on Hapoalim's 2FA page
 const OTP_INPUT_SELECTORS = [
+    SEPARATED_OTP_SELECTOR,
     'input[name="otpCode"]',
     'input[name="code"]',
     'input[name="otp"]',
@@ -75,6 +79,7 @@ const OTP_INPUT_SELECTORS = [
 
 // Known OTP submit button selectors
 const OTP_SUBMIT_SELECTORS = [
+    'button.btn-red_1',           // Hapoalim's "המשך" button
     'button[type="submit"]',
     'button.submit-btn',
     'button.otp-submit',
@@ -232,15 +237,55 @@ async function isOtpPage(page) {
 }
 
 /**
- * Find the OTP input field on the page
+ * Find separated OTP digit inputs (e.g. data-testid="separated-0" through "separated-N")
+ * Hapoalim uses this pattern: one input per digit, each with data-testid="separated-N"
+ * @returns {Promise<{elements: ElementHandle[], frame: Frame}|null>}
  */
+async function findSeparatedOtpInputs(page) {
+    const checkContext = async (context) => {
+        try {
+            const elements = await context.$$(SEPARATED_OTP_SELECTOR);
+            if (elements.length >= 4) {
+                // Verify at least the first one is visible
+                const box = await elements[0].boundingBox();
+                if (box) {
+                    return elements;
+                }
+            }
+        } catch { /* ignore */ }
+        return null;
+    };
+
+    // Check main page
+    const mainResult = await checkContext(page);
+    if (mainResult) {
+        logger.info({ count: mainResult.length }, '[Hapoalim OTP] Found separated OTP inputs on main page');
+        return { elements: mainResult, frame: page };
+    }
+
+    // Check iframes
+    for (const frame of page.frames()) {
+        if (frame === page.mainFrame()) continue;
+        const frameResult = await checkContext(frame);
+        if (frameResult) {
+            logger.info({ count: frameResult.length, frameUrl: frame.url() }, '[Hapoalim OTP] Found separated OTP inputs in iframe');
+            return { elements: frameResult, frame };
+        }
+    }
+
+    return null;
+}
+
 /**
- * Find the OTP input field on the page or in iframes
+ * Find a single OTP input field on the page or in iframes
  * @returns {Promise<{element: ElementHandle, frame: Frame}|null>}
  */
 async function findOtpInput(page) {
+    // Skip the separated selector here — it's handled by findSeparatedOtpInputs
+    const singleSelectors = OTP_INPUT_SELECTORS.filter(s => s !== SEPARATED_OTP_SELECTOR);
+
     // Try main page first
-    for (const selector of OTP_INPUT_SELECTORS) {
+    for (const selector of singleSelectors) {
         try {
             const element = await page.$(selector);
             if (element) {
@@ -256,7 +301,7 @@ async function findOtpInput(page) {
     // Try all frames
     for (const frame of page.frames()) {
         if (frame === page.mainFrame()) continue;
-        for (const selector of OTP_INPUT_SELECTORS) {
+        for (const selector of singleSelectors) {
             try {
                 const element = await frame.$(selector);
                 if (element) {
@@ -302,6 +347,16 @@ async function findOtpInput(page) {
     }
 
     return null;
+}
+
+/**
+ * Check if any OTP input (separated or single) is still visible on the page
+ */
+async function isOtpInputVisible(page) {
+    const separated = await findSeparatedOtpInputs(page);
+    if (separated) return true;
+    const single = await findOtpInput(page);
+    return !!single;
 }
 
 /**
@@ -395,65 +450,139 @@ export async function handleHapoalimOtp(page, onProgress) {
                 });
             }
 
-            // Find the OTP input field (with retries)
-            let inputObj = null;
+            // Try separated inputs first (Hapoalim's actual pattern: one input per digit)
+            let usedSeparated = false;
+            let separatedObj = null;
             for (let i = 0; i < 5; i++) {
-                inputObj = await findOtpInput(page);
-                if (inputObj) break;
+                separatedObj = await findSeparatedOtpInputs(page);
+                if (separatedObj) break;
                 await new Promise(r => setTimeout(r, 1000));
             }
 
-            if (!inputObj) {
-                logger.error('[Hapoalim OTP] Could not find OTP input field on the page');
-                await takeDebugScreenshot(page, 'input-not-found');
+            if (separatedObj) {
+                usedSeparated = true;
+                const { elements, frame: inputFrame } = separatedObj;
+                const digits = otpCode.split('');
+                logger.info({ digitCount: digits.length, inputCount: elements.length }, '[Hapoalim OTP] Typing digits into separated inputs');
 
-                // If we can't find the input, maybe the page session expired or we are already logged in?
-                const isStillOtp = await isOtpPage(page);
-                if (!isStillOtp) {
-                    logger.info('[Hapoalim OTP] Input not found but page is no longer OTP page? Assuming success.');
-                    return true;
+                for (let i = 0; i < Math.min(digits.length, elements.length); i++) {
+                    try {
+                        await elements[i].click();
+                        await new Promise(r => setTimeout(r, 50));
+                        await elements[i].type(digits[i], { delay: 50 });
+                    } catch (e) {
+                        logger.warn({ index: i, error: e.message }, '[Hapoalim OTP] Standard type failed for digit, using evaluate');
+                        await inputFrame.evaluate((el, digit) => {
+                            el.value = digit;
+                            el.dispatchEvent(new Event('input', { bubbles: true }));
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                        }, elements[i], digits[i]);
+                    }
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            } else {
+                // Fallback: try single input field
+                let inputObj = null;
+                for (let i = 0; i < 5; i++) {
+                    inputObj = await findOtpInput(page);
+                    if (inputObj) break;
+                    await new Promise(r => setTimeout(r, 1000));
                 }
 
-                throw new Error('Could not find OTP input field on the verification page');
-            }
+                if (!inputObj) {
+                    logger.error('[Hapoalim OTP] Could not find OTP input field on the page');
+                    await takeDebugScreenshot(page, 'input-not-found');
 
-            const { element: inputElement, frame: inputFrame } = inputObj;
+                    const isStillOtp = await isOtpPage(page);
+                    if (!isStillOtp) {
+                        logger.info('[Hapoalim OTP] Input not found but page is no longer OTP page? Assuming success.');
+                        return true;
+                    }
 
-            // Clear any existing value and type the OTP
-            try {
-                await inputElement.click({ clickCount: 3 });
-                await inputElement.type(otpCode, { delay: 100 }); // Slower typing
-            } catch (e) {
-                logger.warn({ error: e.message }, '[Hapoalim OTP] Standard type failed, trying evaluate');
-                await inputFrame.evaluate((el, code) => { el.value = code; el.dispatchEvent(new Event('input', { bubbles: true })); }, inputElement, otpCode);
+                    throw new Error('Could not find OTP input field on the verification page');
+                }
+
+                const { element: inputElement, frame: inputFrame } = inputObj;
+
+                try {
+                    await inputElement.click({ clickCount: 3 });
+                    await inputElement.type(otpCode, { delay: 100 });
+                } catch (e) {
+                    logger.warn({ error: e.message }, '[Hapoalim OTP] Standard type failed, trying evaluate');
+                    await inputFrame.evaluate((el, code) => { el.value = code; el.dispatchEvent(new Event('input', { bubbles: true })); }, inputElement, otpCode);
+                }
             }
 
             // Small delay before submitting
             await new Promise(resolve => setTimeout(resolve, 800));
 
             // Find and click the submit button
-            const submitObj = await findOtpSubmitButton(page);
-            if (submitObj) {
-                await Promise.all([
-                    submitObj.element.click(),
-                    // Optional: sometimes waiting for network idle helps here, but can be risky if no network activity
-                    // page.waitForNetworkIdle({ timeout: 2000 }).catch(() => {})
-                ]);
-                logger.info('[Hapoalim OTP] Clicked OTP submit button');
-            } else {
-                logger.info('[Hapoalim OTP] No submit button found, pressing Enter');
-                await inputElement.press('Enter');
+            let clicked = false;
+
+            // For separated inputs, try clicking the nearby submit button via DOM traversal first
+            if (usedSeparated) {
+                try {
+                    clicked = await page.evaluate(() => {
+                        // Find the container with the separated inputs
+                        const otpInput = document.querySelector('input[data-testid^="separated-"]');
+                        if (!otpInput) return false;
+
+                        // Walk up to find the form/dialog container, then find the submit button within it
+                        let container = otpInput.closest('form') || otpInput.closest('[role="dialog"]') || otpInput.closest('.modal-content') || otpInput.closest('[class*="modal"]');
+                        // If no container found, try broader traversal
+                        if (!container) {
+                            container = otpInput.parentElement;
+                            // Walk up a few levels to find a container with a button
+                            for (let i = 0; i < 10 && container; i++) {
+                                if (container.querySelector('button.btn-red_1, button[type="submit"]')) break;
+                                container = container.parentElement;
+                            }
+                        }
+                        if (!container) return false;
+
+                        const btn = container.querySelector('button.btn-red_1') || container.querySelector('button[type="submit"]');
+                        if (btn) {
+                            btn.click();
+                            return true;
+                        }
+                        return false;
+                    });
+                    if (clicked) {
+                        logger.info('[Hapoalim OTP] Clicked OTP submit button via DOM traversal');
+                    }
+                } catch (e) {
+                    logger.warn({ error: e.message }, '[Hapoalim OTP] DOM traversal button click failed');
+                }
+            }
+
+            if (!clicked) {
+                const submitObj = await findOtpSubmitButton(page);
+                if (submitObj) {
+                    await submitObj.element.click();
+                    clicked = true;
+                    logger.info('[Hapoalim OTP] Clicked OTP submit button');
+                } else {
+                    // Last resort: press Enter on the last digit input
+                    logger.info('[Hapoalim OTP] No submit button found, pressing Enter');
+                    if (usedSeparated && separatedObj) {
+                        const lastInput = separatedObj.elements[separatedObj.elements.length - 1];
+                        await lastInput.press('Enter');
+                    } else {
+                        const fallbackInput = await findOtpInput(page);
+                        if (fallbackInput) await fallbackInput.element.press('Enter');
+                    }
+                }
             }
 
             // Wait for navigation or change after OTP submission
             logger.info('[Hapoalim OTP] Waiting for navigation/change...');
 
-            // Wait for either navigation, input disappearance, or error message
+            // Wait for either navigation or input disappearance
             try {
                 await Promise.race([
                     page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }),
-                    inputFrame.waitForFunction((selector) => !document.querySelector(selector), { timeout: 15000 }, 'input[name="otpCode"]'), // generic check
-                    new Promise(resolve => setTimeout(resolve, 5000)) // ensure we wait at least a bit
+                    page.waitForFunction(() => !document.querySelector('input[data-testid^="separated-"]'), { timeout: 15000 }),
+                    new Promise(resolve => setTimeout(resolve, 5000))
                 ]);
             } catch (e) {
                 // Ignore timeouts here, we check state explicitly below
@@ -469,7 +598,7 @@ export async function handleHapoalimOtp(page, onProgress) {
                 currentUrl.toLowerCase().includes('portalserver');
 
             // Check if input is gone (strong indicator of success or at least processing)
-            const inputStillVisible = await findOtpInput(page);
+            const inputStillVisible = await isOtpInputVisible(page);
 
             if (isSuccessUrl || !inputStillVisible) {
                 logger.info('[Hapoalim OTP] OTP verification successful (URL changed or input gone)');

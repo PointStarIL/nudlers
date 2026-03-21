@@ -185,7 +185,13 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const data = await response.json();
             if (response.ok) {
                 setIsVaultLocked(false);
-                refreshStatus(true);
+                // Wait for any in-progress refresh to finish, then fetch fresh status
+                const waitForRefresh = () => new Promise<void>(resolve => {
+                    const check = () => isRefreshing.current ? setTimeout(check, 50) : resolve();
+                    check();
+                });
+                await waitForRefresh();
+                await refreshStatus(true);
                 return { success: true };
             }
             return { success: false, error: data.error || 'Failed to unlock vault' };
