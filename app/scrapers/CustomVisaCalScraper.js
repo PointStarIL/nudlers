@@ -8,7 +8,6 @@ import { filterOldTransactions } from 'israeli-bank-scrapers/lib/helpers/transac
 import { waitUntil } from 'israeli-bank-scrapers/lib/helpers/waiting.js';
 import { TransactionStatuses, TransactionTypes } from 'israeli-bank-scrapers/lib/transactions.js';
 import { BaseScraperWithBrowser, LoginResults } from 'israeli-bank-scrapers/lib/scrapers/base-scraper-with-browser.js';
-import _ from 'lodash';
 
 const apiHeaders = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.6834.83 Safari/537.36',
@@ -262,9 +261,7 @@ export default class CustomVisaCalScraper extends BaseScraperWithBrowser {
             const finalMonthToFetchMoment = moment().add(futureMonthsToScrape, 'month');
             const months = finalMonthToFetchMoment.diff(startMoment, 'months');
             const allMonthsData = [];
-            const frame = _.find(frames.result?.bankIssuedCards?.cardLevelFrames, {
-                cardUniqueId: card.cardUniqueId
-            });
+            const frame = frames.result?.bankIssuedCards?.cardLevelFrames?.find(f => f.cardUniqueId === card.cardUniqueId);
             debug(`fetch pending transactions for card ${card.cardUniqueId}`);
             let pendingData = null;
             try {
