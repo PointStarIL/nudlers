@@ -134,31 +134,20 @@ export async function register() {
               settings[row.key] = row.value;
             }
 
-            // Check if enabled
-            if (settings.whatsapp_enabled !== true && settings.whatsapp_enabled !== 'true') {
+            const { evaluateDailyCronGuard } = await import('./utils/cronGuards');
+            const guard = evaluateDailyCronGuard({
+              enabledValue: settings.whatsapp_enabled,
+              hourValue: settings.whatsapp_hour,
+              lastRunValue: settings.whatsapp_last_sent_date,
+              defaultHour: 8,
+            });
+
+            if (!guard.shouldRun) {
+              logger.info({ ...guard }, '[whatsapp-cron] Skipping execution');
               return;
             }
 
-            // Check if we're at the right hour
-            const now = new Date();
-            const currentHour = now.getHours();
-            const targetHour = parseInt((settings.whatsapp_hour as string) || '8', 10);
-
-            if (currentHour !== targetHour) {
-              return;
-            }
-
-            // Check if we already sent today
-            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            const lastSentDate = typeof settings.whatsapp_last_sent_date === 'string'
-              ? settings.whatsapp_last_sent_date.replace(/"/g, '')
-              : '';
-
-            if (lastSentDate === today) {
-              return;
-            }
-
-            logger.info('[whatsapp-cron] Sending daily summary');
+            const today = guard.today;
 
             // Generate summary
             const { generateDailySummary } = await import('./utils/summary.js');
@@ -254,32 +243,20 @@ export async function register() {
               settings[row.key] = row.value;
             }
 
-            // Check if enabled
-            if (settings.sync_enabled !== true && settings.sync_enabled !== 'true') {
+            const { evaluateDailyCronGuard } = await import('./utils/cronGuards');
+            const guard = evaluateDailyCronGuard({
+              enabledValue: settings.sync_enabled,
+              hourValue: settings.sync_hour,
+              lastRunValue: settings.sync_last_run_at,
+              defaultHour: 3,
+            });
+
+            if (!guard.shouldRun) {
+              logger.info({ ...guard }, '[sync-cron] Skipping execution');
               return;
             }
 
-            // Check if we're at the right hour
-            const now = new Date();
-            const currentHour = now.getHours();
-            const targetHour = parseInt((settings.sync_hour as string) || '3', 10);
-
-            if (currentHour !== targetHour) {
-              return;
-            }
-
-            // Check if we already ran today
-            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            const lastRunStr = typeof settings.sync_last_run_at === 'string'
-              ? settings.sync_last_run_at.replace(/"/g, '')
-              : '';
-            const lastRunDate = lastRunStr.split('T')[0];
-
-            if (lastRunDate === today) {
-              return;
-            }
-
-            logger.info({ currentHour, today }, '[sync-cron] Triggering daily background sync');
+            logger.info({ currentHour: guard.targetHour, today: guard.today }, '[sync-cron] Triggering daily background sync');
 
             // Import and run the background sync
             const { runBackgroundSync } = await import('./scripts/background-sync.js');
