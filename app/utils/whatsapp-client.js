@@ -74,6 +74,91 @@ export function getOrCreateClient() {
 }
 
 /**
+ * Build a fresh whatsapp-web.js Client configured with our LocalAuth and
+ * puppeteer settings. Pulled out so retries can construct a new instance —
+ * Client.initialize() is single-use, calling it twice on the same object
+ * leaves the previous chromium subprocess holding the userDataDir lock.
+ */
+function buildClient() {
+    // NOTE: --single-process is NOT used here as it causes "detached Frame" errors with WhatsApp Web's iframes
+    const browserArgs = getWhatsappChromeArgs();
+    return new Client({
+        authStrategy: new LocalAuth({
+            clientId: CLIENT_ID,
+            dataPath: AUTH_PATH
+        }),
+        puppeteer: {
+            headless: true,
+            // Use system chromium if available (Crucial for Docker)
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+            args: browserArgs,
+            pipe: true
+        }
+    });
+}
+
+function wireClientEvents(client) {
+    client.on('qr', (qr) => {
+        logger.info('WhatsApp QR Code generated');
+        qrCode = qr;
+        connectionStatus = 'QR_READY';
+        globalAny.whatsappQR = qr;
+        globalAny.whatsappStatus = 'QR_READY';
+    });
+
+    client.on('ready', () => {
+        logger.info('WhatsApp Client is ready!');
+        connectionStatus = 'READY';
+        qrCode = null;
+        globalAny.whatsappQR = null;
+        globalAny.whatsappStatus = 'READY';
+    });
+
+    client.on('authenticated', () => {
+        logger.info('WhatsApp Client authenticated');
+        connectionStatus = 'AUTHENTICATED';
+        globalAny.whatsappStatus = 'AUTHENTICATED';
+    });
+
+    client.on('auth_failure', (msg) => {
+        logger.error({ msg }, 'WhatsApp authentication failure');
+        connectionStatus = 'DISCONNECTED';
+        globalAny.whatsappStatus = 'DISCONNECTED';
+    });
+
+    client.on('disconnected', async (reason) => {
+        logger.warn({ reason }, 'WhatsApp Client disconnected');
+        connectionStatus = 'DISCONNECTED';
+        qrCode = null;
+        globalAny.whatsappQR = null;
+        globalAny.whatsappStatus = 'DISCONNECTED';
+
+        // Clean up and allow for re-initialization
+        await destroyClient();
+    });
+}
+
+/**
+ * Remove stale Chromium singleton lock files left behind by a previous
+ * Client.initialize() that crashed before puppeteer could close the browser.
+ * If we don't, the next initialize() fails with "browser is already running".
+ */
+function cleanupSessionLocks() {
+    const lockNames = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+    for (const name of lockNames) {
+        const lockPath = path.join(SESSION_PATH, name);
+        try {
+            if (fs.existsSync(lockPath)) {
+                fs.unlinkSync(lockPath);
+                logger.info({ lockFile: name }, 'Removed stale WhatsApp session lock');
+            }
+        } catch (err) {
+            logger.warn({ err: err.message, lockFile: name }, 'Failed to remove WhatsApp session lock');
+        }
+    }
+}
+
+/**
  * Initialize the WhatsApp client on-demand.
  * This creates a new client and starts the authentication process.
  * If a persisted session exists, it will be restored automatically.
@@ -89,63 +174,8 @@ export function initializeClient() {
     const hasSession = hasPersistedSession();
     logger.info({ hasPersistedSession: hasSession }, 'Initializing new WhatsApp Client instance...');
 
-    // Build browser args from centralized resource config
-    // NOTE: --single-process is NOT used here as it causes "detached Frame" errors with WhatsApp Web's iframes
-    const browserArgs = getWhatsappChromeArgs();
-
-    clientInstance = new Client({
-        authStrategy: new LocalAuth({
-            clientId: CLIENT_ID,
-            dataPath: AUTH_PATH
-        }),
-        puppeteer: {
-            headless: true,
-            // Use system chromium if available (Crucial for Docker)
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-            args: browserArgs,
-            pipe: true
-        }
-    });
-
-    // Event listeners
-    clientInstance.on('qr', (qr) => {
-        logger.info('WhatsApp QR Code generated');
-        qrCode = qr;
-        connectionStatus = 'QR_READY';
-        globalAny.whatsappQR = qr;
-        globalAny.whatsappStatus = 'QR_READY';
-    });
-
-    clientInstance.on('ready', () => {
-        logger.info('WhatsApp Client is ready!');
-        connectionStatus = 'READY';
-        qrCode = null;
-        globalAny.whatsappQR = null;
-        globalAny.whatsappStatus = 'READY';
-    });
-
-    clientInstance.on('authenticated', () => {
-        logger.info('WhatsApp Client authenticated');
-        connectionStatus = 'AUTHENTICATED';
-        globalAny.whatsappStatus = 'AUTHENTICATED';
-    });
-
-    clientInstance.on('auth_failure', (msg) => {
-        logger.error({ msg }, 'WhatsApp authentication failure');
-        connectionStatus = 'DISCONNECTED';
-        globalAny.whatsappStatus = 'DISCONNECTED';
-    });
-
-    clientInstance.on('disconnected', async (reason) => {
-        logger.warn({ reason }, 'WhatsApp Client disconnected');
-        connectionStatus = 'DISCONNECTED';
-        qrCode = null;
-        globalAny.whatsappQR = null;
-        globalAny.whatsappStatus = 'DISCONNECTED';
-
-        // Clean up and allow for re-initialization
-        await destroyClient();
-    });
+    clientInstance = buildClient();
+    wireClientEvents(clientInstance);
 
     // Save to global to survive HMR
     globalAny.whatsappClient = clientInstance;
@@ -165,34 +195,35 @@ export function initializeClient() {
             initRetries++;
             logger.error({ err: err.message, retry: initRetries }, 'Failed to initialize WhatsApp client');
 
-            // Specialized recovery for Puppeteer SingletonLock
-            if (err.message && (err.message.includes('SingletonLock') || err.message.includes('profile appears to be in use'))) {
-                logger.warn('Detected SingletonLock error, attempting automatic cleanup...');
-                try {
-                    const lockPath = path.join(SESSION_PATH, 'SingletonLock');
-                    if (fs.existsSync(lockPath)) {
-                        fs.unlinkSync(lockPath);
-                        logger.info('Removed SingletonLock file, retrying...');
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        return initializeWithRetry();
-                    }
-                } catch (retryErr) {
-                    logger.error({ err: retryErr.message }, 'Failed to recover from SingletonLock');
-                }
-            }
-
-            if (initRetries < MAX_INIT_RETRIES) {
-                const delay = Math.pow(2, initRetries) * 1000;
-                await new Promise(resolve => setTimeout(resolve, delay));
-                return initializeWithRetry();
-            } else {
+            if (initRetries >= MAX_INIT_RETRIES) {
                 logger.error('Max retries reached for WhatsApp initialization');
                 connectionStatus = 'DISCONNECTED';
                 globalAny.whatsappStatus = 'DISCONNECTED';
                 // Reset client so it can be re-tried manually later
                 clientInstance = null;
                 globalAny.whatsappClient = null;
+                return;
             }
+
+            // The previous attempt may have left a chromium subprocess alive
+            // holding the userDataDir lock. Tear it down before retrying.
+            try {
+                await clientInstance.destroy();
+            } catch (destroyErr) {
+                logger.warn({ err: destroyErr.message }, 'Could not destroy failed WhatsApp client; continuing cleanup');
+            }
+            cleanupSessionLocks();
+
+            // Backoff so chromium has time to actually exit and release the lock
+            const delay = Math.pow(2, initRetries) * 1000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            // Client.initialize() is single-use per instance; build a fresh one
+            clientInstance = buildClient();
+            wireClientEvents(clientInstance);
+            globalAny.whatsappClient = clientInstance;
+
+            return initializeWithRetry();
         }
     };
 

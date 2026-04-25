@@ -3,7 +3,6 @@ import pkg from 'whatsapp-web.js';
 import { getClient, getOrCreateClient, initializeClient, getStatus, destroyClient, restartClient, hasPersistedSession, clearSession, renewQrCode } from '../utils/whatsapp-client.js';
 import logger from '../utils/logger.js';
 import fs from 'fs';
-import path from 'path';
 
 // Mock whatsapp-web.js
 vi.mock('whatsapp-web.js', () => {
@@ -94,55 +93,67 @@ describe('WhatsApp Client Utils', () => {
             expect(pkg.Client).toHaveBeenCalledTimes(1);
         });
 
-        it('should handle initialization failure and retry', async () => {
-            const mockClient = {
+        it('should destroy the failed client, clean session locks, and retry with a fresh client', async () => {
+            const failingClient = {
                 on: vi.fn(),
-                initialize: vi.fn()
-                    .mockRejectedValueOnce(new Error('Init failed 1'))
-                    .mockRejectedValueOnce(new Error('Init failed 2'))
-                    .mockResolvedValueOnce(undefined),
-                destroy: vi.fn(),
+                initialize: vi.fn().mockRejectedValueOnce(new Error('Init failed 1')),
+                destroy: vi.fn().mockResolvedValue(undefined),
             };
-            (pkg.Client as any).mockReturnValueOnce(mockClient);
+            const successClient = {
+                on: vi.fn(),
+                initialize: vi.fn().mockResolvedValueOnce(undefined),
+                destroy: vi.fn().mockResolvedValue(undefined),
+            };
+            (pkg.Client as any)
+                .mockReturnValueOnce(failingClient)
+                .mockReturnValueOnce(successClient);
+            (fs.existsSync as any).mockReturnValue(true);
 
             initializeClient();
 
-            // Process first failure logic
+            // Process the first failure
+            await vi.runOnlyPendingTimersAsync();
+            // Advance past the 2s backoff before the retry
+            await vi.advanceTimersByTimeAsync(2000);
             await vi.runOnlyPendingTimersAsync();
 
-            // Advance time for first retry (2s)
-            await vi.advanceTimersByTimeAsync(2000);
+            // First client was tried exactly once and then destroyed for cleanup
+            expect(failingClient.initialize).toHaveBeenCalledTimes(1);
+            expect(failingClient.destroy).toHaveBeenCalledTimes(1);
 
-            // Advance time for second retry (4s)
-            await vi.advanceTimersByTimeAsync(4000);
+            // Stale Chromium session locks are cleaned between attempts
+            expect(fs.unlinkSync).toHaveBeenCalled();
 
-            expect(mockClient.initialize).toHaveBeenCalledTimes(3);
+            // The retry uses a brand new client (initialize() is single-use per instance)
+            expect(pkg.Client).toHaveBeenCalledTimes(2);
+            expect(successClient.initialize).toHaveBeenCalledTimes(1);
+
             expect(logger.error).toHaveBeenCalledWith(
                 expect.objectContaining({ err: 'Init failed 1', retry: 1 }),
                 expect.any(String)
             );
         });
 
-        it('should recover from SingletonLock error', async () => {
-            const mockClient = {
+        it('should remove stale Singleton lock files when init fails', async () => {
+            const failingClient = {
                 on: vi.fn(),
-                initialize: vi.fn()
-                    .mockRejectedValueOnce(new Error('SingletonLock'))
-                    .mockResolvedValueOnce(undefined),
-                destroy: vi.fn(),
+                initialize: vi.fn().mockRejectedValueOnce(new Error('SingletonLock')),
+                destroy: vi.fn().mockResolvedValue(undefined),
             };
-            (pkg.Client as any).mockReturnValueOnce(mockClient);
+            (pkg.Client as any).mockReturnValueOnce(failingClient);
             (fs.existsSync as any).mockReturnValue(true);
 
             initializeClient();
 
-            // Process lock recovery logic
             await vi.runOnlyPendingTimersAsync();
             await vi.advanceTimersByTimeAsync(2000);
+            await vi.runOnlyPendingTimersAsync();
 
-            expect(fs.unlinkSync).toHaveBeenCalled();
-            expect(mockClient.initialize).toHaveBeenCalledTimes(2);
-            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('SingletonLock'));
+            expect(failingClient.destroy).toHaveBeenCalled();
+            const unlinkedPaths = (fs.unlinkSync as any).mock.calls.map((c: any[]) => c[0] as string);
+            expect(unlinkedPaths.some((p) => p.includes('SingletonLock'))).toBe(true);
+            expect(unlinkedPaths.some((p) => p.includes('SingletonCookie'))).toBe(true);
+            expect(unlinkedPaths.some((p) => p.includes('SingletonSocket'))).toBe(true);
         });
     });
 
