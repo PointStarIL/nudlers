@@ -2,6 +2,7 @@ import { createApiHandler } from "../utils/apiHandler";
 import { decrypt } from "../utils/encryption";
 import { getDB } from "../db";
 import { getBillingCycleSql } from "../../../utils/transaction_logic";
+import { getBillingCycleStartDay } from "../utils/scraperUtils";
 import { BANK_VENDORS } from "../../../utils/constants";
 import logger from '../../../utils/logger.js';
 
@@ -120,7 +121,7 @@ const getTransactions = createApiHandler({
             return "Time filter (billingCycle or startDate/endDate) is required unless searching or filtering by uncategorized";
         }
     },
-    query: async (req) => {
+    query: async (req, client) => {
         const {
             q,
             startDate,
@@ -159,18 +160,7 @@ const getTransactions = createApiHandler({
         }
 
         if (availableMonths === 'true') {
-            let billingStartDay = 10;
-            const client = await getDB();
-            try {
-                const settingsResult = await client.query("SELECT value FROM app_settings WHERE key = 'billing_cycle_start_day'");
-                if (settingsResult.rows.length > 0) {
-                    const parsed = parseInt(settingsResult.rows[0].value, 10);
-                    if (!isNaN(parsed)) billingStartDay = parsed;
-                }
-            } finally {
-                client.release();
-            }
-
+            const billingStartDay = await getBillingCycleStartDay(client);
             const cycleSql = getBillingCycleSql(billingStartDay, 'date', 'processed_date');
             return {
                 sql: `SELECT ARRAY_AGG(DISTINCT ${cycleSql}) as months FROM transactions;`,
@@ -183,17 +173,7 @@ const getTransactions = createApiHandler({
 
         // 1. Time Filtering (Billing Cycle or Date Range)
         if (billingCycle) {
-            let billingStartDay = 10;
-            const client = await getDB();
-            try {
-                const settingsResult = await client.query("SELECT value FROM app_settings WHERE key = 'billing_cycle_start_day'");
-                if (settingsResult.rows.length > 0) {
-                    const parsed = parseInt(settingsResult.rows[0].value, 10);
-                    if (!isNaN(parsed)) billingStartDay = parsed;
-                }
-            } finally {
-                client.release();
-            }
+            const billingStartDay = await getBillingCycleStartDay(client);
             const effectiveMonthSql = getBillingCycleSql(billingStartDay, 't.date', 't.processed_date');
             conditions.push(`(${effectiveMonthSql}) = $${paramIndex}`);
             params.push(billingCycle);

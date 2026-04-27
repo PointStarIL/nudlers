@@ -3,6 +3,7 @@ import logger from '../../../utils/logger.js';
 import { BANK_VENDORS } from '../../../utils/constants.js';
 
 import { getBillingCycleSql } from "../../../utils/transaction_logic";
+import { getBillingCycleStartDay } from "../utils/scraperUtils";
 
 // Ensure the total_budget table exists
 async function ensureTotalBudgetTable(client) {
@@ -37,12 +38,7 @@ export default async function handler(req, res) {
     await ensureTotalBudgetTable(client);
 
     // Get billing start day setting
-    const settingsResult = await client.query(
-      "SELECT value FROM app_settings WHERE key = 'billing_cycle_start_day'"
-    );
-    const billingStartDay = settingsResult.rows.length > 0
-      ? (parseInt(settingsResult.rows[0].value, 10) || 10)
-      : 10;
+    const billingStartDay = await getBillingCycleStartDay(client);
 
     let actualSpendingSql;
     let actualParams;

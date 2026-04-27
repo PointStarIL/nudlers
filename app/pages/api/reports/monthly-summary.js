@@ -1,10 +1,10 @@
 import { createApiHandler } from "../utils/apiHandler";
-import { getDB } from "../db";
 import { getBillingCycleSql } from "../../../utils/transaction_logic";
+import { getBillingCycleStartDay } from "../utils/scraperUtils";
 import { BANK_VENDORS } from "../../../utils/constants";
 
 const handler = createApiHandler({
-  query: async (req) => {
+  query: async (req, client) => {
     const {
       startDate, endDate, vendor, groupBy, billingCycle,
       excludeBankTransactions, limit = 50, offset = 0,
@@ -36,20 +36,7 @@ const handler = createApiHandler({
     let paramIndex = 1;
 
     if (billingCycle) {
-      const client = await getDB();
-      let billingStartDay = 10;
-      try {
-        const settingsResult = await client.query("SELECT value FROM app_settings WHERE key = 'billing_cycle_start_day'");
-        if (settingsResult.rows.length > 0) {
-          const val = parseInt(settingsResult.rows[0].value, 10);
-          if (!isNaN(val)) {
-            billingStartDay = val;
-          }
-        }
-      } finally {
-        client.release();
-      }
-
+      const billingStartDay = await getBillingCycleStartDay(client);
       const effectiveMonthSql = getBillingCycleSql(billingStartDay, 't.date', 't.processed_date');
       whereClause = `WHERE (${effectiveMonthSql}) = $${paramIndex}`;
       params.push(billingCycle);
