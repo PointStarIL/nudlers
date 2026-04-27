@@ -22,7 +22,7 @@ export function createApiHandler({ query, validate, transform }) {
         }
       }
 
-      const { sql, params = [] } = await query(req);
+      const { sql, params = [] } = await query(req, client);
       const result = await client.query(sql, params);
       const data = transform ? await transform(result, req) : result.rows;
 
