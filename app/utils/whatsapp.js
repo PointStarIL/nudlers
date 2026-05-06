@@ -1,5 +1,5 @@
 import logger from './logger.js';
-import { getOrCreateClient } from './whatsapp-client.js';
+import { ensureConnected } from './whatsapp-client.js';
 
 /**
  * Sends a WhatsApp message using the internal singleton client.
@@ -13,13 +13,10 @@ export async function sendWhatsAppMessage({ to, body }) {
     }
 
     try {
-        const client = getOrCreateClient();
-        const globalAny = global;
-        const status = globalAny.whatsappStatus;
-
-        if (status !== 'READY' && status !== 'AUTHENTICATED') {
-            throw new Error(`WhatsApp client not ready (Status: ${status}). Please scan QR code in settings.`);
-        }
+        // Verify the client is alive (probes getState) and reconnect if not.
+        // This is the safety net that keeps daily summaries flowing after the
+        // long-running session inevitably degrades.
+        const client = await ensureConnected();
 
         // Split by comma for multiple recipients
         const recipients = to.split(',').map(r => r.trim()).filter(Boolean);
