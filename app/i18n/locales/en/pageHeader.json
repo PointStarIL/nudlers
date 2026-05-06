@@ -1,0 +1,17 @@
+{
+  "dateMode": {
+    "calendar": "1-31",
+    "billing": "Cycle",
+    "custom": "Custom"
+  },
+  "ariaYear": "Selected Year",
+  "ariaMonth": "Selected Month",
+  "search": "Search...",
+  "refresh": "Refresh Data",
+  "badge": {
+    "billingCycle": "💳 Billing Cycle: {{label}}",
+    "customRange": "Custom Range",
+    "fullMonth": "Full Month",
+    "rangePrefixWithLabel": "{{label}}: {{range}}"
+  }
+}

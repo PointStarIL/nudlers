@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { logger } from '../utils/client-logger';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
@@ -109,6 +110,7 @@ interface RateLimitState {
 }
 
 export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig }: ScrapeModalProps) {
+  const { t } = useTranslation('scrape');
   const theme = useTheme();
   const { setIsVaultModalOpen } = useStatus();
   const [isLoading, setIsLoading] = useState(false);
@@ -277,15 +279,15 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       const response = await fetch('/api/scrapers/stop', { method: 'POST' });
       const data = await response.json();
       if (data.success) {
-        showNotification('All scrapers stopped successfully.', 'success');
+        showNotification(t('errors.stoppedSuccess'), 'success');
         setError(null);
         setErrorType(null);
         setRetryState(null);
       } else {
-        showNotification(data.message || 'Failed to stop scrapers', 'error');
+        showNotification(data.message || t('errors.stopFailed'), 'error');
       }
     } catch {
-      showNotification('Failed to stop scrapers', 'error');
+      showNotification(t('errors.stopFailed'), 'error');
     } finally {
       setIsKilling(false);
     }
@@ -295,7 +297,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
     setIsLoading(true);
     setError(null);
     setElapsedSeconds(0);
-    setProgress({ step: 'init', message: 'Starting...', percent: 0 });
+    setProgress({ step: 'init', message: t('progress.starting'), percent: 0 });
     setScrapeResult(null);
     setSessionReport([]);
     setStepHistory([]);
@@ -319,7 +321,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       });
 
       if (!response.ok) {
-        let errorMsg = 'Failed to start scraping';
+        let errorMsg = t('errors.failedToStart');
         try {
           const errorData = await response.json();
           errorMsg = errorData.message || errorMsg;
@@ -341,7 +343,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       const decoder = new TextDecoder();
 
       if (!reader) {
-        throw new Error('No response stream available');
+        throw new Error(t('errors.noResponseStream'));
       }
 
       let buffer = '';
@@ -379,14 +381,14 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
               if (logEntry.type === 'rateLimitWait' && logEntry.seconds) {
                 setRateLimitState({
                   isWaiting: true,
-                  message: logEntry.message || 'Rate limit wait...',
+                  message: logEntry.message || t('progress.rateLimitDefault'),
                   totalSeconds: logEntry.seconds,
                   startTime: Date.now()
                 });
               } else if (logEntry.type === 'retryWait' && logEntry.seconds) {
                 setRateLimitState({
                   isWaiting: true,
-                  message: logEntry.message || 'Retrying...',
+                  message: logEntry.message || t('progress.retryingDefault'),
                   totalSeconds: logEntry.seconds,
                   startTime: Date.now()
                 });
@@ -418,7 +420,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                 setOtpCode('');
               } else if (data.step === 'otpFailed') {
                 setOtpSubmitting(false);
-                setOtpError(data.message || 'Verification failed');
+                setOtpError(data.message || t('otp.verificationFailed'));
                 // Allow retry
                 setOtpCode('');
                 setTimeout(() => otpInputRef.current?.focus(), 100);
@@ -459,7 +461,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
               } else {
                 setSessionReport([]);
               }
-              showNotification('Scraping completed successfully!', 'success');
+              showNotification(t('notifications.completed'), 'success');
             } else if (currentEvent === 'error') {
               if (data.type === 'CONCURRENCY_ERROR') {
                 setErrorType('CONCURRENCY_ERROR');
@@ -468,7 +470,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                 onClose();
                 return;
               }
-              const errorWithHint = data.hint ? `${data.message}\n\n💡 Hint: ${data.hint}` : data.message;
+              const errorWithHint = data.hint ? `${data.message}\n\n💡 ${t('errors.hintLabel')}: ${data.hint}` : data.message;
               throw new Error(errorWithHint);
             }
           }
@@ -479,7 +481,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
         // User cancelled, don't show error
         return;
       }
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      const errorMessage = err instanceof Error ? err.message : t('errors.default');
       setError(errorMessage);
       setProgress(null);
 
@@ -513,13 +515,13 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.message || 'Failed to submit OTP code');
+        throw new Error(data.message || t('otp.submitFailedDetailed'));
       }
 
       // Code submitted — the scraper will continue automatically.
       // Don't clear otpRequired yet — wait for otpSuccess/otpFailed events.
     } catch (err) {
-      setOtpError(err instanceof Error ? err.message : 'Failed to submit code');
+      setOtpError(err instanceof Error ? err.message : t('otp.submitFailed'));
       setOtpSubmitting(false);
     }
   };
@@ -531,10 +533,10 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       if (!response.ok) {
         throw new Error('Failed to take screenshot');
       }
-      showNotification('Screenshot request sent', 'success');
+      showNotification(t('debug.screenshotSent'), 'success');
     } catch (err) {
       logger.error('Failed to take manual screenshot', err as Error);
-      showNotification('Failed to take screenshot', 'error');
+      showNotification(t('debug.screenshotFailed'), 'error');
     } finally {
       setIsCapturing(false);
     }
@@ -553,10 +555,10 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
   const renderNewScrapeForm = () => (
     <>
       <FormControl fullWidth>
-        <InputLabel>Vendor</InputLabel>
+        <InputLabel>{t('form.vendorLabel')}</InputLabel>
         <Select
           value={config.options.companyId}
-          label="Vendor"
+          label={t('form.vendorLabel')}
           onChange={(e) => handleConfigChange('options.companyId', e.target.value)}
         >
           <MenuItem value="isracard">Isracard</MenuItem>
@@ -579,17 +581,17 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       {BEINLEUMI_GROUP_VENDORS.includes(config.options.companyId) ? (
         <>
           <TextField
-            label="ID / Username"
+            label={t('form.idUsernameLabel')}
             value={config.credentials.id}
             onChange={(e) => handleConfigChange('credentials.id', e.target.value)}
             fullWidth
-            helperText="Your ID number (no account number needed for this bank)"
+            helperText={t('form.idUsernameHelper')}
           />
         </>
       ) : config.options.companyId === 'hapoalim' ? (
         <>
           <TextField
-            label="User Code"
+            label={t('form.userCodeLabel')}
             value={config.credentials.userCode || config.credentials.username || config.credentials.id || ''}
             onChange={(e) => {
               // Store as userCode, but also update username/id for backward compatibility
@@ -597,20 +599,20 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
               handleConfigChange('credentials.username', e.target.value);
             }}
             fullWidth
-            helperText="Your Bank Hapoalim user code for online banking (found in your online banking profile)"
+            helperText={t('form.userCodeHelper')}
             required
           />
         </>
       ) : STANDARD_BANK_VENDORS.includes(config.options.companyId) ? (
         <>
           <TextField
-            label="ID"
+            label={t('form.idLabel')}
             value={config.credentials.id}
             onChange={(e) => handleConfigChange('credentials.id', e.target.value)}
             fullWidth
           />
           <TextField
-            label="Bank Account Number"
+            label={t('form.bankAccountNumberLabel')}
             value={config.credentials.bankAccountNumber}
             onChange={(e) => handleConfigChange('credentials.bankAccountNumber', e.target.value)}
             fullWidth
@@ -618,7 +620,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
         </>
       ) : config.options.companyId === 'visaCal' || config.options.companyId === 'max' ? (
         <TextField
-          label="Username"
+          label={t('form.usernameLabel')}
           value={config.credentials.username}
           onChange={(e) => handleConfigChange('credentials.username', e.target.value)}
           fullWidth
@@ -626,13 +628,13 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       ) : (
         <>
           <TextField
-            label="ID"
+            label={t('form.idLabel')}
             value={config.credentials.id}
             onChange={(e) => handleConfigChange('credentials.id', e.target.value)}
             fullWidth
           />
           <TextField
-            label="Card 6 Digits"
+            label={t('form.card6DigitsLabel')}
             value={config.credentials.card6Digits}
             onChange={(e) => handleConfigChange('credentials.card6Digits', e.target.value)}
             fullWidth
@@ -641,7 +643,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       )}
 
       <TextField
-        label="Password"
+        label={t('form.passwordLabel')}
         type="password"
         value={config.credentials.password}
         onChange={(e) => handleConfigChange('credentials.password', e.target.value)}
@@ -649,7 +651,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       />
 
       <TextField
-        label="Start Date"
+        label={t('form.startDateLabel')}
         type="date"
         value={formatDateForInput(config.options.startDate)}
         onChange={(e) => {
@@ -664,7 +666,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
         inputProps={{ max: todayStr }}
       />
 
-      <Tooltip title="Shows the browser window for debugging or entering 2FA codes. Only works when running locally (not in Docker).">
+      <Tooltip title={t('form.debugModeTooltip')}>
         <FormControlLabel
           control={
             <Switch
@@ -676,7 +678,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
           label={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <BugReportIcon sx={{ fontSize: 18, color: config.options.showBrowser ? '#3b82f6' : '#9ca3af' }} />
-              <span>Debug Mode (Show Browser)</span>
+              <span>{t('form.debugModeLabel')}</span>
             </Box>
           }
         />
@@ -687,14 +689,14 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
   const renderExistingAccountForm = () => (
     <>
       <TextField
-        label="Account Nickname"
+        label={t('form.accountNicknameLabel')}
         value={config.credentials.nickname}
         disabled
         fullWidth
       />
       {config.options.companyId === 'hapoalim' && (config.credentials.userCode || config.credentials.username || config.credentials.id) && (
         <TextField
-          label="User Code"
+          label={t('form.userCodeLabel')}
           value={config.credentials.userCode || config.credentials.username || config.credentials.id || ''}
           disabled
           fullWidth
@@ -702,7 +704,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       )}
       {config.options.companyId !== 'hapoalim' && config.credentials.username && (
         <TextField
-          label="Username"
+          label={t('form.usernameLabel')}
           value={config.credentials.username}
           disabled
           fullWidth
@@ -710,7 +712,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       )}
       {config.options.companyId !== 'hapoalim' && config.credentials.id && (
         <TextField
-          label="ID"
+          label={t('form.idLabel')}
           value={config.credentials.id}
           disabled
           fullWidth
@@ -718,7 +720,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       )}
       {config.credentials.card6Digits && (
         <TextField
-          label="Card 6 Digits"
+          label={t('form.card6DigitsLabel')}
           value={config.credentials.card6Digits}
           disabled
           fullWidth
@@ -726,7 +728,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       )}
       {config.credentials.bankAccountNumber && (
         <TextField
-          label="Bank Account Number"
+          label={t('form.bankAccountNumberLabel')}
           value={config.credentials.bankAccountNumber}
           disabled
           fullWidth
@@ -734,7 +736,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
       )}
 
       <TextField
-        label="Start Date"
+        label={t('form.startDateLabel')}
         type="date"
         value={formatDateForInput(config.options.startDate)}
         onChange={(e) => {
@@ -749,7 +751,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
         inputProps={{ max: todayStr }}
       />
 
-      <Tooltip title="Shows the browser window for debugging or entering 2FA codes. Only works when running locally (not in Docker).">
+      <Tooltip title={t('form.debugModeTooltip')}>
         <FormControlLabel
           control={
             <Switch
@@ -761,7 +763,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
           label={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <BugReportIcon sx={{ fontSize: 18, color: config.options.showBrowser ? '#3b82f6' : '#9ca3af' }} />
-              <span>Debug Mode (Show Browser)</span>
+              <span>{t('form.debugModeLabel')}</span>
             </Box>
           }
         />
@@ -770,14 +772,10 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
   );
 
   const getPhaseLabel = (phase?: string) => {
-    const phases: Record<string, string> = {
-      'initialization': 'Initialization',
-      'authentication': 'Authentication',
-      'data_fetching': 'Fetching Data',
-      'processing': 'Processing',
-      'saving': 'Saving'
-    };
-    return phases[phase || ''] || 'Processing';
+    const key = phase && ['initialization', 'authentication', 'data_fetching', 'processing', 'saving'].includes(phase)
+      ? phase
+      : 'default';
+    return t(`progress.phase.${key}`);
   };
 
   const formatTime = (seconds: number) => {
@@ -823,7 +821,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
               </Typography>
             )}
             <Typography variant="body1" sx={{ fontWeight: 500, color: theme.palette.text.primary }}>
-              {progress?.message || 'Processing...'}
+              {progress?.message || t('progress.processing')}
             </Typography>
           </Box>
         </Box>
@@ -856,7 +854,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
           </Box>
           {progress?.phase && (
             <Typography variant="caption" sx={{ color: theme.palette.text.disabled }}>
-              Step {stepHistory.length + 1}
+              {t('progress.step', { number: stepHistory.length + 1 })}
             </Typography>
           )}
         </Box>
@@ -909,7 +907,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
             overflowY: 'auto'
           }}>
             <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, display: 'block', mb: 1 }}>
-              Running Log:
+              {t('progress.runningLog')}
             </Typography>
             {stepHistory.slice().reverse().map((step, idx) => (
               <Box key={idx} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
@@ -943,11 +941,11 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                 <LockIcon sx={{ color: '#3b82f6', fontSize: 22 }} />
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
-                  2FA Verification Required
+                  {t('otp.title')}
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 2, fontSize: '0.8rem' }}>
-                Bank Hapoalim sent a verification code to your phone. Enter it below to continue.
+                {t('otp.description')}
               </Typography>
 
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
@@ -965,7 +963,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                       handleOtpSubmit();
                     }
                   }}
-                  placeholder="Enter code"
+                  placeholder={t('otp.placeholder')}
                   variant="outlined"
                   size="small"
                   disabled={otpSubmitting}
@@ -1010,7 +1008,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
 
               {otpSubmitting && (
                 <Typography variant="caption" sx={{ color: '#3b82f6', mt: 1, display: 'block' }}>
-                  Submitting code... The scraper will continue automatically.
+                  {t('otp.submitting')}
                 </Typography>
               )}
             </Box>
@@ -1032,7 +1030,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
               <SwapVertIcon sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
               <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
-                Network Activity (Debug):
+                {t('debug.networkActivity')}
               </Typography>
             </Box>
             {networkLogs.slice(0, 5).map((log, idx) => (
@@ -1044,8 +1042,8 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                   fontSize: '0.7rem',
                   minWidth: 35
                 }}>
-                  {log.type === 'httpRequest' ? 'REQ' :
-                    log.type === 'httpResponse' ? `RES ${log.status || ''}` : 'WAIT'}
+                  {log.type === 'httpRequest' ? t('debug.logRequest') :
+                    log.type === 'httpResponse' ? `${t('debug.logResponse')} ${log.status || ''}` : t('debug.logWait')}
                 </Typography>
                 <Typography variant="caption" sx={{
                   color: theme.palette.mode === 'dark' ? '#cbd5e1' : '#475569',
@@ -1082,7 +1080,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                 }
               }}
             >
-              {isCapturing ? 'Capturing...' : 'Take Debug Screenshot'}
+              {isCapturing ? t('debug.capturing') : t('debug.takeScreenshot')}
             </Button>
 
             {latestScreenshot && (
@@ -1102,7 +1100,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                   }
                 }}
               >
-                View Latest Screenshot
+                {t('debug.viewLatestScreenshot')}
               </Button>
             )}
           </Box>
@@ -1138,7 +1136,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
         }
       }}
     >
-      <ModalHeader title="Scrape" onClose={handleClose} />
+      <ModalHeader title={t('modal.title')} onClose={handleClose} />
       <DialogContent style={{ padding: '0 24px 24px' }}>
         {error && (
           <div style={{
@@ -1156,7 +1154,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
             {retryState?.canRetry && !errorType && (
               <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <Typography variant="body2" sx={{ color: theme.palette.mode === 'dark' ? '#b91c1c' : '#991b1b', mb: 1 }}>
-                  Would you like to retry?
+                  {t('errors.wouldYouLikeRetry')}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Button
@@ -1172,7 +1170,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                       }
                     }}
                   >
-                    Retry from {config.options.startDate.toLocaleDateString()}
+                    {t('errors.retryFromLabel', { date: config.options.startDate.toLocaleDateString() })}
                   </Button>
 
                   {retryState.lastTransactionDate && (
@@ -1187,13 +1185,13 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                         }
                       }}
                     >
-                      Continue from {retryState.lastTransactionDate.toLocaleDateString()}
+                      {t('errors.continueFromLabel', { date: retryState.lastTransactionDate.toLocaleDateString() })}
                     </Button>
                   )}
                 </Box>
                 {retryState.lastTransactionDate && (
                   <Typography variant="caption" sx={{ color: '#6b7280', mt: 0.5 }}>
-                    "Continue" will start from the day after the last saved transaction, skipping already synced data.
+                    {t('errors.continueHint')}
                   </Typography>
                 )}
               </Box>
@@ -1214,10 +1212,10 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                     borderRadius: '8px'
                   }}
                 >
-                  {isKilling ? 'Stopping Scrapers...' : 'Force Stop All Scrapers'}
+                  {isKilling ? t('errors.stoppingScrapers') : t('errors.forceStopAll')}
                 </Button>
                 <Typography variant="caption" sx={{ display: 'block', mt: 1, textAlign: 'center', opacity: 0.8 }}>
-                  This will terminate any running browser processes and allow you to start a new scrape.
+                  {t('errors.forceStopHint')}
                 </Typography>
               </Box>
             )}
@@ -1228,8 +1226,9 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
           // Show progress view when scraping or after completion
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-              Scraping <strong>{config.options.companyId}</strong>
-              {config.credentials.nickname && ` (${config.credentials.nickname})`}
+              {config.credentials.nickname
+                ? t('modal.scrapingVendorWithNickname', { vendor: config.options.companyId, nickname: config.credentials.nickname })
+                : t('modal.scrapingVendor', { vendor: config.options.companyId })}
             </Typography>
 
             {config.options.showBrowser && isLoading && (
@@ -1245,14 +1244,14 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                 <BugReportIcon sx={{ color: 'var(--status-info)', mt: 0.3 }} />
                 <Box>
                   <Typography variant="subtitle2" sx={{ color: 'var(--info-text)', fontWeight: 600 }}>
-                    Debug Mode Active
+                    {t('debug.modeActiveTitle')}
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'var(--info-text)', mt: 0.5 }}>
-                    A browser window should have opened. You can interact with it to complete 2FA or debug issues.
+                    {t('debug.modeActiveDesc')}
                   </Typography>
                   <Box sx={{ mt: 1.5 }}>
                     <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#60a5fa' : '#3b82f6' }}>
-                      <strong>🖥️ Debug Tip:</strong> Look for a Chrome window on your desktop. This mode is best used when running the app locally.
+                      <strong>🖥️ {t('debug.tipLabel')}</strong> {t('debug.tipText')}
                     </Typography>
                   </Box>
                 </Box>
@@ -1286,17 +1285,17 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
               fontWeight: 500
             }}
           >
-            Done
+            {t('actions.done')}
           </Button>
         ) : retryState?.canRetry ? (
           // Show only close button when in retry mode (retry options are in the error box)
           <Button onClick={handleClose} style={{ color: theme.palette.text.secondary }}>
-            Close
+            {t('actions.close')}
           </Button>
         ) : (
           <>
             <Button onClick={handleClose} style={{ color: theme.palette.text.secondary }}>
-              {isLoading ? 'Cancel Scrape' : 'Cancel'}
+              {isLoading ? t('actions.cancelScrape') : t('actions.cancel')}
             </Button>
             {!isLoading && (
               <Button
@@ -1312,7 +1311,7 @@ export default function ScrapeModal({ isOpen, onClose, onSuccess, initialConfig 
                   fontWeight: 500
                 }}
               >
-                SCRAPE
+                {t('actions.scrape')}
               </Button>
             )}
           </>

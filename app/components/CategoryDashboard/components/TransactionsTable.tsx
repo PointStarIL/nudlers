@@ -21,6 +21,8 @@ import CategoryAutocomplete from '../../CategoryAutocomplete';
 import AccountDisplay from '../../AccountDisplay';
 import MobileSortableTable, { SortOption } from '../../MobileSortableTable';
 import { Theme } from '@mui/material/styles';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../../context/LocaleContext';
 
 const getCurrencySymbol = (currency?: string) => {
   if (!currency) return '₪';
@@ -82,6 +84,9 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
   isBankView = false
 }) => {
   const theme = useTheme();
+  const { t } = useTranslation(['tx', 'common']);
+  const { locale } = useLocale();
+  const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [editingTransaction, setEditingTransaction] = React.useState<Transaction | null>(null);
   const [editPrice, setEditPrice] = React.useState<string>('');
@@ -119,10 +124,10 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
     if (!confirmDeleteTransaction) return;
     try {
       onDelete?.(confirmDeleteTransaction);
-      setSnackbar({ open: true, message: 'Transaction deleted successfully', severity: 'success' });
+      setSnackbar({ open: true, message: t('tx:snackbar.deleteSuccess'), severity: 'success' });
     } catch (error) {
       logger.error('Error deleting transaction', error as Error);
-      setSnackbar({ open: true, message: 'Error deleting transaction', severity: 'error' });
+      setSnackbar({ open: true, message: t('tx:snackbar.deleteError'), severity: 'error' });
     }
     setConfirmDeleteTransaction(null);
   }, [confirmDeleteTransaction, onDelete]);
@@ -161,8 +166,8 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                 setSnackbar({
                   open: true,
                   message: result.transactionsUpdated > 1
-                    ? `Updated ${result.transactionsUpdated} transactions and saved rule.`
-                    : `Category updated and rule saved.`,
+                    ? t('tx:snackbar.updatedManyAndRule', { count: result.transactionsUpdated })
+                    : t('tx:snackbar.categoryUpdatedAndRule'),
                   severity: 'success'
                 });
                 onUpdate?.(editingTransaction, { category: editCategory, price: priceWithSign });
@@ -176,7 +181,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
           }
         } catch (error) {
           logger.error('Error updating transaction', error as Error);
-          setSnackbar({ open: true, message: 'Update failed', severity: 'error' });
+          setSnackbar({ open: true, message: t('tx:snackbar.updateError'), severity: 'error' });
         }
         setEditingTransaction(null);
       }
@@ -223,24 +228,24 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
     today.setHours(0, 0, 0, 0);
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (date.getTime() === today.getTime()) return 'Today';
-    if (date.getTime() === yesterday.getTime()) return 'Yesterday';
-    return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    if (date.getTime() === today.getTime()) return t('tx:groupHeader.today');
+    if (date.getTime() === yesterday.getTime()) return t('tx:groupHeader.yesterday');
+    return date.toLocaleDateString(dateLocale, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const mobileSortOptions: SortOption[] = React.useMemo(() => [
-    { id: 'date', label: 'Date', defaultDirection: 'desc' },
-    { id: 'price', label: 'Amount', defaultDirection: 'desc' },
-    { id: 'name', label: 'Name', defaultDirection: 'asc' },
-    { id: 'category', label: 'Category', defaultDirection: 'asc' },
-  ], []);
+    { id: 'date', label: t('tx:table.sortByDate'), defaultDirection: 'desc' },
+    { id: 'price', label: t('tx:table.sortByAmount'), defaultDirection: 'desc' },
+    { id: 'name', label: t('tx:table.sortByName'), defaultDirection: 'asc' },
+    { id: 'category', label: t('tx:table.sortByCategory'), defaultDirection: 'asc' },
+  ], [t]);
 
   const handleMobileSort = React.useCallback((field: string) => {
     if (onSort) onSort(field);
   }, [onSort]);
 
-  if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><Typography>Loading...</Typography></Box>;
-  if (!transactions || transactions.length === 0) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><Typography>No transactions.</Typography></Box>;
+  if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><Typography>{t('tx:table.loading')}</Typography></Box>;
+  if (!transactions || transactions.length === 0) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><Typography>{t('tx:table.empty')}</Typography></Box>;
 
   const columnWidths = { description: '35%', category: '15%', amount: '12%', installment: '8%', card: '12%', date: '10%', actions: '8%' };
   const tableHeaderBaseStyle = getTableHeaderCellStyle(theme);
@@ -297,13 +302,13 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
         <Table size={disableWrapper ? "small" : "medium"} stickyHeader>
           <TableHead>
             <TableRow>
-              {renderSortableHeader('Description', 'name', 'left', columnWidths.description)}
-              {renderSortableHeader('Category', 'category', 'left', columnWidths.category)}
-              {renderSortableHeader('Amount', 'price', 'right', columnWidths.amount)}
-              {!hideInstallmentsColumn && <TableCell style={{ ...tableHeaderBaseStyle, width: columnWidths.installment }}>Inst.</TableCell>}
-              {renderSortableHeader('Card', 'account_number', 'left', columnWidths.card)}
-              {!groupByDate && renderSortableHeader('Date', 'date', 'left', columnWidths.date)}
-              {!hideActions && <TableCell align="right" style={{ ...tableHeaderBaseStyle, width: columnWidths.actions }}>Actions</TableCell>}
+              {renderSortableHeader(t('tx:table.columnDescription'), 'name', 'left', columnWidths.description)}
+              {renderSortableHeader(t('tx:table.columnCategory'), 'category', 'left', columnWidths.category)}
+              {renderSortableHeader(t('tx:table.columnAmount'), 'price', 'right', columnWidths.amount)}
+              {!hideInstallmentsColumn && <TableCell style={{ ...tableHeaderBaseStyle, width: columnWidths.installment }}>{t('tx:table.columnInstallments')}</TableCell>}
+              {renderSortableHeader(t('tx:table.columnCard'), 'account_number', 'left', columnWidths.card)}
+              {!groupByDate && renderSortableHeader(t('tx:table.columnDate'), 'date', 'left', columnWidths.date)}
+              {!hideActions && <TableCell align="right" style={{ ...tableHeaderBaseStyle, width: columnWidths.actions }}>{t('tx:table.columnActions')}</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -453,31 +458,34 @@ const TransactionRow = React.memo(({
   isBankView,
   groupByDate
 }: TransactionRowProps) => {
+  const { t } = useTranslation(['tx', 'common']);
   const cellStyle = { ...getTableBodyCellStyle(theme), fontSize: isWidget ? '0.75rem' : '0.875rem', p: isWidget ? '4px 12px' : '8px 16px' };
 
   return (
     <TableRow onClick={() => handleRowClick(transaction)} style={TABLE_ROW_HOVER_STYLE} onMouseEnter={(e) => e.currentTarget.style.background = getTableRowHoverBackground(theme)} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
       <TableCell style={{ ...cellStyle, maxWidth: '300px' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton
-            size="small"
-            onClick={(e) => { e.stopPropagation(); onToggleFavorite(transaction); }}
-            sx={{
-              color: transaction.is_favorite ? '#fbbf24' : theme.palette.text.disabled,
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              p: '4px',
-              '&:hover': {
-                transform: 'scale(1.2) rotate(5deg)',
-                color: '#fbbf24',
-                background: 'rgba(251, 191, 36, 0.08)'
-              },
-              '& svg': {
-                filter: transaction.is_favorite ? 'drop-shadow(0 0 2px rgba(251, 191, 36, 0.4))' : 'none'
-              }
-            }}
-          >
-            {transaction.is_favorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
-          </IconButton>
+          <Tooltip title={transaction.is_favorite ? t('tx:tooltips.unfavorite') : t('tx:tooltips.favorite')}>
+            <IconButton
+              size="small"
+              onClick={(e) => { e.stopPropagation(); onToggleFavorite(transaction); }}
+              sx={{
+                color: transaction.is_favorite ? '#fbbf24' : theme.palette.text.disabled,
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                p: '4px',
+                '&:hover': {
+                  transform: 'scale(1.2) rotate(5deg)',
+                  color: '#fbbf24',
+                  background: 'rgba(251, 191, 36, 0.08)'
+                },
+                '& svg': {
+                  filter: transaction.is_favorite ? 'drop-shadow(0 0 2px rgba(251, 191, 36, 0.4))' : 'none'
+                }
+              }}
+            >
+              {transaction.is_favorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{transaction.name}</Typography>
             {transaction.notes && (
@@ -541,23 +549,33 @@ const TransactionRow = React.memo(({
         <TableCell align="right" style={cellStyle}>
           {editingTransaction?.identifier === transaction.identifier ? (
             <>
-              <IconButton onClick={handleSaveClick} sx={{ color: '#4ADE80' }}><CheckIcon /></IconButton>
-              <IconButton onClick={handleCancelClick} sx={{ color: '#ef4444' }}><CloseIcon /></IconButton>
+              <Tooltip title={t('common:actions.save')}>
+                <IconButton onClick={handleSaveClick} sx={{ color: '#4ADE80' }}><CheckIcon /></IconButton>
+              </Tooltip>
+              <Tooltip title={t('common:actions.cancel')}>
+                <IconButton onClick={handleCancelClick} sx={{ color: '#ef4444' }}><CloseIcon /></IconButton>
+              </Tooltip>
             </>
           ) : (
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <IconButton onClick={(e) => { e.stopPropagation(); handleEditClick(transaction); }} size="small" sx={{ color: '#3b82f6' }}><EditIcon fontSize="small" /></IconButton>
-              <IconButton onClick={(e) => { e.stopPropagation(); setEditingNotes({ identifier: transaction.identifier, vendor: transaction.vendor, content: transaction.notes || '' }); }} size="small" sx={{ color: transaction.notes ? theme.palette.primary.main : theme.palette.text.disabled }}><NotesIcon fontSize="small" /></IconButton>
-              <IconButton onClick={(e) => { e.stopPropagation(); setConfirmDeleteTransaction(transaction); }} size="small" sx={{ color: '#ef4444' }}><DeleteIcon fontSize="small" /></IconButton>
+              <Tooltip title={t('tx:tooltips.editTransaction')}>
+                <IconButton onClick={(e) => { e.stopPropagation(); handleEditClick(transaction); }} size="small" sx={{ color: '#3b82f6' }}><EditIcon fontSize="small" /></IconButton>
+              </Tooltip>
+              <Tooltip title={transaction.notes ? t('tx:tooltips.viewNotes') : t('tx:tooltips.openNotes')}>
+                <IconButton onClick={(e) => { e.stopPropagation(); setEditingNotes({ identifier: transaction.identifier, vendor: transaction.vendor, content: transaction.notes || '' }); }} size="small" sx={{ color: transaction.notes ? theme.palette.primary.main : theme.palette.text.disabled }}><NotesIcon fontSize="small" /></IconButton>
+              </Tooltip>
+              <Tooltip title={t('tx:tooltips.deleteTransaction')}>
+                <IconButton onClick={(e) => { e.stopPropagation(); setConfirmDeleteTransaction(transaction); }} size="small" sx={{ color: '#ef4444' }}><DeleteIcon fontSize="small" /></IconButton>
+              </Tooltip>
             </Box>
           )}
           {editingNotes?.identifier === transaction.identifier && editingNotes?.vendor === transaction.vendor && (
             <Box onClick={(e) => e.stopPropagation()} sx={{ position: 'fixed', zIndex: 1000, bgcolor: 'background.paper', p: 2, borderRadius: 2, boxShadow: 3, border: 1, borderColor: 'divider', width: 250, right: 50 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>Notes</Typography>
-              <TextField fullWidth multiline rows={3} value={editingNotes.content} onChange={(e) => setEditingNotes({ ...editingNotes, content: e.target.value })} size="small" sx={{ mb: 1 }} />
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('tx:notes.title')}</Typography>
+              <TextField fullWidth multiline rows={3} placeholder={t('tx:notes.placeholder')} value={editingNotes.content} onChange={(e) => setEditingNotes({ ...editingNotes, content: e.target.value })} size="small" sx={{ mb: 1 }} />
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                <Button size="small" onClick={() => setEditingNotes(null)}>Cancel</Button>
-                <Button variant="contained" size="small" onClick={() => onNotesUpdate(transaction, editingNotes.content)}>Save</Button>
+                <Button size="small" onClick={() => setEditingNotes(null)}>{t('common:actions.cancel')}</Button>
+                <Button variant="contained" size="small" onClick={() => onNotesUpdate(transaction, editingNotes.content)}>{t('common:actions.save')}</Button>
               </Box>
             </Box>
           )}
@@ -566,6 +584,7 @@ const TransactionRow = React.memo(({
     </TableRow>
   );
 });
+TransactionRow.displayName = 'TransactionRow';
 
 interface TransactionMobileCardProps {
   transaction: Transaction;
@@ -612,6 +631,7 @@ const TransactionMobileCardContent = ({
   onCancel,
   isBankView = false
 }: TransactionMobileCardProps) => {
+  const { t } = useTranslation(['tx', 'common']);
   const [showNoteInput, setShowNoteInput] = React.useState(false);
   const [noteContent, setNoteContent] = React.useState(transaction.notes || '');
 
@@ -652,29 +672,39 @@ const TransactionMobileCardContent = ({
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <CardVendorIcon vendor={getCardVendor(transaction.account_number)} size={16} />
-          <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>{getCardNickname(transaction.account_number) || 'Card'}</Typography>
+          <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>{getCardNickname(transaction.account_number) || t('tx:table.fallbackCardLabel')}</Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 0.5 }}>
           {isEditing ? (
             <>
-              <IconButton size="small" onClick={onSave} sx={{ color: '#10b981' }}><CheckIcon fontSize="small" /></IconButton>
-              <IconButton size="small" onClick={onCancel} sx={{ color: '#ef4444' }}><CloseIcon fontSize="small" /></IconButton>
+              <Tooltip title={t('common:actions.save')}>
+                <IconButton size="small" onClick={onSave} sx={{ color: '#10b981' }}><CheckIcon fontSize="small" /></IconButton>
+              </Tooltip>
+              <Tooltip title={t('common:actions.cancel')}>
+                <IconButton size="small" onClick={onCancel} sx={{ color: '#ef4444' }}><CloseIcon fontSize="small" /></IconButton>
+              </Tooltip>
             </>
           ) : (
             <>
-              <IconButton size="small" onClick={onEdit} sx={{ color: '#3b82f6' }}><EditIcon fontSize="small" /></IconButton>
-              <IconButton size="small" onClick={() => setShowNoteInput(!showNoteInput)} sx={{ color: transaction.notes ? theme.palette.primary.main : theme.palette.text.disabled }}><NotesIcon fontSize="small" /></IconButton>
-              <IconButton size="small" onClick={onDelete} sx={{ color: '#ef4444' }}><DeleteIcon fontSize="small" /></IconButton>
+              <Tooltip title={t('tx:tooltips.editTransaction')}>
+                <IconButton size="small" onClick={onEdit} sx={{ color: '#3b82f6' }}><EditIcon fontSize="small" /></IconButton>
+              </Tooltip>
+              <Tooltip title={transaction.notes ? t('tx:tooltips.viewNotes') : t('tx:tooltips.openNotes')}>
+                <IconButton size="small" onClick={() => setShowNoteInput(!showNoteInput)} sx={{ color: transaction.notes ? theme.palette.primary.main : theme.palette.text.disabled }}><NotesIcon fontSize="small" /></IconButton>
+              </Tooltip>
+              <Tooltip title={t('tx:tooltips.deleteTransaction')}>
+                <IconButton size="small" onClick={onDelete} sx={{ color: '#ef4444' }}><DeleteIcon fontSize="small" /></IconButton>
+              </Tooltip>
             </>
           )}
         </Box>
       </Box>
       {showNoteInput && (
         <Box sx={{ mt: 1 }}>
-          <TextField fullWidth multiline rows={2} size="small" value={noteContent} onChange={(e) => setNoteContent(e.target.value)} />
+          <TextField fullWidth multiline rows={2} size="small" placeholder={t('tx:notes.placeholder')} value={noteContent} onChange={(e) => setNoteContent(e.target.value)} />
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
-            <Button size="small" onClick={() => setShowNoteInput(false)}>Cancel</Button>
-            <Button size="small" variant="contained" onClick={() => { onNotesUpdate?.(noteContent); setShowNoteInput(false); }}>Save</Button>
+            <Button size="small" onClick={() => setShowNoteInput(false)}>{t('common:actions.cancel')}</Button>
+            <Button size="small" variant="contained" onClick={() => { onNotesUpdate?.(noteContent); setShowNoteInput(false); }}>{t('common:actions.save')}</Button>
           </Box>
         </Box>
       )}

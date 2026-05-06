@@ -1,0 +1,181 @@
+{
+  "indicator": {
+    "tabSyncing": "(Syncing...) {{title}}",
+    "healthy": {
+      "label": "Healthy",
+      "tooltip": "All accounts synced. Last: {{time}}",
+      "unknownTime": "Unknown"
+    },
+    "syncing": {
+      "label": "Syncing",
+      "tooltip": "Sync in progress..."
+    },
+    "error": {
+      "label": "Error",
+      "tooltip": "Last sync failed. Check status for details."
+    },
+    "stale": {
+      "label": "Stale",
+      "tooltip": "Some accounts need sync. Oldest: {{time}}"
+    },
+    "outdated": {
+      "label": "Outdated",
+      "tooltip": "Accounts haven't synced in a while. Oldest: {{time}}"
+    },
+    "noAccounts": {
+      "label": "No Accounts",
+      "tooltip": "Add accounts to start syncing"
+    },
+    "neverSynced": {
+      "label": "Never Synced",
+      "tooltip": "Accounts have never been synced."
+    },
+    "unknown": {
+      "label": "Unknown",
+      "tooltip": "Sync status unknown"
+    },
+    "activeAccounts_one": "{{count}} active account",
+    "activeAccounts_other": "{{count}} active accounts"
+  },
+  "relativeTime": {
+    "justNow": "Just now",
+    "inMinutes": "in {{count}} min",
+    "minutesAgo": "{{count}} min ago",
+    "hoursAgo_one": "{{count}} hour ago",
+    "hoursAgo_other": "{{count}} hours ago",
+    "daysAgo_one": "{{count}} day ago",
+    "daysAgo_other": "{{count}} days ago",
+    "never": "Never"
+  },
+  "relativeTimeShort": {
+    "justNow": "just now",
+    "inMinutes": "in {{count}}m",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
+  },
+  "modal": {
+    "title": "Sync Status",
+    "tooltipStop": "Stop sync immediately",
+    "tooltipUnlockToSync": "Unlock vault to sync",
+    "tooltipSyncAll": "Sync all accounts now",
+    "stopping": "Stopping...",
+    "starting": "Starting...",
+    "stopNow": "Stop Now",
+    "locked": "Locked",
+    "syncNow": "Sync Now",
+    "close": "Close"
+  },
+  "options": {
+    "startDate": "Start Date",
+    "showBrowser": "Show Browser",
+    "showBrowserHapoalimHint": "Recommended for 2FA verification",
+    "vaultLocked": "Vault Locked",
+    "startSync": "Start Sync",
+    "errorRequired": "Date is required",
+    "errorInvalid": "Invalid date",
+    "errorFuture": "Date cannot be in the future"
+  },
+  "report": {
+    "title": "Sync Report",
+    "closeReport": "Close Report",
+    "noNew": "No new transactions found during this sync.",
+    "backToStatus": "Back to Status"
+  },
+  "progress": {
+    "stoppingSync": "Stopping Sync...",
+    "syncProgress": "Sync Progress",
+    "initializingSession": "Initializing session...",
+    "initializing": "Initializing...",
+    "preparingToSync": "Preparing to sync...",
+    "syncing": "Syncing...",
+    "done": "Done",
+    "newCount": "{{count}} new",
+    "completedSuccessfully": "✓ Completed successfully",
+    "verificationFailed": "Verification failed",
+    "syncFailed": "Sync failed",
+    "twoFactorRequired": "2FA Code Required",
+    "enterCode": "Enter code",
+    "viewBrowserScreenshot": "View Browser Screenshot",
+    "terminatingProcesses": "Terminating browser processes...",
+    "stopSending": "Sending stop command...",
+    "stopSuccess": "Successfully stopped all processes.",
+    "stopPartialFail": "Failed to stop some processes.",
+    "stopError": "Error stopping scrapers.",
+    "fetchAccountFailed": "Failed to start sync: Could not fetch account details",
+    "loadingPlaceholder": "Loading..."
+  },
+  "health": {
+    "connecting": {
+      "label": "Connecting...",
+      "description": "Fetching sync status..."
+    },
+    "healthy": {
+      "label": "All Synced",
+      "description": "Your transactions are up to date"
+    },
+    "syncing": {
+      "label": "Syncing",
+      "description": "Sync in progress..."
+    },
+    "error": {
+      "label": "Sync Error",
+      "description": "Last sync encountered an error"
+    },
+    "stale": {
+      "label": "Needs Sync",
+      "description": "Some accounts need to be synced"
+    },
+    "outdated": {
+      "label": "Outdated",
+      "description": "Transactions may be outdated"
+    },
+    "neverSynced": {
+      "label": "Never Synced",
+      "description": "Start your first sync to fetch transactions"
+    },
+    "noAccounts": {
+      "label": "No Accounts",
+      "description": "Add accounts to start syncing"
+    },
+    "idle": {
+      "label": "Last Sync: {{time}}",
+      "description": "System is idle"
+    },
+    "unknown": {
+      "label": "Status Unknown",
+      "description": "Status unavailable"
+    },
+    "lastActivity": "Last activity: {{time}}"
+  },
+  "stats": {
+    "accounts": "Accounts",
+    "days": "Days"
+  },
+  "accountStatus": {
+    "title": "Account Status",
+    "tooltipUnlockToSync": "Unlock vault to sync",
+    "tooltipSyncOne": "Sync this account only"
+  },
+  "history": {
+    "title": "Recent Activity"
+  },
+  "errorDetails": {
+    "title": "Scrape Failed",
+    "vendor": "Vendor",
+    "errorMessage": "Error Message",
+    "retryAttempts": "Retry Attempts",
+    "duration": "Duration",
+    "timestamp": "Timestamp"
+  },
+  "historyModal": {
+    "title": "Sync History",
+    "detailsTitle": "Sync Details",
+    "back": "Back",
+    "loadingReport": "Loading detailed report...",
+    "noReport": "No detailed report available for this sync.",
+    "empty": "No sync history found.",
+    "via": "via {{source}}",
+    "manual": "manual"
+  }
+}

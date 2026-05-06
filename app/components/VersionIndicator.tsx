@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Chip, Tooltip, Link } from '@mui/material';
 import NewReleasesIcon from '@mui/icons-material/NewReleases';
 import { styled } from '@mui/material/styles';
+import { useTranslation } from 'react-i18next';
 
 interface VersionData {
     hasNewVersion: boolean;
@@ -34,6 +35,7 @@ const StyledChip = styled(Chip)(({ theme }) => ({
 
 const VersionIndicator: React.FC = () => {
     const [versionData, setVersionData] = useState<VersionData | null>(null);
+    const { t } = useTranslation(['misc', 'common']);
 
     useEffect(() => {
         const checkVersion = async () => {
@@ -59,11 +61,11 @@ const VersionIndicator: React.FC = () => {
     }
 
     return (
-        <Tooltip title={`New version available: v${versionData.latestVersion}. Click to see release notes.`}>
+        <Tooltip title={t('misc:versionIndicator.tooltip', { version: versionData.latestVersion })}>
             <Link href={versionData.releaseUrl} target="_blank" rel="noopener noreferrer" sx={{ textDecoration: 'none' }}>
                 <StyledChip
                     icon={<NewReleasesIcon style={{ color: 'inherit' }} />}
-                    label={`Update Available`}
+                    label={t('misc:versionIndicator.label')}
                     size="small"
                 />
             </Link>

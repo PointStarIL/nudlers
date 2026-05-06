@@ -6,6 +6,8 @@ import DateRangeIcon from '@mui/icons-material/DateRange';
 import TuneIcon from '@mui/icons-material/Tune';
 import SearchIcon from '@mui/icons-material/Search';
 import { DateRangeMode } from '../context/DateSelectionContext';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../context/LocaleContext';
 
 interface PageHeaderProps {
     title: string;
@@ -78,6 +80,9 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     endDate
 }) => {
     const theme = useTheme();
+    const { t } = useTranslation('pageHeader');
+    const { locale } = useLocale();
+    const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
 
     return (
         <Box sx={{
@@ -150,7 +155,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                                     background: 'none',
                                     WebkitTextFillColor: 'currentColor'
                                 }}>
-                                    • {new Date(`2024-${selectedMonth}-01`).toLocaleDateString('default', { month: 'long' })} {selectedYear}
+                                    • {new Date(`2024-${selectedMonth}-01`).toLocaleDateString(dateLocale, { month: 'long' })} {selectedYear}
                                 </Box>
                             )}
                         </Box>
@@ -203,9 +208,9 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                             border: `1px solid ${theme.palette.divider}`
                         }}>
                             {[
-                                { id: 'calendar', icon: <CalendarMonthIcon sx={{ fontSize: 18 }} />, label: '1-31' },
-                                { id: 'billing', icon: <DateRangeIcon sx={{ fontSize: 18 }} />, label: 'Cycle' },
-                                { id: 'custom', icon: <TuneIcon sx={{ fontSize: 18 }} />, label: 'Custom' }
+                                { id: 'calendar', icon: <CalendarMonthIcon sx={{ fontSize: 18 }} />, label: t('dateMode.calendar') },
+                                { id: 'billing', icon: <DateRangeIcon sx={{ fontSize: 18 }} />, label: t('dateMode.billing') },
+                                { id: 'custom', icon: <TuneIcon sx={{ fontSize: 18 }} />, label: t('dateMode.custom') }
                             ].map((mode) => (
                                 <button
                                     key={mode.id}
@@ -232,7 +237,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                                 onChange={onYearChange}
                                 className="n-glass n-select"
                                 style={{ minWidth: '110px' }}
-                                aria-label="Selected Year"
+                                aria-label={t('ariaYear')}
                             >
                                 {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
@@ -241,11 +246,11 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                                 onChange={onMonthChange}
                                 className="n-glass n-select"
                                 style={{ minWidth: '140px' }}
-                                aria-label="Selected Month"
+                                aria-label={t('ariaMonth')}
                             >
                                 {uniqueMonths.map(m => (
                                     <option key={m} value={m}>
-                                        {new Date(`2024-${m}-01`).toLocaleDateString('default', { month: 'long' })}
+                                        {new Date(`2024-${m}-01`).toLocaleDateString(dateLocale, { month: 'long' })}
                                     </option>
                                 ))}
                             </select>
@@ -304,7 +309,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                         >
                             <input
                                 type="text"
-                                placeholder="Search..."
+                                placeholder={t('search')}
                                 value={searchQuery}
                                 onChange={(e) => onSearchQueryChange?.(e.target.value)}
                                 style={{
@@ -319,7 +324,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                     )}
 
                     {onRefresh && (
-                        <Tooltip title="Refresh Data">
+                        <Tooltip title={t('refresh')}>
                             <IconButton
                                 onClick={onRefresh}
                                 className="n-glass"
@@ -359,10 +364,10 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                             alignItems: 'center',
                             gap: '8px'
                         }}>
-                            💳 Billing Cycle: {selectedMonth && selectedYear ? new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''}
+                            {t('badge.billingCycle', { label: selectedMonth && selectedYear ? new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1).toLocaleDateString(dateLocale, { month: 'long', year: 'numeric' }) : '' })}
                             {startDate && endDate && (
                                 <Box component="span" sx={{ opacity: 0.7, fontWeight: 500, fontSize: '12px' }}>
-                                    ({new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
+                                    ({new Date(startDate).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })} - {new Date(endDate).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric', year: 'numeric' })})
                                 </Box>
                             )}
                         </span>
@@ -380,7 +385,10 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                             gap: '8px'
                         }}>
                             {dateRangeMode === 'custom' ? <TuneIcon sx={{ fontSize: 16 }} /> : <CalendarMonthIcon sx={{ fontSize: 16 }} />}
-                            {dateRangeMode === 'custom' ? 'Custom Range' : 'Full Month'}: {startDate && endDate ? `${new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                            {t('badge.rangePrefixWithLabel', {
+                                label: dateRangeMode === 'custom' ? t('badge.customRange') : t('badge.fullMonth'),
+                                range: startDate && endDate ? `${new Date(startDate).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })} - ${new Date(endDate).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric', year: 'numeric' })}` : ''
+                            })}
                         </span>
                     )}
                 </Box>

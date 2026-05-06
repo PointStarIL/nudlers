@@ -1,0 +1,39 @@
+{
+  "passkeyPrompt": {
+    "title": "להפעיל אימות ביומטרי?",
+    "subtitle": "פתחו את הכספת מיידית עם TouchID או FaceID בפעם הבאה, ללא צורך בהקלדת סיסמה.",
+    "enable": "כן, הפעלת Passkey",
+    "skip": "לא כעת"
+  },
+  "unlockPasskey": {
+    "title": "פתיחה עם Passkey",
+    "subtitle": "השתמשו במפתח ביומטרי או באבטחה כדי לפתוח את הכספת.",
+    "authenticate": "אימות",
+    "usePassphraseInstead": "מעבר לסיסמה"
+  },
+  "passphrase": {
+    "titleMigrate": "העברה לכספת",
+    "titleInit": "הקמת כספת",
+    "titleUnlock": "פתיחת כספת",
+    "descMigrate": "צרו סיסמה להצפנת מפתח-אב חדש שיצפין מחדש את פרטי הגישה. הסיסמה אינה נשמרת — אובדן שלה הופך את הכספת לבלתי ניתנת לשחזור.",
+    "descInit": "הסיסמה שלכם מצפינה את מפתח-האב, שמצפין את פרטי הגישה. הסיסמה אינה נשמרת — אובדן שלה הופך את הכספת לבלתי ניתנת לשחזור.",
+    "descUnlock": "הסיסמה מפענחת את מפתח-האב לזיכרון, ופותחת את פרטי הגישה. המפתח נמחק בכל הפעלה מחודשת של השרת.",
+    "createPlaceholder": "צרו סיסמה",
+    "enterPlaceholder": "הזינו סיסמה",
+    "confirmPlaceholder": "אישור סיסמה",
+    "submitMigrate": "העברה לכספת",
+    "submitInit": "הקמת כספת",
+    "submitUnlock": "פתיחת כספת",
+    "usePasskeyInstead": "מעבר ל-Passkey",
+    "howEncryptionWorks": "כיצד פועלת ההצפנה",
+    "encryptionDetail": "בעת פתיחה, מפתח-האב מפוענח לזיכרון בלבד — לעולם אינו נכתב לדיסק. הוא נמחק כאשר השרת מופעל מחדש.",
+    "footer": "פתיחת הכספת נדרשת רק לסנכרון ולניהול פרטי גישה. צפייה בנתונים וניווט זמינים תמיד."
+  },
+  "errors": {
+    "passphrasesMismatch": "הסיסמאות אינן תואמות",
+    "passphraseTooShort": "הסיסמה חייבת לכלול לפחות 8 תווים",
+    "processFailed": "ביצוע הפעולה נכשל",
+    "passkeyAuthFailed": "אימות ה-Passkey נכשל",
+    "passkeyRegisterFailed": "רישום ה-Passkey נכשל"
+  }
+}

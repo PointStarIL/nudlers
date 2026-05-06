@@ -1,0 +1,72 @@
+{
+  "table": {
+    "columnDescription": "Description",
+    "columnCategory": "Category",
+    "columnAmount": "Amount",
+    "columnInstallments": "Inst.",
+    "columnCard": "Card",
+    "columnDate": "Date",
+    "columnActions": "Actions",
+    "columnName": "Name",
+    "sortByDate": "Date",
+    "sortByAmount": "Amount",
+    "sortByName": "Name",
+    "sortByCategory": "Category",
+    "loading": "Loading...",
+    "empty": "No transactions.",
+    "fallbackCardLabel": "Card"
+  },
+  "groupHeader": {
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "actions": {
+    "edit": "Edit",
+    "addNote": "Add note",
+    "applyToAll": "Apply to all transactions with this description"
+  },
+  "tooltips": {
+    "favorite": "Mark as favorite",
+    "unfavorite": "Remove from favorites",
+    "editTransaction": "Edit transaction",
+    "deleteTransaction": "Delete transaction",
+    "openNotes": "Open notes",
+    "viewNotes": "View notes"
+  },
+  "notes": {
+    "title": "Notes",
+    "placeholder": "Add a note..."
+  },
+  "snackbar": {
+    "deleteSuccess": "Transaction deleted successfully",
+    "deleteError": "Error deleting transaction",
+    "updateError": "Update failed",
+    "updatedManyAndRule": "Updated {{count}} transactions and saved rule.",
+    "categoryUpdatedAndRule": "Category updated and rule saved.",
+    "updateTransactionFailed": "Failed to update transaction",
+    "updateTransactionError": "Error updating transaction",
+    "deleteTransactionFailed": "Failed to delete transaction",
+    "missingIdentifier": "Cannot delete transaction: missing identifier or vendor"
+  },
+  "card": {
+    "budgetLabel": "Budget: {{amount}}",
+    "budgetOverBy": "{{amount}} over",
+    "budgetRemaining": "{{amount}} left",
+    "editBudget": "Edit",
+    "setBudget": "Set Budget"
+  },
+  "categoryRow": {
+    "overBudget": "Over budget",
+    "remainingLeft": "{{amount}} left"
+  },
+  "metrics": {
+    "totalTransactions": "Total Transactions",
+    "totalTransactionsSubtitle": "All time",
+    "activeCategories": "Active Categories",
+    "activeCategoriesSubtitle": "In use",
+    "latestActivity": "Latest Activity",
+    "latestActivitySubtitle": "Last transaction",
+    "notAvailable": "N/A",
+    "togglePanel": "Toggle metrics"
+  }
+}

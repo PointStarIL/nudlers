@@ -11,6 +11,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import { formatNumber } from './CategoryDashboard/utils/formatUtils';
 import { dateUtils } from './CategoryDashboard/utils/dateUtils';
+import { useTranslation } from 'react-i18next';
 
 interface Transaction {
     name: string;
@@ -33,6 +34,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
     onConfirm,
     transaction
 }) => {
+    const { t } = useTranslation('misc');
     if (!transaction) return null;
 
     const handleConfirm = () => {
@@ -83,7 +85,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
                 }}>
                     <WarningAmberIcon sx={{ color: '#fff', fontSize: '28px' }} />
                 </Box>
-                Delete Transaction?
+                {t('deleteConfirm.title')}
             </DialogTitle>
 
             <DialogContent>
@@ -100,7 +102,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
                         marginBottom: '16px',
                         fontWeight: 500
                     }}>
-                        Are you sure you want to delete this transaction? This action cannot be undone.
+                        {t('deleteConfirm.prompt')}
                     </Typography>
 
                     <Box sx={{
@@ -114,7 +116,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
                     }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Typography sx={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
-                                Description:
+                                {t('deleteConfirm.fields.description')}
                             </Typography>
                             <Typography sx={{ fontSize: '14px', color: '#1e293b', fontWeight: 600 }}>
                                 {transaction.name}
@@ -123,7 +125,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
 
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Typography sx={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
-                                Amount:
+                                {t('deleteConfirm.fields.amount')}
                             </Typography>
                             <Typography sx={{
                                 fontSize: '16px',
@@ -136,7 +138,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
 
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Typography sx={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
-                                Date:
+                                {t('deleteConfirm.fields.date')}
                             </Typography>
                             <Typography sx={{ fontSize: '14px', color: '#1e293b', fontWeight: 600 }}>
                                 {dateUtils.formatDate(transaction.date)}
@@ -146,7 +148,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
                         {transaction.category && (
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography sx={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
-                                    Category:
+                                    {t('deleteConfirm.fields.category')}
                                 </Typography>
                                 <Typography sx={{
                                     fontSize: '13px',
@@ -181,7 +183,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
                         }
                     }}
                 >
-                    Cancel
+                    {t('common:actions.cancel')}
                 </Button>
                 <Button
                     onClick={handleConfirm}
@@ -200,7 +202,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
                         }
                     }}
                 >
-                    Delete Transaction
+                    {t('deleteConfirm.deleteButton')}
                 </Button>
             </DialogActions>
         </Dialog>

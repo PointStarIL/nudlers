@@ -15,6 +15,8 @@ import { format } from 'date-fns';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../context/LocaleContext';
 
 export interface ProjectionData {
     date: string;
@@ -72,6 +74,9 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
     onAddRecurring
 }) => {
     const theme = useTheme();
+    const { t } = useTranslation(['views', 'common']);
+    const { locale } = useLocale();
+    const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
 
     // Refs for synchronization
     const graphScrollRef = useRef<HTMLDivElement>(null);
@@ -79,7 +84,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
     const isInteracting = useRef<'graph' | 'list' | null>(null);
 
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(amount);
+        return new Intl.NumberFormat(dateLocale, { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(amount);
     };
 
     // Sync scroll from graph to list
@@ -142,7 +147,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
     if (selectedAccount === 'total') {
         chartSeries.push({
             data: data.map(d => d.totalBalance),
-            label: 'Total Balance',
+            label: t('projection.totalBalance'),
             area: true,
             color: theme.palette.primary.main,
             showMark: true,
@@ -152,7 +157,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
         const acc = accounts.find(a => a.account_number === selectedAccount);
         chartSeries.push({
             data: data.map(d => d.balances[selectedAccount] || 0),
-            label: acc?.nickname || 'Account',
+            label: acc?.nickname || t('projection.accountFallbackName'),
             area: true,
             color: theme.palette.primary.main,
             showMark: true,
@@ -163,8 +168,8 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
     return (
         <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: '1600px', margin: '0 auto', height: { xs: 'auto', md: 'calc(100vh - 60px)' }, minHeight: { xs: '100vh', md: 0 }, display: 'flex', flexDirection: 'column' }}>
             <PageHeader
-                title="Financial Forecast"
-                description="30-day balance projection and scheduled movements"
+                title={t('projection.title')}
+                description={t('projection.description')}
                 icon={<TimelineIcon sx={{ fontSize: 32 }} className="gradient-text" />}
                 onRefresh={onRefresh}
             />
@@ -189,7 +194,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                     {/* Account Quick Select */}
                     <Box className="n-glass" sx={{ p: 2, borderRadius: '20px', display: 'flex', gap: 1, overflowX: 'auto', flexShrink: 0 }}>
                         <Chip
-                            label="Unified View"
+                            label={t('projection.unifiedView')}
                             onClick={() => setSelectedAccount('total')}
                             className={selectedAccount === 'total' ? 'n-btn-primary' : ''}
                             sx={{
@@ -224,7 +229,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                     }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                             <Typography variant="h6" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <TimelineIcon color="primary" /> Balance Projection
+                                <TimelineIcon color="primary" /> {t('projection.balanceProjection')}
                             </Typography>
                             <Box sx={{ display: 'flex', gap: 1 }}>
                                 <Button
@@ -239,7 +244,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                                         fontWeight: 700
                                     }}
                                 >
-                                    Add Recurring
+                                    {t('projection.addRecurring')}
                                 </Button>
                             </Box>
                         </Box>
@@ -303,7 +308,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                         {/* Legend/Info */}
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2, alignItems: 'center' }}>
                             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                                ← Slide to explore future dates
+                                {t('projection.slideHint')}
                             </Typography>
                             <Box sx={{ display: 'flex', gap: 3 }}>
                                 {accounts.map(acc => (
@@ -326,7 +331,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                     minHeight: 0
                 }}>
                     <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, px: 1 }}>
-                        Upcoming Movements
+                        {t('projection.upcomingMovements')}
                     </Typography>
 
                     <Box
@@ -368,7 +373,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                                             </Typography>
                                         </Box>
                                         <Box sx={{ textAlign: 'right' }}>
-                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Projected Balance</Typography>
+                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>{t('projection.projectedBalance')}</Typography>
                                             <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
                                                 {formatCurrency(selectedAccount === 'total' ? day.totalBalance : day.balances[selectedAccount])}
                                             </Typography>
@@ -386,14 +391,14 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                                                     <Box sx={{ flexGrow: 1 }}>
                                                         <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                                             {br.name}
-                                                            {(br as any).is_manual && <Chip label="Manual" size="small" sx={{ height: 16, fontSize: '9px', ml: 1, bgcolor: 'secondary.main', color: 'white' }} />}
+                                                            {(br as any).is_manual && <Chip label={t('projection.manualBadge')} size="small" sx={{ height: 16, fontSize: '9px', ml: 1, bgcolor: 'secondary.main', color: 'white' }} />}
                                                         </Typography>
-                                                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Standard Recurring</Typography>
+                                                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t('projection.standardRecurring')}</Typography>
                                                     </Box>
                                                     <Typography variant="body2" color={br.amount < 0 ? "error.main" : "success.main"} sx={{ fontWeight: 800 }}>
                                                         {br.amount > 0 ? '+' : ''}{formatCurrency(br.amount)}
                                                     </Typography>
-                                                    <MuiTooltip title="Stop projecting this recurring item">
+                                                    <MuiTooltip title={t('projection.stopProjectingTooltip')}>
                                                         <IconButton
                                                             size="small"
                                                             sx={{ ml: 1, opacity: 0.1, '&:hover': { opacity: 1, color: 'error.main' } }}
@@ -414,7 +419,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                                                     </Box>
                                                     <Box sx={{ flexGrow: 1 }}>
                                                         <Typography variant="body2" sx={{ fontWeight: 700 }}>{cc.displayName}</Typography>
-                                                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>CC Settlement ({cc.count} items)</Typography>
+                                                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t('projection.ccSettlement', { count: cc.count })}</Typography>
                                                     </Box>
                                                     <Typography variant="body2" color={cc.amount < 0 ? "error.main" : "success.main"} sx={{ fontWeight: 800 }}>
                                                         {cc.amount > 0 ? '+' : ''}{formatCurrency(cc.amount)}
@@ -449,18 +454,18 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                     sx: { borderRadius: '24px', width: { xs: '100%', sm: '400px' }, maxWidth: '100%', m: 2 }
                 }}
             >
-                <DialogTitle sx={{ fontWeight: 800 }}>Add Recurring Payment</DialogTitle>
+                <DialogTitle sx={{ fontWeight: 800 }}>{t('projection.dialogTitle')}</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
                         <TextField
-                            label="Payment Name"
+                            label={t('projection.fieldPaymentName')}
                             fullWidth
                             variant="outlined"
                             value={newRecurring.name}
                             onChange={(e) => setNewRecurring(prev => ({ ...prev, name: e.target.value }))}
                         />
                         <TextField
-                            label="Amount (Negative for expense)"
+                            label={t('projection.fieldAmount')}
                             type="number"
                             fullWidth
                             variant="outlined"
@@ -468,10 +473,10 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                             onChange={(e) => setNewRecurring(prev => ({ ...prev, amount: e.target.value }))}
                         />
                         <FormControl fullWidth>
-                            <InputLabel>Category</InputLabel>
+                            <InputLabel>{t('projection.fieldCategory')}</InputLabel>
                             <Select
                                 value={newRecurring.category}
-                                label="Category"
+                                label={t('projection.fieldCategory')}
                                 onChange={(e) => setNewRecurring(prev => ({ ...prev, category: e.target.value }))}
                             >
                                 {categories.map(cat => (
@@ -480,10 +485,10 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                             </Select>
                         </FormControl>
                         <FormControl fullWidth>
-                            <InputLabel>Bank Account</InputLabel>
+                            <InputLabel>{t('projection.fieldBankAccount')}</InputLabel>
                             <Select
                                 value={newRecurring.account_number}
-                                label="Bank Account"
+                                label={t('projection.fieldBankAccount')}
                                 onChange={(e) => setNewRecurring(prev => ({ ...prev, account_number: e.target.value }))}
                             >
                                 {accounts.map(acc => (
@@ -492,7 +497,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                             </Select>
                         </FormControl>
                         <TextField
-                            label="Day of Month"
+                            label={t('projection.fieldDayOfMonth')}
                             type="number"
                             fullWidth
                             variant="outlined"
@@ -503,7 +508,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
-                    <Button onClick={() => setIsAddDialogOpen(false)} color="inherit">Cancel</Button>
+                    <Button onClick={() => setIsAddDialogOpen(false)} color="inherit">{t('common:actions.cancel')}</Button>
                     <Button
                         onClick={onAddRecurring}
                         variant="contained"
@@ -511,7 +516,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
                         startIcon={<SaveIcon />}
                         sx={{ borderRadius: '12px' }}
                     >
-                        Save Recurring
+                        {t('projection.saveRecurring')}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -520,6 +525,7 @@ export const ProjectionViewContent: React.FC<ProjectionViewContentProps> = ({
 };
 
 const ProjectionView: React.FC = () => {
+    const { t } = useTranslation('views');
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<ProjectionData[]>([]);
     const [accounts, setAccounts] = useState<any[]>([]);
@@ -586,12 +592,12 @@ const ProjectionView: React.FC = () => {
                 }),
             });
             if (!response.ok) throw new Error('Failed to mark as non-recurring');
-            setSnackbar({ open: true, message: `"${name}" excluded from recurring projections`, severity: 'success' });
+            setSnackbar({ open: true, message: t('projection.snackbarExcludedFromProjections', { name }), severity: 'success' });
             fetchProjection();
             window.dispatchEvent(new CustomEvent('dataRefresh'));
         } catch (err) {
             console.error('Error marking as non-recurring', err);
-            setSnackbar({ open: true, message: 'Failed to exclude recurring payment', severity: 'error' });
+            setSnackbar({ open: true, message: t('projection.snackbarFailedExclude'), severity: 'error' });
         }
     };
 
@@ -618,7 +624,7 @@ const ProjectionView: React.FC = () => {
                 }),
             });
             if (res.ok) {
-                setSnackbar({ open: true, message: 'Recurring payment added', severity: 'success' });
+                setSnackbar({ open: true, message: t('projection.snackbarRecurringAdded'), severity: 'success' });
                 setIsAddDialogOpen(false);
                 setNewRecurring({
                     name: '',
@@ -632,7 +638,7 @@ const ProjectionView: React.FC = () => {
             }
         } catch (err) {
             console.error('Failed to add recurring', err);
-            setSnackbar({ open: true, message: 'Failed to add recurring payment', severity: 'error' });
+            setSnackbar({ open: true, message: t('projection.snackbarFailedAddRecurring'), severity: 'error' });
         }
     };
 

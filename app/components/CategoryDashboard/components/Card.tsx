@@ -5,6 +5,8 @@ import Box from '@mui/material/Box';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import { formatNumber } from '../utils/format';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../../context/LocaleContext';
 
 interface BudgetInfo {
   budget_limit: number;
@@ -84,6 +86,9 @@ const Card: React.FC<CardProps> = ({
   onEditBudget
 }) => {
   const theme = useTheme();
+  const { t } = useTranslation(['tx', 'common']);
+  const { locale } = useLocale();
+  const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Responsive sizing
@@ -127,7 +132,7 @@ const Card: React.FC<CardProps> = ({
   };
 
   const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('he-IL', {
+    return new Intl.NumberFormat(dateLocale, {
       style: 'currency',
       currency: 'ILS',
       minimumFractionDigits: 0,
@@ -318,12 +323,12 @@ const Card: React.FC<CardProps> = ({
                 {budget.is_over_budget ? (
                   <>
                     <span>⚠️</span>
-                    <span>{formatCurrency(Math.abs(budget.remaining))} over</span>
+                    <span>{t('tx:card.budgetOverBy', { amount: formatCurrency(Math.abs(budget.remaining)) })}</span>
                   </>
                 ) : (
                   <>
                     <span>{budget.percent_used >= 80 ? '⚡' : '✓'}</span>
-                    <span>{formatCurrency(budget.remaining)} left</span>
+                    <span>{t('tx:card.budgetRemaining', { amount: formatCurrency(budget.remaining) })}</span>
                   </>
                 )}
               </span>
@@ -336,7 +341,7 @@ const Card: React.FC<CardProps> = ({
                 fontSize: '11px',
                 fontWeight: 500
               }}>
-                Budget: {formatCurrency(budget.budget_limit)}
+                {t('tx:card.budgetLabel', { amount: formatCurrency(budget.budget_limit) })}
               </span>
               {onEditBudget && (
                 <button
@@ -364,7 +369,7 @@ const Card: React.FC<CardProps> = ({
                     e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
                   }}
                 >
-                  Edit
+                  {t('tx:card.editBudget')}
                 </button>
               )}
             </div>
@@ -408,7 +413,7 @@ const Card: React.FC<CardProps> = ({
             }}
           >
             <span>💰</span>
-            <span>Set Budget</span>
+            <span>{t('tx:card.setBudget')}</span>
           </button>
         </div>
       )}

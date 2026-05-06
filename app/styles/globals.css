@@ -484,6 +484,16 @@ a:hover {
   body.drawer-closed .main-content {
     margin-left: 0 !important;
   }
+
+  /* RTL: drawer flips to the right side */
+  [dir="rtl"] body.drawer-open .main-content {
+    margin-left: 0 !important;
+    margin-right: 220px !important;
+  }
+
+  [dir="rtl"] body.drawer-closed .main-content {
+    margin-right: 0 !important;
+  }
 }
 
 /* Mobile: no drawer margin */
@@ -491,11 +501,15 @@ a:hover {
   .main-content {
     margin-left: 0 !important;
   }
+
+  [dir="rtl"] .main-content {
+    margin-right: 0 !important;
+  }
 }
 
 /* Smooth transition for drawer state changes */
 .main-content {
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Print styles */

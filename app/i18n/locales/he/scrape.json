@@ -1,0 +1,139 @@
+{
+  "modal": {
+    "title": "סנכרון נתונים",
+    "scrapingVendor": "מסנכרן את <strong>{{vendor}}</strong>",
+    "scrapingVendorWithNickname": "מסנכרן את <strong>{{vendor}}</strong> ({{nickname}})"
+  },
+  "form": {
+    "vendorLabel": "ספק",
+    "idLabel": "תעודת זהות",
+    "idUsernameLabel": "תעודת זהות / שם משתמש",
+    "idUsernameHelper": "מספר תעודת הזהות שלך (אין צורך במספר חשבון בבנק זה)",
+    "userCodeLabel": "קוד משתמש",
+    "userCodeHelper": "קוד המשתמש שלך לבנקאות מקוונת בבנק הפועלים (ניתן למצוא בפרופיל הבנקאות המקוונת)",
+    "bankAccountNumberLabel": "מספר חשבון בנק",
+    "usernameLabel": "שם משתמש",
+    "card6DigitsLabel": "6 ספרות אחרונות של הכרטיס",
+    "passwordLabel": "סיסמה",
+    "startDateLabel": "תאריך התחלה",
+    "accountNicknameLabel": "כינוי חשבון",
+    "debugModeLabel": "מצב ניפוי באגים (הצגת דפדפן)",
+    "debugModeTooltip": "מציג את חלון הדפדפן לצורך ניפוי באגים או הזנת קודי אימות דו-שלבי. פועל רק בהרצה מקומית (לא ב-Docker)."
+  },
+  "progress": {
+    "starting": "מתחיל...",
+    "processing": "מעבד...",
+    "step": "שלב {{number}}",
+    "runningLog": "יומן ריצה:",
+    "rateLimitDefault": "המתנה עקב הגבלת קצב...",
+    "retryingDefault": "מנסה שוב...",
+    "phase": {
+      "initialization": "אתחול",
+      "authentication": "אימות",
+      "data_fetching": "אחזור נתונים",
+      "processing": "עיבוד",
+      "saving": "שמירה",
+      "default": "מעבד"
+    }
+  },
+  "otp": {
+    "title": "נדרש אימות דו-שלבי",
+    "description": "בנק הפועלים שלח קוד אימות לטלפון שלך. הזן אותו כאן כדי להמשיך.",
+    "placeholder": "הזן קוד",
+    "submitting": "שולח קוד... הסנכרון ימשיך באופן אוטומטי.",
+    "verificationFailed": "האימות נכשל",
+    "submitFailed": "שליחת הקוד נכשלה",
+    "submitFailedDetailed": "שליחת קוד האימות נכשלה"
+  },
+  "debug": {
+    "modeActiveTitle": "מצב ניפוי באגים פעיל",
+    "modeActiveDesc": "חלון דפדפן אמור להיפתח. ניתן לפעול בו כדי להשלים אימות דו-שלבי או לאתר תקלות.",
+    "tipLabel": "טיפ לניפוי באגים:",
+    "tipText": "חפש חלון Chrome על שולחן העבודה שלך. מצב זה מומלץ בעיקר בהרצה מקומית של האפליקציה.",
+    "networkActivity": "פעילות רשת (ניפוי באגים):",
+    "takeScreenshot": "צילום מסך לניפוי באגים",
+    "capturing": "מצלם...",
+    "viewLatestScreenshot": "הצגת צילום המסך האחרון",
+    "screenshotSent": "בקשת צילום המסך נשלחה",
+    "screenshotFailed": "צילום המסך נכשל",
+    "logRequest": "REQ",
+    "logResponse": "RES",
+    "logWait": "WAIT"
+  },
+  "errors": {
+    "default": "אירעה שגיאה",
+    "failedToStart": "התחלת הסנכרון נכשלה",
+    "noResponseStream": "תגובה לא זמינה מהשרת",
+    "stoppedSuccess": "כל הסנכרונים הופסקו בהצלחה.",
+    "stopFailed": "עצירת הסנכרונים נכשלה",
+    "wouldYouLikeRetry": "האם ברצונך לנסות שוב?",
+    "retryFromLabel": "נסה שוב מ-{{date}}",
+    "continueFromLabel": "המשך מ-{{date}}",
+    "continueHint": "\"המשך\" יתחיל מהיום שלאחר העסקה האחרונה שנשמרה, ויתעלם מנתונים שכבר סונכרנו.",
+    "stoppingScrapers": "מפסיק סנכרונים...",
+    "forceStopAll": "עצירה כפויה של כל הסנכרונים",
+    "forceStopHint": "פעולה זו תסיים את כל תהליכי הדפדפן הפעילים ותאפשר התחלת סנכרון חדש.",
+    "hintLabel": "טיפ"
+  },
+  "actions": {
+    "scrape": "סנכרון",
+    "done": "סיום",
+    "cancel": "ביטול",
+    "cancelScrape": "ביטול סנכרון",
+    "close": "סגירה"
+  },
+  "notifications": {
+    "completed": "הסנכרון הושלם בהצלחה!"
+  },
+  "report": {
+    "stats": {
+      "new": "חדשות",
+      "updated": "עודכנו",
+      "duplicates": "כפולות",
+      "time": "זמן",
+      "fromCache": "ממטמון",
+      "fromRules": "מכללים",
+      "fromScraper": "מהסנכרון"
+    },
+    "tabs": {
+      "all": "הכול",
+      "new": "חדשות",
+      "updated": "עודכנו",
+      "skipped": "דולגו"
+    },
+    "table": {
+      "date": "תאריך",
+      "account": "חשבון",
+      "description": "תיאור",
+      "amount": "סכום",
+      "installments": "תשלומים",
+      "category": "קטגוריה",
+      "status": "סטטוס",
+      "ofTotal": "מתוך {{amount}}"
+    },
+    "status": {
+      "updated": "עודכן",
+      "duplicate": "כפול",
+      "rule": "כלל",
+      "ruleTooltip": "כלל: {{rule}}",
+      "ruleMatchTooltip": "התאמת כלל",
+      "cache": "מטמון",
+      "scraper": "סנכרון",
+      "saved": "נשמר"
+    },
+    "empty": {
+      "noTransactions": "לא נמצאו עסקאות לתקופה זו.",
+      "noTransactionsHint": "הבנק או חברת האשראי לא החזירו נתוני עסקאות לתאריכים שנבחרו.",
+      "noTransactionsInCategory": "לא נמצאו עסקאות בקטגוריה זו."
+    },
+    "footer": "מציג {{filtered}} מתוך {{total}} רשומות"
+  },
+  "screenshots": {
+    "title": "צילומי מסך לניפוי באגים",
+    "confirmDelete": "האם אתה בטוח שברצונך למחוק את כל צילומי המסך?",
+    "noScreenshots": "לא נמצאו צילומי מסך.",
+    "noScreenshotsHint": "צילומי מסך יופיעו כאן כאשר הסנכרון יצלם אותם.",
+    "loadFailed": "טעינת צילומי המסך נכשלה.",
+    "fetchFailed": "שליפת צילומי המסך נכשלה"
+  }
+}

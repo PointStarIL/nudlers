@@ -1,0 +1,39 @@
+{
+  "passkeyPrompt": {
+    "title": "Enable Biometric?",
+    "subtitle": "Unlock your vault instantly with TouchID or FaceID next time. No need to type your passphrase.",
+    "enable": "Yes, Enable Passkey",
+    "skip": "Skip for now"
+  },
+  "unlockPasskey": {
+    "title": "Unlock with Passkey",
+    "subtitle": "Use your biometric or security key to unlock the vault.",
+    "authenticate": "Authenticate",
+    "usePassphraseInstead": "Use passphrase instead"
+  },
+  "passphrase": {
+    "titleMigrate": "Migrate to Vault",
+    "titleInit": "Setup Vault",
+    "titleUnlock": "Unlock Vault",
+    "descMigrate": "Create a passphrase to encrypt a new master key that will re-encrypt your credentials. The passphrase is never stored — losing it makes the vault unrecoverable.",
+    "descInit": "Your passphrase encrypts a master key, which in turn encrypts your credentials. The passphrase is never stored — losing it makes the vault unrecoverable.",
+    "descUnlock": "Your passphrase decrypts the master key into memory, which unlocks your credentials. The key is cleared on server restart.",
+    "createPlaceholder": "Create passphrase",
+    "enterPlaceholder": "Enter passphrase",
+    "confirmPlaceholder": "Confirm passphrase",
+    "submitMigrate": "Migrate to Vault",
+    "submitInit": "Initialize Vault",
+    "submitUnlock": "Unlock Vault",
+    "usePasskeyInstead": "Use passkey instead",
+    "howEncryptionWorks": "How encryption works",
+    "encryptionDetail": "On unlock, the master key is decrypted into memory only — never written to disk. It is cleared when the server restarts.",
+    "footer": "Unlocking is only required for syncing and credential management. Data viewing and navigation are fully available."
+  },
+  "errors": {
+    "passphrasesMismatch": "Passphrases do not match",
+    "passphraseTooShort": "Passphrase must be at least 8 characters long",
+    "processFailed": "Failed to process request",
+    "passkeyAuthFailed": "Passkey authentication failed",
+    "passkeyRegisterFailed": "Passkey registration failed"
+  }
+}

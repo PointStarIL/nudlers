@@ -1,0 +1,181 @@
+{
+  "indicator": {
+    "tabSyncing": "(מסנכרן...) {{title}}",
+    "healthy": {
+      "label": "תקין",
+      "tooltip": "כל החשבונות מסונכרנים. אחרון: {{time}}",
+      "unknownTime": "לא ידוע"
+    },
+    "syncing": {
+      "label": "מסנכרן",
+      "tooltip": "סנכרון בתהליך..."
+    },
+    "error": {
+      "label": "שגיאה",
+      "tooltip": "הסנכרון האחרון נכשל. בדקו את הסטטוס לפרטים."
+    },
+    "stale": {
+      "label": "לא מעודכן",
+      "tooltip": "חלק מהחשבונות זקוקים לסנכרון. הישן ביותר: {{time}}"
+    },
+    "outdated": {
+      "label": "מיושן",
+      "tooltip": "חשבונות לא סונכרנו זמן רב. הישן ביותר: {{time}}"
+    },
+    "noAccounts": {
+      "label": "אין חשבונות",
+      "tooltip": "הוסיפו חשבונות כדי להתחיל לסנכרן"
+    },
+    "neverSynced": {
+      "label": "לא סונכרן מעולם",
+      "tooltip": "החשבונות לא סונכרנו מעולם."
+    },
+    "unknown": {
+      "label": "לא ידוע",
+      "tooltip": "מצב הסנכרון לא ידוע"
+    },
+    "activeAccounts_one": "חשבון פעיל אחד",
+    "activeAccounts_other": "{{count}} חשבונות פעילים"
+  },
+  "relativeTime": {
+    "justNow": "ממש עכשיו",
+    "inMinutes": "בעוד {{count}} דקות",
+    "minutesAgo": "לפני {{count}} דקות",
+    "hoursAgo_one": "לפני שעה",
+    "hoursAgo_other": "לפני {{count}} שעות",
+    "daysAgo_one": "לפני יום",
+    "daysAgo_other": "לפני {{count}} ימים",
+    "never": "מעולם לא"
+  },
+  "relativeTimeShort": {
+    "justNow": "ממש עכשיו",
+    "inMinutes": "בעוד {{count}} ד׳",
+    "minutesAgo": "לפני {{count}} ד׳",
+    "hoursAgo": "לפני {{count}} ש׳",
+    "daysAgo": "לפני {{count}} י׳"
+  },
+  "modal": {
+    "title": "מצב סנכרון",
+    "tooltipStop": "עצירת סנכרון מיידית",
+    "tooltipUnlockToSync": "פתחו את הכספת כדי לסנכרן",
+    "tooltipSyncAll": "סנכרון כל החשבונות עכשיו",
+    "stopping": "עוצר...",
+    "starting": "מתחיל...",
+    "stopNow": "עצירה",
+    "locked": "נעול",
+    "syncNow": "סנכרון",
+    "close": "סגירה"
+  },
+  "options": {
+    "startDate": "תאריך התחלה",
+    "showBrowser": "הצגת דפדפן",
+    "showBrowserHapoalimHint": "מומלץ לצורך אימות דו-שלבי",
+    "vaultLocked": "כספת נעולה",
+    "startSync": "התחלת סנכרון",
+    "errorRequired": "יש להזין תאריך",
+    "errorInvalid": "תאריך לא תקין",
+    "errorFuture": "התאריך אינו יכול להיות בעתיד"
+  },
+  "report": {
+    "title": "דוח סנכרון",
+    "closeReport": "סגירת דוח",
+    "noNew": "לא נמצאו עסקאות חדשות בסנכרון זה.",
+    "backToStatus": "חזרה למצב"
+  },
+  "progress": {
+    "stoppingSync": "עוצר סנכרון...",
+    "syncProgress": "התקדמות סנכרון",
+    "initializingSession": "מאתחל הפעלה...",
+    "initializing": "מאתחל...",
+    "preparingToSync": "מתכונן לסנכרון...",
+    "syncing": "מסנכרן...",
+    "done": "הושלם",
+    "newCount": "{{count}} חדשות",
+    "completedSuccessfully": "✓ הושלם בהצלחה",
+    "verificationFailed": "האימות נכשל",
+    "syncFailed": "הסנכרון נכשל",
+    "twoFactorRequired": "נדרש קוד אימות דו-שלבי",
+    "enterCode": "הזינו קוד",
+    "viewBrowserScreenshot": "צפייה בצילום מסך",
+    "terminatingProcesses": "סוגר תהליכי דפדפן...",
+    "stopSending": "שולח פקודת עצירה...",
+    "stopSuccess": "כל התהליכים נעצרו בהצלחה.",
+    "stopPartialFail": "חלק מהתהליכים לא נעצרו.",
+    "stopError": "שגיאה בעצירת התהליכים.",
+    "fetchAccountFailed": "התחלת הסנכרון נכשלה: לא ניתן לטעון את פרטי החשבון",
+    "loadingPlaceholder": "טוען..."
+  },
+  "health": {
+    "connecting": {
+      "label": "מתחבר...",
+      "description": "טוען מצב סנכרון..."
+    },
+    "healthy": {
+      "label": "הכול מסונכרן",
+      "description": "העסקאות שלכם מעודכנות"
+    },
+    "syncing": {
+      "label": "מסנכרן",
+      "description": "סנכרון בתהליך..."
+    },
+    "error": {
+      "label": "שגיאת סנכרון",
+      "description": "בסנכרון האחרון אירעה שגיאה"
+    },
+    "stale": {
+      "label": "דרוש סנכרון",
+      "description": "חלק מהחשבונות זקוקים לסנכרון"
+    },
+    "outdated": {
+      "label": "מיושן",
+      "description": "ייתכן שהעסקאות אינן מעודכנות"
+    },
+    "neverSynced": {
+      "label": "לא סונכרן מעולם",
+      "description": "התחילו את הסנכרון הראשון כדי לטעון עסקאות"
+    },
+    "noAccounts": {
+      "label": "אין חשבונות",
+      "description": "הוסיפו חשבונות כדי להתחיל לסנכרן"
+    },
+    "idle": {
+      "label": "סנכרון אחרון: {{time}}",
+      "description": "המערכת במצב המתנה"
+    },
+    "unknown": {
+      "label": "מצב לא ידוע",
+      "description": "המצב אינו זמין"
+    },
+    "lastActivity": "פעילות אחרונה: {{time}}"
+  },
+  "stats": {
+    "accounts": "חשבונות",
+    "days": "ימים"
+  },
+  "accountStatus": {
+    "title": "מצב חשבונות",
+    "tooltipUnlockToSync": "פתחו את הכספת כדי לסנכרן",
+    "tooltipSyncOne": "סנכרון של חשבון זה בלבד"
+  },
+  "history": {
+    "title": "פעילות אחרונה"
+  },
+  "errorDetails": {
+    "title": "סריקה נכשלה",
+    "vendor": "ספק",
+    "errorMessage": "הודעת שגיאה",
+    "retryAttempts": "מספר ניסיונות",
+    "duration": "משך",
+    "timestamp": "חותמת זמן"
+  },
+  "historyModal": {
+    "title": "היסטוריית סנכרון",
+    "detailsTitle": "פרטי סנכרון",
+    "back": "חזרה",
+    "loadingReport": "טוען דוח מפורט...",
+    "noReport": "אין דוח מפורט זמין לסנכרון זה.",
+    "empty": "לא נמצאה היסטוריית סנכרון.",
+    "via": "באמצעות {{source}}",
+    "manual": "ידני"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "section": {
+    "views": "תצוגות",
+    "settings": "הגדרות"
+  },
+  "view": {
+    "summary": "סיכום",
+    "transactions": "עסקאות",
+    "breakdown": "פירוט",
+    "recurring": "הוצאות קבועות",
+    "projection": "תחזית",
+    "audit": "יומן סנכרון",
+    "accounts": "חשבונות"
+  },
+  "menu": {
+    "categories": "קטגוריות",
+    "cards": "כרטיסים",
+    "backup": "גיבוי",
+    "settings": "הגדרות"
+  },
+  "tooltip": {
+    "aiAssistant": "עוזר AI",
+    "vaultLockedClickToUnlock": "הכספת נעולה - לחצו לפתיחה",
+    "vaultUnlockedClickToLock": "הכספת פתוחה - לחצו לנעילה",
+    "vaultLocked": "הכספת נעולה"
+  },
+  "notification": {
+    "scrapeSuccess": "תהליך הסקרייפ הושלם בהצלחה!"
+  }
+}

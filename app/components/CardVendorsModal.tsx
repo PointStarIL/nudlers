@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { logger } from '../utils/client-logger';
 import {
   Dialog,
@@ -183,6 +184,7 @@ export const CardVendorIcon: React.FC<{ vendor: string | null; size?: number }> 
 
 export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalProps) {
   const theme = useTheme();
+  const { t } = useTranslation(['misc', 'common']);
   const [cards, setCards] = useState<CardData[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -222,14 +224,14 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
       setIsLoading(true);
       const response = await fetch('/api/cards');
       if (!response.ok) {
-        throw new Error('Failed to fetch cards');
+        throw new Error(t('misc:cardVendors.errors.fetchCards'));
       }
       const data = await response.json();
       setCards(data);
     } catch (err) {
       setSnackbar({
         open: true,
-        message: err instanceof Error ? err.message : 'An error occurred',
+        message: err instanceof Error ? err.message : t('misc:cardVendors.errors.generic'),
         severity: 'error',
       });
     } finally {
@@ -259,8 +261,8 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
 
     if (editingCard === card.last4_digits) {
       // Just update focus within same card if needed, e.g. clicking another field
-      // But autoFocus prop is only read on mount/render. 
-      // We might want to force re-render or let user click. 
+      // But autoFocus prop is only read on mount/render.
+      // We might want to force re-render or let user click.
       // For now, if already editing, we rely on standard click/focus behavior.
       // We set focusedField anyway to help with render updates.
       setFocusedField(field);
@@ -333,7 +335,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
       });
 
       if (!cardResponse.ok) {
-        throw new Error('Failed to save card vendor');
+        throw new Error(t('misc:cardVendors.errors.saveCardVendor'));
       }
 
       const card = cards.find(c => c.last4_digits === last4_digits);
@@ -343,7 +345,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
 
         if (values.bankAccountId === -1) {
           if (!values.customBankNumber?.trim() && !values.customBankNickname?.trim()) {
-            throw new Error('Please provide at least a number or nickname for the custom account');
+            throw new Error(t('misc:cardVendors.errors.customAccountRequired'));
           }
           payload.custom_bank_account_number = values.customBankNumber;
           payload.custom_bank_account_nickname = values.customBankNickname;
@@ -363,7 +365,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
         });
 
         if (!bankResponse.ok) {
-          throw new Error('Failed to update bank account assignment');
+          throw new Error(t('misc:cardVendors.errors.updateBankAccount'));
         }
       }
 
@@ -371,7 +373,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
     } catch (err) {
       setSnackbar({
         open: true,
-        message: err instanceof Error ? err.message : 'Failed to save',
+        message: err instanceof Error ? err.message : t('misc:cardVendors.errors.saveFailed'),
         severity: 'error',
       });
       return false;
@@ -395,7 +397,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
   const columns = React.useMemo(() => [
     {
       id: 'card',
-      label: 'Card',
+      label: t('misc:cardVendors.columns.card'),
       format: (_: any, card: CardData) => (
         <CardChip>
           <CardVendorIcon vendor={card.card_vendor} size={28} />
@@ -405,7 +407,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
     },
     {
       id: 'transactions',
-      label: 'Transactions',
+      label: t('misc:cardVendors.columns.transactions'),
       format: (_: any, card: CardData) => (
         <Typography
           sx={{
@@ -424,7 +426,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
     },
     {
       id: 'vendor',
-      label: 'Card Vendor',
+      label: t('misc:cardVendors.columns.vendor'),
       minWidth: '200px',
       format: (_: any, card: CardData) => editingCard === card.last4_digits ? (
         <TextField
@@ -448,7 +450,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
                 handleSave(editingCard, newValues).then((success) => {
                   if (success) {
                     setEditingCard(null);
-                    setSnackbar({ open: true, message: 'Vendor updated', severity: 'success' });
+                    setSnackbar({ open: true, message: t('misc:cardVendors.snackbar.vendorUpdated'), severity: 'success' });
                   }
                 });
               }, 200);
@@ -464,7 +466,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
           }}
         >
           <MenuItem value="">
-            <em>None</em>
+            <em>{t('misc:cardVendors.vendorNone')}</em>
           </MenuItem>
           {Object.entries(CARD_VENDORS).map(([key, config]) => (
             <MenuItem key={key} value={key}>
@@ -495,14 +497,14 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
           <Typography sx={{ color: card.card_vendor ? theme.palette.text.primary : theme.palette.text.disabled }}>
             {card.card_vendor
               ? CARD_VENDORS[card.card_vendor as keyof typeof CARD_VENDORS]?.name || card.card_vendor
-              : 'Click to set vendor'}
+              : t('misc:cardVendors.clickToSetVendor')}
           </Typography>
         </Box>
       )
     },
     {
       id: 'nickname',
-      label: 'Nickname',
+      label: t('misc:cardVendors.columns.nickname'),
       format: (_: any, card: CardData) => editingCard === card.last4_digits ? (
         <TextField
           key={`nickname-edit-${card.last4_digits}`}
@@ -520,7 +522,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
               handleSave(editingCard, editValues).then((success) => {
                 if (success) {
                   setEditingCard(null);
-                  setSnackbar({ open: true, message: 'Nickname saved', severity: 'success' });
+                  setSnackbar({ open: true, message: t('misc:cardVendors.snackbar.nicknameSaved'), severity: 'success' });
                 }
               });
             } else {
@@ -532,7 +534,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
               (e.target as HTMLElement).blur();
             }
           }}
-          placeholder="e.g., Personal Card"
+          placeholder={t('misc:cardVendors.nicknamePlaceholder')}
           fullWidth
           sx={{
             '& .MuiOutlinedInput-root': {
@@ -554,13 +556,13 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
           }}
           onClick={(e) => handleEdit(card, 'nickname', e)}
         >
-          {card.card_nickname || 'No nickname'}
+          {card.card_nickname || t('misc:cardVendors.noNickname')}
         </Typography>
       )
     },
     {
       id: 'bankAccount',
-      label: 'Bank Account',
+      label: t('misc:cardVendors.columns.bankAccount'),
       minWidth: '200px',
       format: (_: any, card: CardData) => editingCard === card.last4_digits ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -586,7 +588,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
                     handleSave(editingCard, newValues).then((success) => {
                       if (success) {
                         setEditingCard(null);
-                        setSnackbar({ open: true, message: 'Bank account updated', severity: 'success' });
+                        setSnackbar({ open: true, message: t('misc:cardVendors.snackbar.bankAccountUpdated'), severity: 'success' });
                       }
                     });
                   }, 200);
@@ -603,10 +605,10 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
             }}
           >
             <MenuItem value="">
-              <em>No bank account</em>
+              <em>{t('misc:cardVendors.noBankAccount')}</em>
             </MenuItem>
             <MenuItem value="-1">
-              <em>Custom Bank Account</em>
+              <em>{t('misc:cardVendors.customBankAccount')}</em>
             </MenuItem>
             {bankAccounts.map((bankAccount) => (
               <MenuItem key={bankAccount.id} value={bankAccount.id}>
@@ -626,7 +628,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
                     handleSave(editingCard, editValues).then((success) => {
                       if (success) {
                         setEditingCard(null);
-                        setSnackbar({ open: true, message: 'Custom bank saved', severity: 'success' });
+                        setSnackbar({ open: true, message: t('misc:cardVendors.snackbar.customBankSaved'), severity: 'success' });
                       }
                     });
                   }
@@ -640,7 +642,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
               <TextField
                 size="small"
                 className={`edit-group-${card.last4_digits}`}
-                placeholder="Nickname (e.g. My Bank)"
+                placeholder={t('misc:cardVendors.customNicknamePlaceholder')}
                 value={editValues.customBankNickname}
                 onChange={(e) => setEditValues(prev => ({ ...prev, customBankNickname: e.target.value }))}
                 fullWidth
@@ -650,7 +652,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
               <TextField
                 size="small"
                 className={`edit-group-${card.last4_digits}`}
-                placeholder="Account Number"
+                placeholder={t('misc:cardVendors.customNumberPlaceholder')}
                 value={editValues.customBankNumber}
                 onChange={(e) => setEditValues(prev => ({ ...prev, customBankNumber: e.target.value }))}
                 fullWidth
@@ -675,14 +677,14 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
           onClick={(e) => handleEdit(card, 'bankAccount', e)}
         >
           {card.bank_account_nickname
-            ? `${card.bank_account_nickname} (${card.bank_account_number || card.bank_account_vendor})`
+            ? t('misc:cardVendors.bankPrefix', { name: `${card.bank_account_nickname} (${card.bank_account_number || card.bank_account_vendor})` })
             : card.custom_bank_account_nickname
-              ? `${card.custom_bank_account_nickname} (${card.custom_bank_account_number})`
-              : 'No bank account'}
+              ? t('misc:cardVendors.bankPrefix', { name: `${card.custom_bank_account_nickname} (${card.custom_bank_account_number})` })
+              : t('misc:cardVendors.noBankAccount')}
         </Typography>
       )
     }
-  ], [editingCard, editValues, originalValues, bankAccounts, isSaving, theme, focusedField]);
+  ], [editingCard, editValues, originalValues, bankAccounts, isSaving, theme, focusedField, t]);
 
   return (
     <>
@@ -710,19 +712,19 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
           },
         }}
       >
-        <ModalHeader title="Card Vendors" onClose={onClose} />
+        <ModalHeader title={t('misc:cardVendors.title')} onClose={onClose} />
         <DialogContent style={{ padding: '0 32px 32px', color: theme.palette.text.primary }}>
           <Typography variant="body2" sx={{ mb: 3, color: theme.palette.text.secondary }}>
-            Assign a card issuer/brand to each card. This will display the card logo throughout the app.
+            {t('misc:cardVendors.subtitle')}
           </Typography>
 
           {isLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
-              Loading cards...
+              {t('misc:cardVendors.loading')}
             </Box>
           ) : cards.length === 0 ? (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', color: theme.palette.text.secondary }}>
-              No cards found in the system
+              {t('misc:cardVendors.emptyState')}
             </Box>
           ) : (
             <Box
@@ -740,7 +742,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
               <Table
                 rows={cards}
                 rowKey={(card) => card.last4_digits}
-                emptyMessage="No cards found"
+                emptyMessage={t('misc:cardVendors.emptyTableMessage')}
                 columns={columns}
                 mobileCardRenderer={(card: CardData) => (
                   <Box>
@@ -759,7 +761,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
                           fontWeight: 500,
                         }}
                       >
-                        {card.transaction_count} txns
+                        {t('misc:cardVendors.transactionsCount', { count: card.transaction_count })}
                       </Typography>
                     </Box>
                     <Box sx={{ mb: 2 }}>
@@ -777,7 +779,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
                         <Typography variant="body2" sx={{ color: card.card_vendor ? theme.palette.text.primary : theme.palette.text.disabled }}>
                           {card.card_vendor
                             ? CARD_VENDORS[card.card_vendor as keyof typeof CARD_VENDORS]?.name || card.card_vendor
-                            : 'Click to set vendor'}
+                            : t('misc:cardVendors.clickToSetVendor')}
                         </Typography>
                       </Box>
                       <Typography
@@ -790,7 +792,7 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
                         }}
                         onClick={() => handleEdit(card)}
                       >
-                        {card.card_nickname || 'No nickname set'}
+                        {card.card_nickname || t('misc:cardVendors.noNicknameSet')}
                       </Typography>
                       <Typography
                         variant="caption"
@@ -802,17 +804,17 @@ export default function CardVendorsModal({ isOpen, onClose }: CardVendorsModalPr
                         onClick={() => handleEdit(card)}
                       >
                         {card.bank_account_nickname
-                          ? `Bank: ${card.bank_account_nickname}`
+                          ? t('misc:cardVendors.bankPrefix', { name: card.bank_account_nickname })
                           : card.custom_bank_account_nickname
-                            ? `Bank: ${card.custom_bank_account_nickname}`
-                            : 'No bank account linked'}
+                            ? t('misc:cardVendors.bankPrefix', { name: card.custom_bank_account_nickname })
+                            : t('misc:cardVendors.noBankAccountLinked')}
                       </Typography>
                     </Box>
 
                     {editingCard === card.last4_digits && (
                       <Box sx={{ borderTop: `1px solid ${theme.palette.divider}`, pt: 2, mt: 2 }}>
                         {/* Re-use edit fields for mobile if needed, or just show a message to use desktop */}
-                        <Typography variant="caption" color="warning.main">Editing available on desktop view</Typography>
+                        <Typography variant="caption" color="warning.main">{t('misc:cardVendors.editingDesktopHint')}</Typography>
                       </Box>
                     )}
                   </Box>

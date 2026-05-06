@@ -4,6 +4,7 @@ import Tooltip from '@mui/material/Tooltip';
 import StorageIcon from '@mui/icons-material/Storage';
 // import CircularProgress from '@mui/material/CircularProgress';
 import { useStatus } from '../context/StatusContext';
+import { useTranslation } from 'react-i18next';
 
 const Indicator = styled('div')(({ theme }) => ({
   display: 'flex',
@@ -52,9 +53,10 @@ const StatusDot = styled('div')<{ connected: boolean }>(({ connected, theme }) =
 const DatabaseIndicator: React.FC = () => {
   const { isDbConnected } = useStatus();
   const theme = useTheme();
+  const { t } = useTranslation(['misc', 'common']);
 
   return (
-    <Tooltip title={isDbConnected ? "Database Connected" : "Database Disconnected"}>
+    <Tooltip title={isDbConnected ? t('misc:databaseIndicator.connected') : t('misc:databaseIndicator.disconnected')}>
       <Indicator>
         <StorageIcon
           sx={{

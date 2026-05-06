@@ -1,0 +1,17 @@
+{
+  "dateMode": {
+    "calendar": "1-31",
+    "billing": "מחזור",
+    "custom": "מותאם"
+  },
+  "ariaYear": "שנה נבחרת",
+  "ariaMonth": "חודש נבחר",
+  "search": "חיפוש...",
+  "refresh": "רענון נתונים",
+  "badge": {
+    "billingCycle": "💳 מחזור חיוב: {{label}}",
+    "customRange": "טווח מותאם",
+    "fullMonth": "חודש מלא",
+    "rangePrefixWithLabel": "{{label}}: {{range}}"
+  }
+}

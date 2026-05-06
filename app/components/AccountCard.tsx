@@ -15,8 +15,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import { useTranslation } from 'react-i18next';
 import { CardVendorIcon } from './CardVendorsModal';
 import { BANK_VENDORS } from '../utils/constants';
+import { useLocale } from '../context/LocaleContext';
 
 interface CardOwnership {
     id: number;
@@ -121,18 +123,21 @@ const AccountCard: React.FC<AccountCardProps> = ({
     onToggleCardVisibility,
     onUpdateCardLink
 }) => {
+    const { t } = useTranslation('views');
+    const { locale } = useLocale();
+    const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
     const isBank = BANK_VENDORS.includes(account.vendor);
 
     const formatLastSync = (dateString?: string) => {
-        if (!dateString) return 'Never synced';
+        if (!dateString) return t('accounts.neverSynced');
         const date = new Date(dateString);
-        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleDateString(dateLocale) + ' ' + date.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' });
     };
 
     return (
         <PremiumCard isBank={isBank} isActive={account.is_active}>
             <CardActions className="card-actions">
-                <Tooltip title={isVaultLocked ? "Unlock vault to edit" : "Edit"}>
+                <Tooltip title={isVaultLocked ? t('accounts.unlockToEdit') : t('accounts.edit')}>
                     <span>
                         <IconButton
                             size="small"
@@ -149,7 +154,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
                         </IconButton>
                     </span>
                 </Tooltip>
-                <Tooltip title={isVaultLocked ? "Unlock vault to delete history" : "Delete All Data"}>
+                <Tooltip title={isVaultLocked ? t('accounts.unlockToDelete') : t('accounts.deleteAllData')}>
                     <span>
                         <IconButton
                             size="small"
@@ -166,7 +171,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
                         </IconButton>
                     </span>
                 </Tooltip>
-                <Tooltip title={isVaultLocked ? "Unlock vault to remove connection" : "Remove"}>
+                <Tooltip title={isVaultLocked ? t('accounts.unlockToRemove') : t('accounts.remove')}>
                     <span>
                         <IconButton
                             size="small"
@@ -202,7 +207,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
                             {account.nickname || account.vendor}
                         </Typography>
                         <Typography variant="caption" sx={{ color: alpha('#fff', 0.7), fontWeight: 500 }}>
-                            {isBank ? 'Bank Account' : 'Credit Card'}
+                            {isBank ? t('accounts.bankAccount') : t('accounts.creditCard')}
                         </Typography>
                     </Box>
                 </Box>
@@ -219,7 +224,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', zIndex: 1 }}>
                 <Box>
                     <Typography variant="caption" sx={{ color: alpha('#fff', 0.6), display: 'block', mb: 0.5 }}>
-                        Last Synced
+                        {t('accounts.lastSynced')}
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'white', fontWeight: 600 }}>
                         {formatLastSync(account.last_synced_at)}
@@ -236,7 +241,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
                             '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: alpha('#fff', 0.5) }
                         }}
                     />
-                    <Tooltip title={isVaultLocked ? "Unlock vault to sync" : "Sync Now"}>
+                    <Tooltip title={isVaultLocked ? t('accounts.unlockToSync') : t('accounts.syncNow')}>
                         <span>
                             <IconButton
                                 size="small"
@@ -269,8 +274,8 @@ const AccountCard: React.FC<AccountCardProps> = ({
                 }}>
                     {ownedCards.map(card => (
                         <Tooltip key={card.id} title={card.is_hidden
-                            ? `${card.account_number.slice(-4)} - Hidden (click to show)`
-                            : `${card.account_number.slice(-4)} - Visible (click to hide)`
+                            ? t('accounts.card.hiddenClickToShow', { last4: card.account_number.slice(-4) })
+                            : t('accounts.card.visibleClickToHide', { last4: card.account_number.slice(-4) })
                         }>
                             <Chip
                                 size="small"

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, LinearProgress, useTheme } from '@mui/material';
 import { SvgIconComponent } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 
 interface BudgetInfo {
     budget_limit: number;
@@ -30,6 +31,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
     formatCurrency
 }) => {
     const theme = useTheme();
+    const { t } = useTranslation(['tx', 'common']);
 
     return (
         <Box
@@ -88,7 +90,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
                 </Typography>
                 {budget && budget.budget_limit > 0 && (
                     <Typography variant="caption" sx={{ color: budget.is_over_budget ? 'var(--n-error)' : 'var(--n-text-muted)', fontWeight: 600 }}>
-                        {budget.is_over_budget ? 'Over budget' : `${formatCurrency(budget.remaining)} left`}
+                        {budget.is_over_budget ? t('tx:categoryRow.overBudget') : t('tx:categoryRow.remainingLeft', { amount: formatCurrency(budget.remaining) })}
                     </Typography>
                 )}
             </Box>

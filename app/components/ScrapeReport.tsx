@@ -12,6 +12,8 @@ import RuleIcon from '@mui/icons-material/Rule';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import StorageIcon from '@mui/icons-material/Storage';
 import Tooltip from '@mui/material/Tooltip';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../context/LocaleContext';
 
 export interface ScrapeReportTransaction {
     date: string;
@@ -87,6 +89,9 @@ const VirtuosoTableComponents = {
 export default function ScrapeReport({ report, summary }: ScrapeReportProps) {
     const [activeTab, setActiveTab] = useState(0);
     const theme = useTheme();
+    const { t } = useTranslation(['scrape', 'common']);
+    const { locale } = useLocale();
+    const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
 
     // Set CSS variables for Virtuoso components to access theme colors
     const virtuosoStyles = {
@@ -134,26 +139,26 @@ export default function ScrapeReport({ report, summary }: ScrapeReportProps) {
                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
                     <Paper elevation={0} sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.15)' : '#f0fdf4', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.3)' : '#bbf7d0'}`, borderRadius: 3, textAlign: 'center' }}>
                         <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#4ade80' : '#166534', fontWeight: 700, mb: 0.5 }}>0</Typography>
-                        <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#4ade80' : '#166534', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>New</Typography>
+                        <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#4ade80' : '#166534', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('scrape:report.stats.new')}</Typography>
                     </Paper>
                     <Paper elevation={0} sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe'}`, borderRadius: 3, textAlign: 'center' }}>
                         <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#60a5fa' : '#1e40af', fontWeight: 700, mb: 0.5 }}>0</Typography>
-                        <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#60a5fa' : '#1e40af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Updated</Typography>
+                        <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#60a5fa' : '#1e40af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('scrape:report.stats.updated')}</Typography>
                     </Paper>
                     <Paper elevation={0} sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(251, 146, 60, 0.15)' : '#fff7ed', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(251, 146, 60, 0.3)' : '#fed7aa'}`, borderRadius: 3, textAlign: 'center' }}>
                         <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#fb923c' : '#9a3412', fontWeight: 700, mb: 0.5 }}>{stats.duplicateTransactions}</Typography>
-                        <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#fb923c' : '#9a3412', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Duplicates</Typography>
+                        <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#fb923c' : '#9a3412', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('scrape:report.stats.duplicates')}</Typography>
                     </Paper>
                     <Paper elevation={0} sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(167, 139, 250, 0.15)' : '#f5f3ff', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(167, 139, 250, 0.3)' : '#ddd6fe'}`, borderRadius: 3, textAlign: 'center' }}>
                         <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#a78bfa' : '#5b21b6', fontWeight: 700, mb: 0.5 }}>
                             {formatDuration(stats.durationSeconds)}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#a78bfa' : '#5b21b6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Time</Typography>
+                        <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#a78bfa' : '#5b21b6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('scrape:report.stats.time')}</Typography>
                     </Paper>
                 </Box>
                 <Box sx={{ p: 4, textAlign: 'center', color: '#9ca3af', border: `1px dashed ${theme.palette.divider}`, borderRadius: 3 }}>
-                    <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>No transactions found for this period.</Typography>
-                    <Typography variant="body2">The bank or credit card company returned no transaction data for the selected dates.</Typography>
+                    <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>{t('scrape:report.empty.noTransactions')}</Typography>
+                    <Typography variant="body2">{t('scrape:report.empty.noTransactionsHint')}</Typography>
                 </Box>
             </Box>
         );
@@ -173,20 +178,20 @@ export default function ScrapeReport({ report, summary }: ScrapeReportProps) {
 
     const renderTableHeader = () => (
         <tr style={{ color: theme.palette.text.secondary }}>
-            <th style={{ padding: '10px 12px', fontWeight: 600, width: '90px', textAlign: 'left', borderBottom: `1px solid ${theme.palette.divider}` }}>Date</th>
-            <th style={{ padding: '10px 12px', fontWeight: 600, width: '120px', textAlign: 'left', borderBottom: `1px solid ${theme.palette.divider}` }}>Account</th>
-            <th style={{ padding: '10px 12px', fontWeight: 600, width: '200px', textAlign: 'left', borderBottom: `1px solid ${theme.palette.divider}` }}>Description</th>
-            <th style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right', width: '100px', borderBottom: `1px solid ${theme.palette.divider}` }}>Amount</th>
-            <th style={{ padding: '10px 12px', fontWeight: 600, width: '100px', textAlign: 'center', borderBottom: `1px solid ${theme.palette.divider}` }}>Installments</th>
-            <th style={{ padding: '10px 12px', fontWeight: 600, width: '150px', textAlign: 'left', borderBottom: `1px solid ${theme.palette.divider}` }}>Category</th>
-            <th style={{ padding: '10px 12px', fontWeight: 600, width: '100px', textAlign: 'left', borderBottom: `1px solid ${theme.palette.divider}` }}>Status</th>
+            <th style={{ padding: '10px 12px', fontWeight: 600, width: '90px', textAlign: 'left', borderBottom: `1px solid ${theme.palette.divider}` }}>{t('scrape:report.table.date')}</th>
+            <th style={{ padding: '10px 12px', fontWeight: 600, width: '120px', textAlign: 'left', borderBottom: `1px solid ${theme.palette.divider}` }}>{t('scrape:report.table.account')}</th>
+            <th style={{ padding: '10px 12px', fontWeight: 600, width: '200px', textAlign: 'left', borderBottom: `1px solid ${theme.palette.divider}` }}>{t('scrape:report.table.description')}</th>
+            <th style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right', width: '100px', borderBottom: `1px solid ${theme.palette.divider}` }}>{t('scrape:report.table.amount')}</th>
+            <th style={{ padding: '10px 12px', fontWeight: 600, width: '100px', textAlign: 'center', borderBottom: `1px solid ${theme.palette.divider}` }}>{t('scrape:report.table.installments')}</th>
+            <th style={{ padding: '10px 12px', fontWeight: 600, width: '150px', textAlign: 'left', borderBottom: `1px solid ${theme.palette.divider}` }}>{t('scrape:report.table.category')}</th>
+            <th style={{ padding: '10px 12px', fontWeight: 600, width: '100px', textAlign: 'left', borderBottom: `1px solid ${theme.palette.divider}` }}>{t('scrape:report.table.status')}</th>
         </tr>
     );
 
     const renderRow = (_idx: number, tx: ScrapeReportTransaction) => (
         <>
             <td style={{ padding: '6px 12px', color: theme.palette.text.secondary, whiteSpace: 'nowrap' }}>
-                {new Date(tx.date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit', year: '2-digit' })}
+                {new Date(tx.date).toLocaleDateString(dateLocale, { month: '2-digit', day: '2-digit', year: '2-digit' })}
             </td>
             <td style={{ padding: '6px 12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {tx.accountName ? (
@@ -232,7 +237,7 @@ export default function ScrapeReport({ report, summary }: ScrapeReportProps) {
                         </Typography>
                         {tx.totalAmount && Math.abs(tx.totalAmount) !== Math.abs(tx.amount) && (
                             <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.65rem', mt: 0.5 }}>
-                                of {Math.abs(tx.totalAmount).toFixed(0)}
+                                {t('scrape:report.table.ofTotal', { amount: Math.abs(tx.totalAmount).toFixed(0) })}
                             </Typography>
                         )}
                     </Box>
@@ -279,21 +284,21 @@ export default function ScrapeReport({ report, summary }: ScrapeReportProps) {
             <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>
                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'nowrap', alignItems: 'center' }}>
                     {tx.isUpdate ? (
-                        <Chip size="small" label="Updated" sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#dbeafe', color: '#1e40af' }} />
+                        <Chip size="small" label={t('scrape:report.status.updated')} sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#dbeafe', color: '#1e40af' }} />
                     ) : tx.isDuplicate ? (
-                        <Chip size="small" label="Duplicate" sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#f3f4f6', color: '#6b7280' }} />
+                        <Chip size="small" label={t('scrape:report.status.duplicate')} sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#f3f4f6', color: '#6b7280' }} />
                     ) : null}
 
                     {tx.source === 'rule' ? (
-                        <Tooltip title={tx.rule ? `Rule: ${tx.rule}` : 'Rule match'}>
-                            <Chip size="small" label="Rule" icon={<RuleIcon sx={{ fontSize: '10px !important' }} />} sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#e0f2fe', color: '#0369a1', '& .MuiChip-icon': { color: 'inherit' } }} />
+                        <Tooltip title={tx.rule ? t('scrape:report.status.ruleTooltip', { rule: tx.rule }) : t('scrape:report.status.ruleMatchTooltip')}>
+                            <Chip size="small" label={t('scrape:report.status.rule')} icon={<RuleIcon sx={{ fontSize: '10px !important' }} />} sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#e0f2fe', color: '#0369a1', '& .MuiChip-icon': { color: 'inherit' } }} />
                         </Tooltip>
                     ) : tx.source === 'cache' ? (
-                        <Chip size="small" label="Cache" icon={<StorageIcon sx={{ fontSize: '10px !important' }} />} sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#f3e8ff', color: '#6b21a8', '& .MuiChip-icon': { color: 'inherit' } }} />
+                        <Chip size="small" label={t('scrape:report.status.cache')} icon={<StorageIcon sx={{ fontSize: '10px !important' }} />} sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#f3e8ff', color: '#6b21a8', '& .MuiChip-icon': { color: 'inherit' } }} />
                     ) : tx.source === 'scraper' ? (
-                        <Chip size="small" label="Scraper" icon={<AutorenewIcon sx={{ fontSize: '10px !important' }} />} sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#dcfce7', color: '#15803d', '& .MuiChip-icon': { color: 'inherit' } }} />
+                        <Chip size="small" label={t('scrape:report.status.scraper')} icon={<AutorenewIcon sx={{ fontSize: '10px !important' }} />} sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#dcfce7', color: '#15803d', '& .MuiChip-icon': { color: 'inherit' } }} />
                     ) : (!tx.isUpdate && !tx.isDuplicate) && (
-                        <Chip size="small" label="Saved" sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#f3f4f6', color: '#6b7280' }} />
+                        <Chip size="small" label={t('scrape:report.status.saved')} sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#f3f4f6', color: '#6b7280' }} />
                     )}
                 </Box>
             </td>
@@ -305,19 +310,19 @@ export default function ScrapeReport({ report, summary }: ScrapeReportProps) {
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
                 <Paper elevation={0} sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.15)' : '#f0fdf4', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.3)' : '#bbf7d0'}`, borderRadius: 3, textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#4ade80' : '#166534', fontWeight: 700, mb: 0.5 }}>{stats.savedTransactions || 0}</Typography>
-                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#4ade80' : '#166534', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>New</Typography>
+                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#4ade80' : '#166534', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('scrape:report.stats.new')}</Typography>
                 </Paper>
                 <Paper elevation={0} sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe'}`, borderRadius: 3, textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#60a5fa' : '#1e40af', fontWeight: 700, mb: 0.5 }}>{stats.updatedTransactions || 0}</Typography>
-                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#60a5fa' : '#1e40af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Updated</Typography>
+                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#60a5fa' : '#1e40af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('scrape:report.stats.updated')}</Typography>
                 </Paper>
                 <Paper elevation={0} sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(251, 146, 60, 0.15)' : '#fff7ed', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(251, 146, 60, 0.3)' : '#fed7aa'}`, borderRadius: 3, textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#fb923c' : '#9a3412', fontWeight: 700, mb: 0.5 }}>{stats.duplicateTransactions || 0}</Typography>
-                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#fb923c' : '#9a3412', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Duplicates</Typography>
+                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#fb923c' : '#9a3412', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('scrape:report.stats.duplicates')}</Typography>
                 </Paper>
                 <Paper elevation={0} sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(167, 139, 250, 0.15)' : '#f5f3ff', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(167, 139, 250, 0.3)' : '#ddd6fe'}`, borderRadius: 3, textAlign: 'center' }}>
                     <Typography variant="h4" sx={{ color: theme.palette.mode === 'dark' ? '#a78bfa' : '#5b21b6', fontWeight: 700, mb: 0.5 }}>{formatDuration(stats.durationSeconds)}</Typography>
-                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#a78bfa' : '#5b21b6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Time</Typography>
+                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#a78bfa' : '#5b21b6', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('scrape:report.stats.time')}</Typography>
                 </Paper>
             </Box>
 
@@ -327,21 +332,21 @@ export default function ScrapeReport({ report, summary }: ScrapeReportProps) {
                         <StorageIcon sx={{ fontSize: 16, color: theme.palette.mode === 'dark' ? '#a855f7' : '#6b21a8' }} />
                         <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#a855f7' : '#6b21a8', fontWeight: 700 }}>{stats.cachedCategories || 0}</Typography>
                     </Box>
-                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#a855f7' : '#6b21a8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: 0.5 }}>From Cache</Typography>
+                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#a855f7' : '#6b21a8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: 0.5 }}>{t('scrape:report.stats.fromCache')}</Typography>
                 </Paper>
                 <Paper elevation={0} sx={{ p: 1.5, bgcolor: theme.palette.mode === 'dark' ? 'rgba(14, 165, 233, 0.05)' : '#f0f9ff', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(14, 165, 233, 0.2)' : '#e0f2fe'}`, borderRadius: 3, textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
                         <RuleIcon sx={{ fontSize: 16, color: theme.palette.mode === 'dark' ? '#0ea5e9' : '#0369a1' }} />
                         <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#0ea5e9' : '#0369a1', fontWeight: 700 }}>{stats.ruleCategories || 0}</Typography>
                     </Box>
-                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#0ea5e9' : '#0369a1', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: 0.5 }}>From Rules</Typography>
+                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#0ea5e9' : '#0369a1', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: 0.5 }}>{t('scrape:report.stats.fromRules')}</Typography>
                 </Paper>
                 <Paper elevation={0} sx={{ p: 1.5, bgcolor: theme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.05)' : '#f0fdf4', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.2)' : '#dcfce7'}`, borderRadius: 3, textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
                         <AutorenewIcon sx={{ fontSize: 16, color: theme.palette.mode === 'dark' ? '#4ade80' : '#15803d' }} />
                         <Typography variant="h6" sx={{ color: theme.palette.mode === 'dark' ? '#4ade80' : '#15803d', fontWeight: 700 }}>{stats.scraperCategories || 0}</Typography>
                     </Box>
-                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#4ade80' : '#15803d', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: 0.5 }}>From Scraper</Typography>
+                    <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? '#4ade80' : '#15803d', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: 0.5 }}>{t('scrape:report.stats.fromScraper')}</Typography>
                 </Paper>
             </Box>
 
@@ -357,22 +362,22 @@ export default function ScrapeReport({ report, summary }: ScrapeReportProps) {
                             '& .Mui-selected': { fontWeight: 700 }
                         }}
                     >
-                        <Tab label="All" />
+                        <Tab label={t('scrape:report.tabs.all')} />
                         <Tab label={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                New
+                                {t('scrape:report.tabs.new')}
                                 {counts.new > 0 && <Chip label={counts.new} size="small" sx={{ height: 20, fontSize: '0.7rem', bgcolor: '#bbf7d0', color: '#166534' }} />}
                             </Box>
                         } />
                         <Tab label={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                Updated
+                                {t('scrape:report.tabs.updated')}
                                 {counts.updated > 0 && <Chip label={counts.updated} size="small" sx={{ height: 20, fontSize: '0.7rem', bgcolor: '#bfdbfe', color: '#1e40af' }} />}
                             </Box>
                         } />
                         <Tab label={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                Skipped
+                                {t('scrape:report.tabs.skipped')}
                                 {counts.duplicates > 0 && <Chip label={counts.duplicates} size="small" sx={{ height: 20, fontSize: '0.7rem', bgcolor: '#fed7aa', color: '#9a3412' }} />}
                             </Box>
                         } />
@@ -382,7 +387,7 @@ export default function ScrapeReport({ report, summary }: ScrapeReportProps) {
                 <Box sx={{ height: 600, overflow: 'hidden' }}>
                     {filteredTransactions.length === 0 ? (
                         <Box sx={{ p: 4, textAlign: 'center', color: '#9ca3af' }}>
-                            <Typography variant="body2">No transactions found in this category.</Typography>
+                            <Typography variant="body2">{t('scrape:report.empty.noTransactionsInCategory')}</Typography>
                         </Box>
                     ) : (
                         <TableVirtuoso
@@ -396,7 +401,7 @@ export default function ScrapeReport({ report, summary }: ScrapeReportProps) {
                 </Box>
                 <Box sx={{ p: 1, bgcolor: theme.palette.mode === 'dark' ? 'rgba(30, 41, 59, 0.3)' : '#f9fafb', borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'center' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        Showing {filteredTransactions.length} of {report.length} records
+                        {t('scrape:report.footer', { filtered: filteredTransactions.length, total: report.length })}
                     </Typography>
                 </Box>
             </Paper>

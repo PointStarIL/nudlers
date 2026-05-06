@@ -1,0 +1,139 @@
+{
+  "modal": {
+    "title": "Scrape",
+    "scrapingVendor": "Scraping <strong>{{vendor}}</strong>",
+    "scrapingVendorWithNickname": "Scraping <strong>{{vendor}}</strong> ({{nickname}})"
+  },
+  "form": {
+    "vendorLabel": "Vendor",
+    "idLabel": "ID",
+    "idUsernameLabel": "ID / Username",
+    "idUsernameHelper": "Your ID number (no account number needed for this bank)",
+    "userCodeLabel": "User Code",
+    "userCodeHelper": "Your Bank Hapoalim user code for online banking (found in your online banking profile)",
+    "bankAccountNumberLabel": "Bank Account Number",
+    "usernameLabel": "Username",
+    "card6DigitsLabel": "Card 6 Digits",
+    "passwordLabel": "Password",
+    "startDateLabel": "Start Date",
+    "accountNicknameLabel": "Account Nickname",
+    "debugModeLabel": "Debug Mode (Show Browser)",
+    "debugModeTooltip": "Shows the browser window for debugging or entering 2FA codes. Only works when running locally (not in Docker)."
+  },
+  "progress": {
+    "starting": "Starting...",
+    "processing": "Processing...",
+    "step": "Step {{number}}",
+    "runningLog": "Running Log:",
+    "rateLimitDefault": "Rate limit wait...",
+    "retryingDefault": "Retrying...",
+    "phase": {
+      "initialization": "Initialization",
+      "authentication": "Authentication",
+      "data_fetching": "Fetching Data",
+      "processing": "Processing",
+      "saving": "Saving",
+      "default": "Processing"
+    }
+  },
+  "otp": {
+    "title": "2FA Verification Required",
+    "description": "Bank Hapoalim sent a verification code to your phone. Enter it below to continue.",
+    "placeholder": "Enter code",
+    "submitting": "Submitting code... The scraper will continue automatically.",
+    "verificationFailed": "Verification failed",
+    "submitFailed": "Failed to submit code",
+    "submitFailedDetailed": "Failed to submit OTP code"
+  },
+  "debug": {
+    "modeActiveTitle": "Debug Mode Active",
+    "modeActiveDesc": "A browser window should have opened. You can interact with it to complete 2FA or debug issues.",
+    "tipLabel": "Debug Tip:",
+    "tipText": "Look for a Chrome window on your desktop. This mode is best used when running the app locally.",
+    "networkActivity": "Network Activity (Debug):",
+    "takeScreenshot": "Take Debug Screenshot",
+    "capturing": "Capturing...",
+    "viewLatestScreenshot": "View Latest Screenshot",
+    "screenshotSent": "Screenshot request sent",
+    "screenshotFailed": "Failed to take screenshot",
+    "logRequest": "REQ",
+    "logResponse": "RES",
+    "logWait": "WAIT"
+  },
+  "errors": {
+    "default": "An error occurred",
+    "failedToStart": "Failed to start scraping",
+    "noResponseStream": "No response stream available",
+    "stoppedSuccess": "All scrapers stopped successfully.",
+    "stopFailed": "Failed to stop scrapers",
+    "wouldYouLikeRetry": "Would you like to retry?",
+    "retryFromLabel": "Retry from {{date}}",
+    "continueFromLabel": "Continue from {{date}}",
+    "continueHint": "\"Continue\" will start from the day after the last saved transaction, skipping already synced data.",
+    "stoppingScrapers": "Stopping Scrapers...",
+    "forceStopAll": "Force Stop All Scrapers",
+    "forceStopHint": "This will terminate any running browser processes and allow you to start a new scrape.",
+    "hintLabel": "Hint"
+  },
+  "actions": {
+    "scrape": "SCRAPE",
+    "done": "Done",
+    "cancel": "Cancel",
+    "cancelScrape": "Cancel Scrape",
+    "close": "Close"
+  },
+  "notifications": {
+    "completed": "Scraping completed successfully!"
+  },
+  "report": {
+    "stats": {
+      "new": "New",
+      "updated": "Updated",
+      "duplicates": "Duplicates",
+      "time": "Time",
+      "fromCache": "From Cache",
+      "fromRules": "From Rules",
+      "fromScraper": "From Scraper"
+    },
+    "tabs": {
+      "all": "All",
+      "new": "New",
+      "updated": "Updated",
+      "skipped": "Skipped"
+    },
+    "table": {
+      "date": "Date",
+      "account": "Account",
+      "description": "Description",
+      "amount": "Amount",
+      "installments": "Installments",
+      "category": "Category",
+      "status": "Status",
+      "ofTotal": "of {{amount}}"
+    },
+    "status": {
+      "updated": "Updated",
+      "duplicate": "Duplicate",
+      "rule": "Rule",
+      "ruleTooltip": "Rule: {{rule}}",
+      "ruleMatchTooltip": "Rule match",
+      "cache": "Cache",
+      "scraper": "Scraper",
+      "saved": "Saved"
+    },
+    "empty": {
+      "noTransactions": "No transactions found for this period.",
+      "noTransactionsHint": "The bank or credit card company returned no transaction data for the selected dates.",
+      "noTransactionsInCategory": "No transactions found in this category."
+    },
+    "footer": "Showing {{filtered}} of {{total}} records"
+  },
+  "screenshots": {
+    "title": "Debug Screenshots",
+    "confirmDelete": "Are you sure you want to delete all screenshots?",
+    "noScreenshots": "No screenshots found.",
+    "noScreenshotsHint": "Screenshots will appear here when scrapers capture them.",
+    "loadFailed": "Could not load screenshots.",
+    "fetchFailed": "Failed to fetch screenshots"
+  }
+}

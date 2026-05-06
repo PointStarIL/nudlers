@@ -10,6 +10,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { styled } from '@mui/material/styles';
 import { useStatus } from '../context/StatusContext';
+import { useTranslation } from 'react-i18next';
 
 const GlowSphere = styled(Box)(({ color }: { color: string }) => ({
     position: 'absolute',
@@ -37,6 +38,7 @@ const StyledDialog = styled(Dialog)({
 type AuthMode = 'passkey' | 'passphrase';
 
 const VaultLockScreen: React.FC = () => {
+    const { t } = useTranslation('vault');
     const {
         unlockVault, initializeVault, migrateVault,
         unlockWithPasskey, startPasskeyRegistration,
@@ -98,7 +100,7 @@ const VaultLockScreen: React.FC = () => {
                 // Don't show an error for explicit cancellation, it's annoying
                 setError(null);
             } else {
-                setError(result.error || 'Passkey authentication failed');
+                setError(result.error || t('errors.passkeyAuthFailed'));
             }
         } else {
             setIsVaultModalOpen(false);
@@ -122,12 +124,12 @@ const VaultLockScreen: React.FC = () => {
         const isActionInitOrMigrate = isInit || isMigrate;
 
         if (isActionInitOrMigrate && passphrase !== confirmPassphrase) {
-            setError('Passphrases do not match');
+            setError(t('errors.passphrasesMismatch'));
             return;
         }
 
         if (isActionInitOrMigrate && passphrase.length < 8) {
-            setError('Passphrase must be at least 8 characters long');
+            setError(t('errors.passphraseTooShort'));
             return;
         }
 
@@ -145,7 +147,7 @@ const VaultLockScreen: React.FC = () => {
         }
 
         if (!result.success) {
-            setError(result.error || 'Failed to process request');
+            setError(result.error || t('errors.processFailed'));
             setLoading(false);
         } else {
             setLoading(false);
@@ -193,11 +195,11 @@ const VaultLockScreen: React.FC = () => {
                             </Box>
 
                             <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, textAlign: 'center' }}>
-                                Enable Biometric?
+                                {t('passkeyPrompt.title')}
                             </Typography>
 
                             <Typography variant="body1" sx={{ color: 'var(--n-text-secondary)', mb: 4, textAlign: 'center' }}>
-                                Unlock your vault instantly with TouchID or FaceID next time. No need to type your passphrase.
+                                {t('passkeyPrompt.subtitle')}
                             </Typography>
 
                             {error && (
@@ -218,7 +220,7 @@ const VaultLockScreen: React.FC = () => {
                                         setPassphrase('');
                                         setShowPasskeySetup(false);
                                     } else {
-                                        setError(result.error || 'Passkey registration failed');
+                                        setError(result.error || t('errors.passkeyRegisterFailed'));
                                     }
                                     setLoading(false);
                                 }}
@@ -236,7 +238,7 @@ const VaultLockScreen: React.FC = () => {
                                     },
                                 }}
                             >
-                                {loading ? <CircularProgress size={24} color="inherit" /> : 'Yes, Enable Passkey'}
+                                {loading ? <CircularProgress size={24} color="inherit" /> : t('passkeyPrompt.enable')}
                             </Button>
 
                             <Button
@@ -258,7 +260,7 @@ const VaultLockScreen: React.FC = () => {
                                     }
                                 }}
                             >
-                                Skip for now
+                                {t('passkeyPrompt.skip')}
                             </Button>
                         </>
                     ) : authMode === 'passkey' && isUnlock ? (
@@ -277,11 +279,11 @@ const VaultLockScreen: React.FC = () => {
                             </Box>
 
                             <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, textAlign: 'center' }}>
-                                Unlock with Passkey
+                                {t('unlockPasskey.title')}
                             </Typography>
 
                             <Typography variant="body1" sx={{ color: 'var(--n-text-secondary)', mb: 4, textAlign: 'center' }}>
-                                Use your biometric or security key to unlock the vault.
+                                {t('unlockPasskey.subtitle')}
                             </Typography>
 
                             {error && (
@@ -313,7 +315,7 @@ const VaultLockScreen: React.FC = () => {
                                     }
                                 }}
                             >
-                                {loading ? <CircularProgress size={24} color="inherit" /> : 'Authenticate'}
+                                {loading ? <CircularProgress size={24} color="inherit" /> : t('unlockPasskey.authenticate')}
                             </Button>
 
                             <Button
@@ -336,7 +338,7 @@ const VaultLockScreen: React.FC = () => {
                                     }
                                 }}
                             >
-                                Use passphrase instead
+                                {t('unlockPasskey.usePassphraseInstead')}
                             </Button>
                         </>
                     ) : (
@@ -355,15 +357,15 @@ const VaultLockScreen: React.FC = () => {
                             </Box>
 
                             <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, textAlign: 'center' }}>
-                                {isMigrate ? 'Migrate to Vault' : isInit ? 'Setup Vault' : 'Unlock Vault'}
+                                {isMigrate ? t('passphrase.titleMigrate') : isInit ? t('passphrase.titleInit') : t('passphrase.titleUnlock')}
                             </Typography>
 
                             <Typography variant="body1" sx={{ color: 'var(--n-text-secondary)', mb: 4, textAlign: 'center' }}>
                                 {isMigrate
-                                    ? 'Create a passphrase to encrypt a new master key that will re-encrypt your credentials. The passphrase is never stored — losing it makes the vault unrecoverable.'
+                                    ? t('passphrase.descMigrate')
                                     : isInit
-                                        ? 'Your passphrase encrypts a master key, which in turn encrypts your credentials. The passphrase is never stored — losing it makes the vault unrecoverable.'
-                                        : 'Your passphrase decrypts the master key into memory, which unlocks your credentials. The key is cleared on server restart.'}
+                                        ? t('passphrase.descInit')
+                                        : t('passphrase.descUnlock')}
                             </Typography>
 
                             {error && (
@@ -376,7 +378,7 @@ const VaultLockScreen: React.FC = () => {
                                 <TextField
                                     fullWidth
                                     type={showPassphrase ? 'text' : 'password'}
-                                    placeholder={isInit ? "Create passphrase" : "Enter passphrase"}
+                                    placeholder={isInit ? t('passphrase.createPlaceholder') : t('passphrase.enterPlaceholder')}
                                     value={passphrase}
                                     onChange={(e) => setPassphrase(e.target.value)}
                                     disabled={loading}
@@ -415,7 +417,7 @@ const VaultLockScreen: React.FC = () => {
                                     <TextField
                                         fullWidth
                                         type={showPassphrase ? 'text' : 'password'}
-                                        placeholder="Confirm passphrase"
+                                        placeholder={t('passphrase.confirmPlaceholder')}
                                         value={confirmPassphrase}
                                         onChange={(e) => setConfirmPassphrase(e.target.value)}
                                         disabled={loading}
@@ -461,7 +463,7 @@ const VaultLockScreen: React.FC = () => {
                                         }
                                     }}
                                 >
-                                    {loading ? <CircularProgress size={24} color="inherit" /> : (isMigrate ? 'Migrate to Vault' : isInit ? 'Initialize Vault' : 'Unlock Vault')}
+                                    {loading ? <CircularProgress size={24} color="inherit" /> : (isMigrate ? t('passphrase.submitMigrate') : isInit ? t('passphrase.submitInit') : t('passphrase.submitUnlock'))}
                                 </Button>
 
                                 {isUnlock && hasPasskeys && (
@@ -484,7 +486,7 @@ const VaultLockScreen: React.FC = () => {
                                             }
                                         }}
                                     >
-                                        Use passkey instead
+                                        {t('passphrase.usePasskeyInstead')}
                                     </Button>
                                 )}
                             </form>
@@ -502,7 +504,7 @@ const VaultLockScreen: React.FC = () => {
                                     '&:hover': { color: 'var(--n-text-secondary)', backgroundColor: 'transparent' }
                                 }}
                             >
-                                How encryption works
+                                {t('passphrase.howEncryptionWorks')}
                             </Button>
 
                             <Collapse in={showSecurityDetails} sx={{ width: '100%' }}>
@@ -521,14 +523,13 @@ Master Key ─AES-256-GCM─▶ Credentials (DB)`
                                         }
                                     </Typography>
                                     <Typography variant="caption" sx={{ color: 'var(--n-text-muted)', display: 'block', mt: 1, lineHeight: 1.6 }}>
-                                        On unlock, the master key is decrypted into memory only — never written to disk. It is cleared when the server restarts.
+                                        {t('passphrase.encryptionDetail')}
                                     </Typography>
                                 </Box>
                             </Collapse>
 
                             <Typography variant="body2" sx={{ color: 'var(--n-text-muted)', mt: 2, textAlign: 'center', fontSize: '0.75rem' }}>
-                                Unlocking is only required for syncing and credential management.
-                                Data viewing and navigation are fully available.
+                                {t('passphrase.footer')}
                             </Typography>
                         </>
                     )}

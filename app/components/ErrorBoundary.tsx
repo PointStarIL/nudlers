@@ -2,6 +2,7 @@ import React from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import i18n from '../i18n/config';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -66,19 +67,19 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           textAlign: 'center'
         }}>
           <Typography variant="h5" color="error">
-            {this.state.isChunkError ? 'Update Available' : 'Something went wrong'}
+            {this.state.isChunkError ? i18n.t('misc:errorBoundary.updateTitle') : i18n.t('misc:errorBoundary.errorTitle')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
             {this.state.isChunkError
-              ? 'A newer version is available. Please reload the page.'
-              : 'An unexpected error occurred. Please try again.'}
+              ? i18n.t('misc:errorBoundary.updateDescription')
+              : i18n.t('misc:errorBoundary.errorDescription')}
           </Typography>
           <Button
             variant="contained"
             onClick={this.state.isChunkError ? () => window.location.reload() : this.handleReset}
             sx={{ mt: 2 }}
           >
-            {this.state.isChunkError ? 'Reload Page' : 'Try Again'}
+            {this.state.isChunkError ? i18n.t('misc:errorBoundary.reloadButton') : i18n.t('misc:errorBoundary.tryAgainButton')}
           </Button>
         </Box>
       );

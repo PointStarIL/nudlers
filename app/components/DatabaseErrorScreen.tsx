@@ -6,6 +6,7 @@ import Button from '@mui/material/Button';
 import StorageIcon from '@mui/icons-material/Storage';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { styled } from '@mui/material/styles';
+import { useTranslation } from 'react-i18next';
 
 const Container = styled(Box)({
     display: 'flex',
@@ -53,16 +54,17 @@ interface DatabaseErrorScreenProps {
 }
 
 const DatabaseErrorScreen: React.FC<DatabaseErrorScreenProps> = ({ onRetry, isRetrying }) => {
+    const { t } = useTranslation(['misc', 'common']);
     return (
         <Container>
             <IconWrapper>
                 <StorageIcon sx={{ fontSize: '64px', color: '#ef4444' }} />
             </IconWrapper>
             <Typography variant="h3" sx={{ fontWeight: 700, mb: 2, background: 'linear-gradient(to right, #ef4444, #f87171)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Database Connection Failed
+                {t('misc:databaseError.title')}
             </Typography>
             <Typography variant="h6" sx={{ color: '#94a3b8', maxWidth: '600px', mb: 4, fontWeight: 400, lineHeight: 1.6 }}>
-                The application cannot connect to the database. Please verify that the database service is running and accessible.
+                {t('misc:databaseError.description')}
             </Typography>
             <StyledButton
                 onClick={onRetry}
@@ -73,7 +75,7 @@ const DatabaseErrorScreen: React.FC<DatabaseErrorScreenProps> = ({ onRetry, isRe
                     '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } }
                 }}
             >
-                {isRetrying ? 'Connecting...' : 'Retry Connection'}
+                {isRetrying ? t('misc:databaseError.retrying') : t('misc:databaseError.retryButton')}
             </StyledButton>
         </Container>
     );

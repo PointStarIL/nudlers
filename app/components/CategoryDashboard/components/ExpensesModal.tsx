@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { logger } from '../../../utils/client-logger';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
@@ -39,6 +40,7 @@ type SortDirection = 'asc' | 'desc';
 
 const ExpensesModal: React.FC<ExpensesModalProps> = ({ open, onClose, data, color, setModalData, currentMonth }) => {
   const theme = useTheme();
+  const { t } = useTranslation('tx');
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [snackbar, setSnackbar] = React.useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false,
@@ -128,7 +130,7 @@ const ExpensesModal: React.FC<ExpensesModalProps> = ({ open, onClose, data, colo
       } else {
         setSnackbar({
           open: true,
-          message: 'Failed to update transaction',
+          message: t('snackbar.updateTransactionFailed'),
           severity: 'error'
         });
       }
@@ -136,7 +138,7 @@ const ExpensesModal: React.FC<ExpensesModalProps> = ({ open, onClose, data, colo
       logger.error('Error updating transaction', error as Error);
       setSnackbar({
         open: true,
-        message: 'Error updating transaction',
+        message: t('snackbar.updateTransactionError'),
         severity: 'error'
       });
     }
@@ -168,7 +170,7 @@ const ExpensesModal: React.FC<ExpensesModalProps> = ({ open, onClose, data, colo
 
           setSnackbar({
             open: true,
-            message: 'Transaction deleted successfully',
+            message: t('snackbar.deleteSuccess'),
             severity: 'success'
           });
 
@@ -177,7 +179,7 @@ const ExpensesModal: React.FC<ExpensesModalProps> = ({ open, onClose, data, colo
         } else {
           setSnackbar({
             open: true,
-            message: 'Failed to delete transaction',
+            message: t('snackbar.deleteTransactionFailed'),
             severity: 'error'
           });
         }
@@ -185,7 +187,7 @@ const ExpensesModal: React.FC<ExpensesModalProps> = ({ open, onClose, data, colo
         logger.error('Cannot delete transaction: missing identifier or vendor', expense);
         setSnackbar({
           open: true,
-          message: 'Cannot delete transaction: missing identifier or vendor',
+          message: t('snackbar.missingIdentifier'),
           severity: 'error'
         });
       }
@@ -193,7 +195,7 @@ const ExpensesModal: React.FC<ExpensesModalProps> = ({ open, onClose, data, colo
       logger.error('Error deleting transaction', error as Error);
       setSnackbar({
         open: true,
-        message: 'Error deleting transaction',
+        message: t('snackbar.deleteError'),
         severity: 'error'
       });
     }

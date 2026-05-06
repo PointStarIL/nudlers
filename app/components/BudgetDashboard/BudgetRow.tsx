@@ -4,6 +4,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { useTranslation } from 'react-i18next';
 
 interface BudgetRowProps {
     category: string;
@@ -29,6 +30,7 @@ const BudgetRow: React.FC<BudgetRowProps> = ({
     formatCurrency
 }) => {
     const theme = useTheme();
+    const { t } = useTranslation('views');
 
     const getProgressColor = (percent: number) => {
         if (percent >= 100) return 'var(--n-error)';
@@ -76,17 +78,17 @@ const BudgetRow: React.FC<BudgetRowProps> = ({
                             {formatCurrency(spent)}
                         </Typography>
                         <Typography variant="caption" sx={{ color: 'var(--n-text-muted)', fontWeight: 600 }}>
-                            of {formatCurrency(limit)}
+                            {t('budget.ofAmount', { amount: formatCurrency(limit) })}
                         </Typography>
                     </Box>
 
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <Tooltip title="Edit Budget">
+                        <Tooltip title={t('budget.tooltipEditBudget')}>
                             <IconButton size="small" onClick={onEdit} sx={{ color: 'var(--n-text-muted)', '&:hover': { color: 'var(--n-primary)' } }}>
                                 <EditIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="Delete Budget">
+                        <Tooltip title={t('budget.tooltipDeleteBudget')}>
                             <IconButton size="small" onClick={onDelete} sx={{ color: 'var(--n-text-muted)', '&:hover': { color: 'var(--n-error)' } }}>
                                 <DeleteIcon fontSize="small" />
                             </IconButton>
@@ -117,20 +119,20 @@ const BudgetRow: React.FC<BudgetRowProps> = ({
                         <>
                             <WarningIcon sx={{ fontSize: 14, color: 'var(--n-error)' }} />
                             <Typography variant="caption" sx={{ color: 'var(--n-error)', fontWeight: 700 }}>
-                                {formatCurrency(Math.abs(remaining))} over budget
+                                {t('budget.overBudgetByAmount', { amount: formatCurrency(Math.abs(remaining)) })}
                             </Typography>
                         </>
                     ) : (
                         <>
                             <CheckCircleIcon sx={{ fontSize: 14, color: 'var(--n-success)' }} />
                             <Typography variant="caption" sx={{ color: 'var(--n-success)', fontWeight: 700 }}>
-                                {formatCurrency(remaining)} remaining
+                                {t('budget.remainingByAmount', { amount: formatCurrency(remaining) })}
                             </Typography>
                         </>
                     )}
                 </Box>
                 <Typography variant="caption" sx={{ color: 'var(--n-text-muted)', fontWeight: 700 }}>
-                    {percentUsed.toFixed(0)}% used
+                    {t('budget.percentUsed', { percent: percentUsed.toFixed(0) })}
                 </Typography>
             </Box>
         </Box>

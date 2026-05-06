@@ -1,0 +1,122 @@
+{
+  "modal": {
+    "title": "ניהול קטגוריות"
+  },
+  "tabs": {
+    "categories": "קטגוריות",
+    "rules": "כללים",
+    "mappings": "מיפויים",
+    "uncategorized": "ללא קטגוריה"
+  },
+  "categories": {
+    "selectedToMerge": "נבחרו לאיחוד ({{count}})",
+    "clickToSelect": "לחצו על קטגוריות בהמשך לבחירתן",
+    "newCategoryName": "שם קטגוריה חדשה",
+    "newCategoryPlaceholder": "לדוגמה, מזון ומסעדות",
+    "mergeCategories": "איחוד קטגוריות",
+    "autoMappingHint": "ייווצר מיפוי אוטומטי לייבוא עתידי",
+    "allCategories": "כל הקטגוריות ({{count}})",
+    "searchPlaceholder": "חיפוש קטגוריות..."
+  },
+  "rules": {
+    "sectionTitle": "כללי קטגוריזציה",
+    "description": "צרו כללים שיסווגו עסקאות אוטומטית לפי שמן. הכללים יחולו על עסקאות קיימות וחדשות.",
+    "patternLabel": "תבנית שם עסקה",
+    "patternPlaceholder": "לדוגמה, 'starbucks' או 'netflix'",
+    "targetCategoryLabel": "קטגוריית יעד",
+    "targetCategoryPlaceholder": "לדוגמה, 'מזון' או 'בידור'",
+    "addButton": "הוספה",
+    "applyToExisting": "החלת כללים על עסקאות קיימות",
+    "activeRules": "כללים פעילים ({{count}})",
+    "noRules": "עדיין לא נוצרו כללים. צרו את הכלל הראשון שלכם למעלה.",
+    "ruleIfContains": "אם שם העסקה מכיל \"{{pattern}}\"",
+    "ruleThenSet": "אז הגדר את הקטגוריה ל-\"{{category}}\"",
+    "editRuleTitle": "עריכת כלל",
+    "updateButton": "עדכון"
+  },
+  "mappings": {
+    "sectionTitle": "מיפויי קטגוריות",
+    "description": "כאשר מאחדים קטגוריות, נוצר מיפוי. כל עסקה חדשה שתישאב מקטגוריית מקור תועבר אוטומטית לקטגוריית היעד.",
+    "infoNotice": "מיפויים נוצרים אוטומטית במהלך תהליך האיחוד.",
+    "createManual": "יצירת מיפוי ידני",
+    "sourceLabel": "קטגוריית מקור",
+    "sourcePlaceholder": "לדוגמה, קטגוריה מהסקרייפר",
+    "targetLabel": "מיפוי יעד",
+    "targetPlaceholder": "לדוגמה, הקטגוריה שלכם",
+    "addButton": "הוספה",
+    "activeMappings": "מיפויים פעילים ({{count}})",
+    "noMappings": "לא נמצאו מיפויים. אחדו קטגוריות ליצירתם.",
+    "sourceColumn": "מקור",
+    "targetColumn": "יעד",
+    "tooltipEditTarget": "עריכת קטגוריית יעד",
+    "tooltipRemove": "הסרת מיפוי"
+  },
+  "quick": {
+    "allDone": "הכול מוכן!",
+    "allDoneSubtitle": "כל העסקאות סווגו.",
+    "sessionTotal": "סיווגתם {{count}} תיאורים בפעילות הנוכחית.",
+    "sessionComplete": "הפעילות הסתיימה!",
+    "sessionCompleteSubtitle": "סיווגתם {{count}} תיאורים.",
+    "assignCategories": "שיוך קטגוריות",
+    "remainingCount": "{{count}} נותרו",
+    "txnsBadge": "{{count}} עסקאות",
+    "skipForNow": "דילוג בינתיים",
+    "selectCategoryHint": "בחרו קטגוריה:",
+    "newCategoryPlaceholder": "קטגוריה חדשה",
+    "addNewButton": "הוספה חדשה",
+    "tableDate": "תאריך",
+    "tableAmount": "סכום",
+    "tableCard": "כרטיס"
+  },
+  "renameDialog": {
+    "title": "שינוי שם קטגוריה",
+    "description": "שנו את שם \"{{name}}\" לשם חדש. כל העסקאות בקטגוריה זו יעודכנו בהתאם.",
+    "newNameLabel": "שם קטגוריה חדש",
+    "renameButton": "שינוי שם"
+  },
+  "deleteDialog": {
+    "title": "מחיקת קטגוריה",
+    "description": "האם למחוק את \"{{name}}\"? כל העסקאות בקטגוריה זו יאבדו את שיוכן.",
+    "alsoDeleteRules": "מחיקה גם של כללי קטגוריזציה המכוונים לקטגוריה זו",
+    "alsoDeleteBudget": "מחיקה גם של התקציב לקטגוריה זו"
+  },
+  "errors": {
+    "selectAtLeastTwo": "יש לבחור לפחות 2 קטגוריות לאיחוד",
+    "enterMergedName": "יש להזין שם לקטגוריה המאוחדת החדשה",
+    "failedToMerge": "איחוד הקטגוריות נכשל",
+    "failedToFetchUncategorized": "טעינת התיאורים ללא קטגוריה נכשלה",
+    "failedToFetchTransactions": "טעינת העסקאות נכשלה",
+    "failedToUpdateCategory": "עדכון הקטגוריה נכשל",
+    "loadCategories": "טעינת הקטגוריות נכשלה: {{message}}",
+    "loadRules": "טעינת הכללים נכשלה",
+    "failedToFetchRules": "טעינת הכללים נכשלה",
+    "loadMappings": "טעינת מיפויי הקטגוריות נכשלה",
+    "failedToFetchMappings": "טעינת המיפויים נכשלה",
+    "failedToDeleteMapping": "מחיקת המיפוי נכשלה",
+    "failedToUpdateMapping": "עדכון המיפוי נכשל",
+    "failedToCreateMapping": "יצירת המיפוי נכשלה",
+    "enterNewName": "יש להזין שם קטגוריה חדש",
+    "newNameDifferent": "שם הקטגוריה החדש חייב להיות שונה מהשם הנוכחי",
+    "failedToRename": "שינוי שם הקטגוריה נכשל",
+    "failedToDeleteCategory": "מחיקת הקטגוריה נכשלה",
+    "patternAndCategory": "יש להזין גם תבנית וגם קטגוריה",
+    "failedToCreateRule": "יצירת הכלל נכשלה",
+    "failedToUpdateRule": "עדכון הכלל נכשל",
+    "failedToDeleteRule": "מחיקת הכלל נכשלה",
+    "failedToApplyRules": "החלת הכללים נכשלה",
+    "unknown": "אירעה שגיאה לא ידועה"
+  },
+  "success": {
+    "merged": "{{count}} קטגוריות אוחדו בהצלחה ל-\"{{name}}\"",
+    "renamed": "השם \"{{oldName}}\" שונה בהצלחה ל-\"{{newName}}\" ({{count}} עסקאות עודכנו)",
+    "deletedCategory": "\"{{name}}\" נמחקה בהצלחה ({{count}} עסקאות איבדו שיוך)",
+    "ruleCreated": "הכלל נוצר בהצלחה",
+    "ruleUpdated": "הכלל עודכן בהצלחה",
+    "ruleDeleted": "הכלל נמחק בהצלחה",
+    "rulesApplied": "{{rules}} כללים הוחלו בהצלחה על {{transactions}} עסקאות",
+    "quickUpdated": "{{count}} עסקאות עודכנו ל-\"{{category}}\"",
+    "mappingCreated": "המיפוי נוצר בהצלחה",
+    "mappingUpdated": "המיפוי עודכן בהצלחה",
+    "mappingRemoved": "המיפוי הוסר בהצלחה"
+  }
+}

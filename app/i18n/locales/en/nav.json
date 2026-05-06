@@ -1,0 +1,30 @@
+{
+  "section": {
+    "views": "Views",
+    "settings": "Settings"
+  },
+  "view": {
+    "summary": "Summary",
+    "transactions": "Transactions",
+    "breakdown": "Breakdown",
+    "recurring": "Recurring",
+    "projection": "Projection",
+    "audit": "Audit",
+    "accounts": "Accounts"
+  },
+  "menu": {
+    "categories": "Categories",
+    "cards": "Cards",
+    "backup": "Backup",
+    "settings": "Settings"
+  },
+  "tooltip": {
+    "aiAssistant": "AI Assistant",
+    "vaultLockedClickToUnlock": "Vault Locked - Click to Unlock",
+    "vaultUnlockedClickToLock": "Vault Unlocked - Click to Lock",
+    "vaultLocked": "Vault Locked"
+  },
+  "notification": {
+    "scrapeSuccess": "Scraping process completed successfully!"
+  }
+}

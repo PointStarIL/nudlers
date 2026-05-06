@@ -4,11 +4,13 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import TransactionsTable from './CategoryDashboard/components/TransactionsTable';
 import { useDateSelection } from '../context/DateSelectionContext';
 import { logger } from '../utils/client-logger';
+import { useTranslation } from 'react-i18next';
 
 const PAGE_SIZE = 50;
 
 const RecentTransactionsModule: React.FC = () => {
     const theme = useTheme();
+    const { t } = useTranslation('misc');
     const {
         startDate,
         endDate,
@@ -95,11 +97,11 @@ const RecentTransactionsModule: React.FC = () => {
             }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <ReceiptLongIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8rem' }}>Recent Transactions</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8rem' }}>{t('recentTransactions.title')}</Typography>
                 </Box>
                 {transactions.length > 0 && (
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                        {transactions.length} items
+                        {t('recentTransactions.itemsCount', { count: transactions.length })}
                     </Typography>
                 )}
             </Box>
@@ -126,7 +128,7 @@ const RecentTransactionsModule: React.FC = () => {
                     </Box>
                 ) : transactions.length === 0 ? (
                     <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-                        <Typography variant="body2">No transactions for this period</Typography>
+                        <Typography variant="body2">{t('recentTransactions.empty')}</Typography>
                     </Box>
                 ) : (
                     <>
@@ -163,7 +165,7 @@ const RecentTransactionsModule: React.FC = () => {
                         {!hasMore && transactions.length > PAGE_SIZE && (
                             <Box sx={{ p: 2, textAlign: 'center' }}>
                                 <Typography variant="caption" color="text.secondary">
-                                    End of list
+                                    {t('recentTransactions.endOfList')}
                                 </Typography>
                             </Box>
                         )}
