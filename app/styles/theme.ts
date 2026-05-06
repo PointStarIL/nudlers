@@ -1,6 +1,9 @@
 
 import { createTheme, ThemeOptions } from '@mui/material/styles';
 
+type Mode = 'light' | 'dark';
+type Direction = 'ltr' | 'rtl';
+
 // Common settings
 const baseTheme: ThemeOptions = {
     typography: {
@@ -86,54 +89,58 @@ const baseTheme: ThemeOptions = {
     },
 };
 
-export const lightTheme = createTheme({
-    ...baseTheme,
-    palette: {
-        mode: 'light',
-        primary: {
-            main: '#6366f1', // Indigo 600
-            light: '#818cf8',
-            dark: '#4f46e5',
-        },
-        secondary: {
-            main: '#71717a', // Zinc 500
-            light: '#a1a1aa',
-            dark: '#52525b',
-        },
-        background: {
-            default: '#fafafa', // Zinc 50
-            paper: '#ffffff',
-        },
-        text: {
-            primary: '#09090b', // Zinc 950
-            secondary: '#52525b', // Zinc 600
-        },
-        divider: '#e4e4e7', // Zinc 200
+const lightPalette: ThemeOptions['palette'] = {
+    mode: 'light',
+    primary: {
+        main: '#6366f1',
+        light: '#818cf8',
+        dark: '#4f46e5',
     },
-});
+    secondary: {
+        main: '#71717a',
+        light: '#a1a1aa',
+        dark: '#52525b',
+    },
+    background: {
+        default: '#fafafa',
+        paper: '#ffffff',
+    },
+    text: {
+        primary: '#09090b',
+        secondary: '#52525b',
+    },
+    divider: '#e4e4e7',
+};
 
-export const darkTheme = createTheme({
-    ...baseTheme,
-    palette: {
-        mode: 'dark',
-        primary: {
-            main: '#6366f1', // Indigo 500
-            light: '#818cf8',
-            dark: '#4f46e5',
-        },
-        secondary: {
-            main: '#a1a1aa', // Zinc 400
-            light: '#d4d4d8',
-            dark: '#71717a',
-        },
-        background: {
-            default: '#09090b', // Zinc 950
-            paper: '#18181b', // Zinc 900
-        },
-        text: {
-            primary: '#fafafa', // Zinc 50
-            secondary: '#a1a1aa', // Zinc 400
-        },
-        divider: '#27272a', // Zinc 800
+const darkPalette: ThemeOptions['palette'] = {
+    mode: 'dark',
+    primary: {
+        main: '#6366f1',
+        light: '#818cf8',
+        dark: '#4f46e5',
     },
-});
+    secondary: {
+        main: '#a1a1aa',
+        light: '#d4d4d8',
+        dark: '#71717a',
+    },
+    background: {
+        default: '#09090b',
+        paper: '#18181b',
+    },
+    text: {
+        primary: '#fafafa',
+        secondary: '#a1a1aa',
+    },
+    divider: '#27272a',
+};
+
+export const buildTheme = (mode: Mode, direction: Direction = 'ltr') =>
+    createTheme({
+        ...baseTheme,
+        direction,
+        palette: mode === 'light' ? lightPalette : darkPalette,
+    });
+
+export const lightTheme = buildTheme('light');
+export const darkTheme = buildTheme('dark');

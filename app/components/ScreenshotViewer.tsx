@@ -22,6 +22,8 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import CloseIcon from '@mui/icons-material/Close';
 import ImageIcon from '@mui/icons-material/Image';
 import { logger } from '../utils/client-logger';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../context/LocaleContext';
 
 interface Screenshot {
     filename: string;
@@ -39,6 +41,9 @@ interface ScreenshotViewerProps {
 
 const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({ open, onClose }) => {
     const theme = useTheme();
+    const { t } = useTranslation(['scrape', 'common']);
+    const { locale } = useLocale();
+    const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
     const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -57,14 +62,14 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({ open, onClose }) =>
             }
         } catch (err) {
             logger.error('Failed to fetch screenshots', err as Error);
-            setError('Could not load screenshots.');
+            setError(t('scrape:screenshots.loadFailed'));
         } finally {
             setLoading(false);
         }
     };
 
     const clearScreenshots = async () => {
-        if (!confirm('Are you sure you want to delete all screenshots?')) return;
+        if (!confirm(t('scrape:screenshots.confirmDelete'))) return;
 
         try {
             const response = await fetch('/api/debug/screenshots', { method: 'DELETE' });
@@ -104,7 +109,7 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({ open, onClose }) =>
                 <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <ImageIcon color="primary" />
-                        <Typography variant="h6">Debug Screenshots</Typography>
+                        <Typography variant="h6">{t('scrape:screenshots.title')}</Typography>
                     </Box>
                     <Box>
                         <IconButton onClick={fetchScreenshots} disabled={loading} size="small" sx={{ mr: 1 }}>
@@ -127,8 +132,8 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({ open, onClose }) =>
                         <Alert severity="error">{error}</Alert>
                     ) : screenshots.length === 0 ? (
                         <Box sx={{ py: 8, textAlign: 'center', color: 'text.secondary' }}>
-                            <Typography variant="body1">No screenshots found.</Typography>
-                            <Typography variant="caption">Screenshots will appear here when scrapers capture them.</Typography>
+                            <Typography variant="body1">{t('scrape:screenshots.noScreenshots')}</Typography>
+                            <Typography variant="caption">{t('scrape:screenshots.noScreenshotsHint')}</Typography>
                         </Box>
                     ) : (
                         <Grid container spacing={2}>
@@ -147,7 +152,7 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({ open, onClose }) =>
                                                     {s.companyId} - {s.stepName}
                                                 </Typography>
                                                 <Typography variant="caption" color="text.secondary" display="block">
-                                                    {new Date(s.timestamp).toLocaleString()} • {(s.size / 1024).toFixed(1)} KB
+                                                    {new Date(s.timestamp).toLocaleString(dateLocale)} • {(s.size / 1024).toFixed(1)} KB
                                                 </Typography>
                                             </CardContent>
                                         </CardActionArea>
@@ -158,7 +163,7 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({ open, onClose }) =>
                     )}
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={onClose}>Close</Button>
+                    <Button onClick={onClose}>{t('common:actions.close')}</Button>
                 </DialogActions>
             </Dialog>
 

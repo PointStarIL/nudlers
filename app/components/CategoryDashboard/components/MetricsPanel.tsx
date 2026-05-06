@@ -14,6 +14,8 @@ import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import Tooltip from '@mui/material/Tooltip';
+import { useTranslation } from 'react-i18next';
 
 const MetricCard = styled(Paper)(({ theme }) => ({
   background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
@@ -120,6 +122,7 @@ const MetricItem: React.FC<{
 };
 
 const MetricsPanel: React.FC = () => {
+  const { t } = useTranslation(['tx', 'common']);
   const [data, setData] = React.useState<BoxPanelData>({
     allTransactions: "",
     nonMapped: "",
@@ -146,28 +149,31 @@ const MetricsPanel: React.FC = () => {
     <Box sx={{ flexGrow: 1, mb: 4, mt: 2, pt: '96px' }}>
       <HeaderBox>
 
-        <IconButton
-          onClick={() => setOpen(!open)}
-          size="small"
-          sx={{
-            color: 'rgba(255, 255, 255, 0.7)',
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': {
-              background: 'rgba(96, 165, 250, 0.2)',
-              borderColor: 'rgba(96, 165, 250, 0.4)',
-              color: '#ffffff',
-              transform: 'translateY(-2px)',
-              boxShadow: '0 8px 24px rgba(96, 165, 250, 0.3)',
-            },
-          }}
-        >
-          {open ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
-        </IconButton>
+        <Tooltip title={t('tx:metrics.togglePanel')}>
+          <IconButton
+            onClick={() => setOpen(!open)}
+            size="small"
+            aria-label={t('tx:metrics.togglePanel')}
+            sx={{
+              color: 'rgba(255, 255, 255, 0.7)',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                background: 'rgba(96, 165, 250, 0.2)',
+                borderColor: 'rgba(96, 165, 250, 0.4)',
+                color: '#ffffff',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 8px 24px rgba(96, 165, 250, 0.3)',
+              },
+            }}
+          >
+            {open ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+          </IconButton>
+        </Tooltip>
       </HeaderBox>
       <Collapse in={open}>
         <Box sx={{
@@ -178,25 +184,25 @@ const MetricsPanel: React.FC = () => {
           margin: '0 auto'
         }}>
           <MetricItem
-            title="Total Transactions"
-            value={data?.allTransactions ? data.allTransactions : "N/A"}
+            title={t('tx:metrics.totalTransactions')}
+            value={data?.allTransactions ? data.allTransactions : t('tx:metrics.notAvailable')}
             icon={<ReceiptIcon />}
             color="#3b82f6"
-            subtitle="All time"
+            subtitle={t('tx:metrics.totalTransactionsSubtitle')}
           />
           <MetricItem
-            title="Active Categories"
-            value={data?.categories ? data.categories : "N/A"}
+            title={t('tx:metrics.activeCategories')}
+            value={data?.categories ? data.categories : t('tx:metrics.notAvailable')}
             icon={<CategoryIcon />}
             color="#3b82f6"
-            subtitle="In use"
+            subtitle={t('tx:metrics.activeCategoriesSubtitle')}
           />
           <MetricItem
-            title="Latest Activity"
-            value={data.lastMonth ? data.lastMonth : "N/A"}
+            title={t('tx:metrics.latestActivity')}
+            value={data.lastMonth ? data.lastMonth : t('tx:metrics.notAvailable')}
             icon={<CalendarTodayIcon />}
             color="#3b82f6"
-            subtitle="Last transaction"
+            subtitle={t('tx:metrics.latestActivitySubtitle')}
           />
         </Box>
       </Collapse>

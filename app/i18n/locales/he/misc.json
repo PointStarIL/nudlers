@@ -1,0 +1,181 @@
+{
+  "cardVendors": {
+    "title": "ספקי כרטיסים",
+    "subtitle": "שייכו את ספק הכרטיס או המותג לכל כרטיס. הלוגו של הכרטיס יוצג בכל חלקי האפליקציה.",
+    "loading": "טוען כרטיסים...",
+    "emptyState": "לא נמצאו כרטיסים במערכת",
+    "emptyTableMessage": "לא נמצאו כרטיסים",
+    "columns": {
+      "card": "כרטיס",
+      "transactions": "עסקאות",
+      "vendor": "ספק הכרטיס",
+      "nickname": "כינוי",
+      "bankAccount": "חשבון בנק"
+    },
+    "vendorNone": "ללא",
+    "clickToSetVendor": "לחצו לבחירת ספק",
+    "noNickname": "ללא כינוי",
+    "noNicknameSet": "לא הוגדר כינוי",
+    "nicknamePlaceholder": "למשל, כרטיס אישי",
+    "noBankAccount": "ללא חשבון בנק",
+    "noBankAccountLinked": "לא משויך לחשבון בנק",
+    "customBankAccount": "חשבון בנק מותאם אישית",
+    "customNicknamePlaceholder": "כינוי (למשל, הבנק שלי)",
+    "customNumberPlaceholder": "מספר חשבון",
+    "bankPrefix": "בנק: {{name}}",
+    "transactionsCount": "{{count}} עסקאות",
+    "editingDesktopHint": "העריכה זמינה בתצוגת מחשב",
+    "errors": {
+      "fetchCards": "טעינת הכרטיסים נכשלה",
+      "saveCardVendor": "שמירת ספק הכרטיס נכשלה",
+      "updateBankAccount": "עדכון השיוך לחשבון הבנק נכשל",
+      "customAccountRequired": "אנא הזינו לפחות מספר חשבון או כינוי עבור החשבון המותאם",
+      "saveFailed": "השמירה נכשלה",
+      "generic": "אירעה שגיאה"
+    },
+    "snackbar": {
+      "vendorUpdated": "ספק הכרטיס עודכן",
+      "nicknameSaved": "הכינוי נשמר",
+      "bankAccountUpdated": "חשבון הבנק עודכן",
+      "customBankSaved": "החשבון המותאם נשמר"
+    }
+  },
+  "databaseBackup": {
+    "title": "גיבוי ושחזור מסד נתונים",
+    "export": {
+      "heading": "ייצוא מסד נתונים",
+      "description": "הורידו גיבוי מלא של כל הנתונים שלכם כקובץ JSON",
+      "button": "ייצוא גיבוי",
+      "buttonExporting": "מייצא...",
+      "successMessage": "יוצאו {{rows}} רשומות מתוך {{tables}} טבלאות",
+      "errorMessage": "ייצוא מסד הנתונים נכשל",
+      "errorGeneric": "הייצוא נכשל"
+    },
+    "import": {
+      "heading": "ייבוא מסד נתונים",
+      "description": "שחזרו את הנתונים שלכם מקובץ גיבוי שיוצא בעבר",
+      "modeLabel": "מצב ייבוא:",
+      "replaceLabel": "החלפה מלאה",
+      "replaceDescription": "מחיקת הנתונים הקיימים וייבוא הגיבוי",
+      "mergeLabel": "מיזוג",
+      "mergeDescription": "הוספת רשומות חדשות תוך שמירה על הקיימות",
+      "replaceWarning": "אזהרה: פעולה זו תמחק את כל הנתונים הקיימים לפני הייבוא!",
+      "selectFile": "בחירת קובץ גיבוי",
+      "button": "ייבוא גיבוי",
+      "buttonImporting": "מייבא...",
+      "successMessage": "{{count}} רשומות יובאו בהצלחה",
+      "warningMessage": "הייבוא הסתיים עם שגיאות מסוימות",
+      "errorMessage": "ייבוא מסד הנתונים נכשל",
+      "invalidFormatError": "פורמט קובץ הגיבוי לא תקין",
+      "errorGeneric": "הייבוא נכשל"
+    },
+    "results": {
+      "heading": "תוצאות הייבוא:",
+      "noData": "אין נתונים",
+      "recordsCount": "{{count}} רשומות",
+      "errorsHeading": "שגיאות:"
+    }
+  },
+  "deleteAll": {
+    "title": "מחיקת כל העסקאות",
+    "warningPrimary": "פעולה זו תמחק לצמיתות את כל העסקאות ממסד הנתונים.",
+    "warningSecondary": "לא ניתן לבטל את הפעולה. כל היסטוריית העסקאות תאבד לתמיד.",
+    "backupOption": "הורדת גיבוי לפני המחיקה (מומלץ)",
+    "downloadBackup": "הורדת גיבוי",
+    "downloading": "מוריד...",
+    "backupDownloaded": "הגיבוי הורד ✓",
+    "typeToConfirm": "הקלידו DELETE לאישור:",
+    "placeholder": "הקלידו DELETE כאן",
+    "deleteButton": "מחיקת כל העסקאות",
+    "deleting": "מוחק...",
+    "errors": {
+      "exportFailed": "ייצוא מסד הנתונים נכשל",
+      "downloadFailed": "הורדת הגיבוי נכשלה",
+      "typeDelete": "אנא הקלידו DELETE לאישור",
+      "downloadFirst": "אנא הורידו גיבוי תחילה או בטלו את אפשרות הגיבוי",
+      "deleteFailed": "מחיקת העסקאות נכשלה"
+    }
+  },
+  "deleteConfirm": {
+    "title": "למחוק את העסקה?",
+    "prompt": "האם אתם בטוחים שברצונכם למחוק את העסקה? לא ניתן לבטל את הפעולה.",
+    "fields": {
+      "description": "תיאור:",
+      "amount": "סכום:",
+      "date": "תאריך:",
+      "category": "קטגוריה:"
+    },
+    "deleteButton": "מחיקת העסקה"
+  },
+  "quickCategory": {
+    "title": "סיווג מהיר",
+    "remaining": "נותרו {{count}}",
+    "transactionsChip": "{{count}} עסקאות",
+    "table": {
+      "date": "תאריך",
+      "amount": "סכום",
+      "card": "כרטיס",
+      "details": "פרטים"
+    },
+    "noTransactionsFound": "לא נמצאו עסקאות",
+    "skipForNow": "דילוג לעת עתה",
+    "selectCategory": "בחרו קטגוריה:",
+    "newCategoryPlaceholder": "שם קטגוריה חדשה",
+    "addNew": "הוספה",
+    "allDone": "הכל מסודר!",
+    "allDoneDescription": "כל העסקאות סווגו.",
+    "sessionComplete": "ההפעלה הסתיימה!",
+    "sessionSummary": "סיווגתם {{count}} תיאור(ים).",
+    "sessionInline": "סיווגתם {{count}} תיאור(ים) בהפעלה זו.",
+    "loadFailed": "טעינת הנתונים נכשלה. אנא נסו שוב.",
+    "updateSuccess": "{{count}} עסקאות עודכנו לקטגוריה \"{{category}}\"",
+    "updateFailed": "עדכון הקטגוריה נכשל"
+  },
+  "databaseError": {
+    "title": "החיבור למסד הנתונים נכשל",
+    "description": "האפליקציה לא הצליחה להתחבר למסד הנתונים. אנא ודאו ששירות מסד הנתונים פעיל וזמין.",
+    "retryButton": "ניסיון חיבור חוזר",
+    "retrying": "מתחבר..."
+  },
+  "accountDisplay": {
+    "banks": {
+      "hapoalim": "בנק הפועלים",
+      "leumi": "בנק לאומי",
+      "mizrahi": "מזרחי טפחות",
+      "discount": "בנק דיסקונט",
+      "yahav": "בנק יהב",
+      "union": "בנק יוניון",
+      "otsarHahayal": "אוצר החייל",
+      "beinleumi": "הבנק הבינלאומי",
+      "massad": "בנק מסד",
+      "pagi": "בנק פאג\"י"
+    },
+    "fallbackBank": "חשבון בנק",
+    "creditCard": "כרטיס אשראי"
+  },
+  "recentTransactions": {
+    "title": "עסקאות אחרונות",
+    "itemsCount": "{{count}} פריטים",
+    "empty": "אין עסקאות בתקופה זו",
+    "endOfList": "סוף הרשימה"
+  },
+  "versionIndicator": {
+    "tooltip": "זמינה גרסה חדשה: v{{version}}. לחצו כדי להציג את הערות הגרסה.",
+    "label": "עדכון זמין"
+  },
+  "databaseIndicator": {
+    "connected": "מסד הנתונים מחובר",
+    "disconnected": "מסד הנתונים מנותק"
+  },
+  "easterEgg": {
+    "_placeholder": ""
+  },
+  "errorBoundary": {
+    "updateTitle": "עדכון זמין",
+    "errorTitle": "אירעה שגיאה",
+    "updateDescription": "זמינה גרסה חדשה יותר. אנא טענו מחדש את העמוד.",
+    "errorDescription": "אירעה שגיאה לא צפויה. אנא נסו שוב.",
+    "reloadButton": "טעינה מחדש",
+    "tryAgainButton": "ניסיון נוסף"
+  }
+}

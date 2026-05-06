@@ -19,6 +19,7 @@ import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import DownloadIcon from '@mui/icons-material/Download';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import { useTranslation } from 'react-i18next';
 
 interface DeleteAllTransactionsDialogProps {
     open: boolean;
@@ -32,6 +33,7 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
     onSuccess
 }) => {
     const theme = useTheme();
+    const { t } = useTranslation(['misc', 'common']);
     const [confirmText, setConfirmText] = useState('');
     const [createBackup, setCreateBackup] = useState(true);
     const [backupDownloaded, setBackupDownloaded] = useState(false);
@@ -56,7 +58,7 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
         try {
             const response = await fetch('/api/maintenance/database/export');
             if (!response.ok) {
-                throw new Error('Failed to export database');
+                throw new Error(t('misc:deleteAll.errors.exportFailed'));
             }
 
             const data = await response.json();
@@ -74,7 +76,7 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
 
             setBackupDownloaded(true);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to download backup');
+            setError(err instanceof Error ? err.message : t('misc:deleteAll.errors.downloadFailed'));
         } finally {
             setIsDownloading(false);
         }
@@ -82,12 +84,12 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
 
     const handleDelete = async () => {
         if (confirmText !== 'DELETE') {
-            setError('Please type DELETE to confirm');
+            setError(t('misc:deleteAll.errors.typeDelete'));
             return;
         }
 
         if (createBackup && !backupDownloaded) {
-            setError('Please download backup first or uncheck the backup option');
+            setError(t('misc:deleteAll.errors.downloadFirst'));
             return;
         }
 
@@ -109,7 +111,7 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
             onSuccess();
             handleClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete transactions');
+            setError(err instanceof Error ? err.message : t('misc:deleteAll.errors.deleteFailed'));
         } finally {
             setIsDeleting(false);
         }
@@ -144,7 +146,7 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
                 pb: 2
             }}>
                 <WarningAmberIcon />
-                Delete All Transactions
+                {t('misc:deleteAll.title')}
             </DialogTitle>
 
             <DialogContent sx={{ pt: 3 }}>
@@ -156,10 +158,10 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
 
                 <Box sx={{ mb: 3 }}>
                     <Typography variant="body1" sx={{ mb: 2, fontWeight: 500 }}>
-                        ⚠️ This action will permanently delete <strong>ALL</strong> transactions from your database.
+                        ⚠️ {t('misc:deleteAll.warningPrimary')}
                     </Typography>
                     <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 2 }}>
-                        This cannot be undone. All transaction history will be lost forever.
+                        {t('misc:deleteAll.warningSecondary')}
                     </Typography>
                 </Box>
 
@@ -181,7 +183,7 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
                             }}
                         />
                     }
-                    label="Download backup before deleting (recommended)"
+                    label={t('misc:deleteAll.backupOption')}
                     sx={{ mb: 2 }}
                 />
 
@@ -201,20 +203,20 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
                                 }
                             }}
                         >
-                            {isDownloading ? 'Downloading...' : backupDownloaded ? 'Backup Downloaded ✓' : 'Download Backup'}
+                            {isDownloading ? t('misc:deleteAll.downloading') : backupDownloaded ? t('misc:deleteAll.backupDownloaded') : t('misc:deleteAll.downloadBackup')}
                         </Button>
                     </Box>
                 )}
 
                 <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-                        Type <strong>DELETE</strong> to confirm:
+                        {t('misc:deleteAll.typeToConfirm')}
                     </Typography>
                     <TextField
                         fullWidth
                         value={confirmText}
                         onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
-                        placeholder="Type DELETE here"
+                        placeholder={t('misc:deleteAll.placeholder')}
                         variant="outlined"
                         size="small"
                         autoComplete="off"
@@ -236,7 +238,7 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
                     disabled={isDownloading || isDeleting}
                     sx={{ color: theme.palette.text.secondary }}
                 >
-                    Cancel
+                    {t('common:actions.cancel')}
                 </Button>
                 <Button
                     onClick={handleDelete}
@@ -254,7 +256,7 @@ const DeleteAllTransactionsDialog: React.FC<DeleteAllTransactionsDialogProps> = 
                         }
                     }}
                 >
-                    {isDeleting ? 'Deleting...' : 'Delete All Transactions'}
+                    {isDeleting ? t('misc:deleteAll.deleting') : t('misc:deleteAll.deleteButton')}
                 </Button>
             </DialogActions>
         </Dialog>

@@ -6,7 +6,9 @@ import AddIcon from '@mui/icons-material/Add';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import EditIcon from '@mui/icons-material/Edit';
 import { useDateSelection, DateRangeMode } from '../context/DateSelectionContext';
+import { useLocale } from '../context/LocaleContext';
 import { useNotification } from './NotificationContext';
+import { useTranslation } from 'react-i18next';
 
 interface Budget {
     id: number;
@@ -21,8 +23,8 @@ interface BudgetWithSpending extends Budget {
     is_over_budget: boolean;
 }
 
-const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('he-IL', {
+const makeFormatCurrency = (localeTag: string) => (amount: number): string => {
+    return new Intl.NumberFormat(localeTag, {
         style: 'decimal',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
@@ -35,7 +37,9 @@ const MinimalBudgetRow: React.FC<{
     onEdit: () => void;
     onViewTransactions: () => void;
     theme: any;
-}> = ({ budget, onEdit, onViewTransactions, theme }) => {
+    formatCurrency: (n: number) => string;
+    t: (key: string, options?: Record<string, unknown>) => string;
+}> = ({ budget, onEdit, onViewTransactions, theme, formatCurrency, t }) => {
     const hasBudget = budget.budget_limit > 0;
 
     const getProgressColor = (percent: number) => {
@@ -127,7 +131,7 @@ const MinimalBudgetRow: React.FC<{
                             py: 0.1,
                             borderRadius: '4px',
                         }}>
-                            OVER
+                            {t('budget.overLabel')}
                         </Typography>
                     )}
                 </Box>
@@ -147,7 +151,7 @@ const MinimalBudgetRow: React.FC<{
                                 <span style={{ fontWeight: 700, color: theme.palette.text.primary }}>
                                     ₪{formatCurrency(budget.actual_spent)}
                                 </span>
-                                <span style={{ opacity: 0.6, fontSize: '0.85em', marginLeft: '4px' }}> (spent)</span>
+                                <span style={{ opacity: 0.6, fontSize: '0.85em', marginLeft: '4px' }}> {t('budget.spentLabel')}</span>
                             </>
                         )}
                     </Typography>
@@ -180,6 +184,10 @@ interface BudgetModuleProps {
 
 const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
     const theme = useTheme();
+    const { t } = useTranslation(['views', 'common']);
+    const { locale } = useLocale();
+    const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
+    const formatCurrency = React.useMemo(() => makeFormatCurrency(dateLocale), [dateLocale]);
     const {
         selectedYear,
         selectedMonth,
@@ -211,10 +219,10 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
             return data;
         } catch (error) {
             logger.error('Error fetching budgets', error as Error);
-            showNotification('Failed to load budgets', 'error');
+            showNotification(t('budget.errorLoadBudgets'), 'error');
             return [];
         }
-    }, [showNotification]);
+    }, [showNotification, t]);
 
     const fetchSpendingData = useCallback(async (year: string, month: string, mode: DateRangeMode, budgetList: Budget[]) => {
         setLoading(true);
@@ -320,13 +328,13 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
 
     const handleSaveBudget = async () => {
         if (!newBudgetLimit || parseFloat(newBudgetLimit) <= 0) {
-            showNotification('Please enter a valid budget limit', 'error');
+            showNotification(t('budget.errorInvalidLimit'), 'error');
             return;
         }
 
         const category = editingBudget?.category || newBudgetCategory;
         if (!category) {
-            showNotification('Please select a category', 'error');
+            showNotification(t('budget.errorSelectCategory'), 'error');
             return;
         }
 
@@ -343,7 +351,7 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
 
             if (!response.ok) throw new Error('Failed to save budget');
 
-            showNotification(editingBudget ? 'Budget updated successfully' : 'Budget created successfully', 'success');
+            showNotification(editingBudget ? t('budget.successUpdated') : t('budget.successCreated'), 'success');
             setIsAddModalOpen(false);
             setEditingBudget(null);
             setNewBudgetCategory('');
@@ -355,14 +363,14 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
             }
         } catch (error) {
             logger.error('Error saving budget', error as Error);
-            showNotification('Failed to save budget', 'error');
+            showNotification(t('budget.errorSaveBudget'), 'error');
         } finally {
             setSavingBudget(false);
         }
     };
 
     const handleDeleteBudget = async (budgetId: number) => {
-        if (!confirm('Are you sure you want to delete this budget?')) return;
+        if (!confirm(t('budget.confirmDeleteBudget'))) return;
 
         try {
             const response = await fetch(`/api/budgets/${budgetId}`, {
@@ -371,14 +379,14 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
 
             if (!response.ok) throw new Error('Failed to delete budget');
 
-            showNotification('Budget deleted successfully', 'success');
+            showNotification(t('budget.successDeleted'), 'success');
             const budgetList = await fetchBudgets();
             if ((selectedYear && selectedMonth) || (startDate && endDate)) {
                 fetchSpendingData(selectedYear, selectedMonth, dateRangeMode, budgetList);
             }
         } catch (error) {
             logger.error('Error deleting budget', error as Error);
-            showNotification('Failed to delete budget', 'error');
+            showNotification(t('budget.errorDeleteBudget'), 'error');
         }
     };
 
@@ -417,7 +425,7 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <SavingsIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>Category Budgets</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>{t('budget.categoryBudgets')}</Typography>
                     <Box sx={{
                         bgcolor: 'rgba(59, 130, 246, 0.1)',
                         color: 'primary.main',
@@ -431,7 +439,7 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
                     </Box>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Tooltip title="Add New Budget">
+                    <Tooltip title={t('budget.addNewBudget')}>
                         <IconButton
                             size="small"
                             onClick={(e) => {
@@ -503,8 +511,8 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
                                 }}
                             >
                                 <AddIcon sx={{ mb: 1, opacity: 0.5 }} />
-                                <Typography variant="body2" sx={{ fontWeight: 600 }}>Create Your First Budget</Typography>
-                                <Typography variant="caption" sx={{ opacity: 0.7 }}>Set spending limits for categories to track your finances better.</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{t('budget.createFirstBudget')}</Typography>
+                                <Typography variant="caption" sx={{ opacity: 0.7 }}>{t('budget.createFirstBudgetHint')}</Typography>
                             </Box>
                         ) : (
                             budgetsWithSpending.map((budget) => (
@@ -523,6 +531,8 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
                                     }}
                                     onViewTransactions={() => onViewTransactions?.(budget.category)}
                                     theme={theme}
+                                    formatCurrency={formatCurrency}
+                                    t={t}
                                 />
                             ))
                         )}
@@ -549,7 +559,7 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
                     fontWeight: 700
                 }}>
                     <SavingsIcon style={{ color: theme.palette.success.main }} />
-                    {editingBudget ? 'Edit Budget' : 'Add Budget'}
+                    {editingBudget ? t('budget.editBudget') : t('budget.addBudget')}
                 </DialogTitle>
                 <DialogContent>
                     <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -596,15 +606,15 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
                                     return (
                                         <li key={key} {...otherProps}>
                                             {option}
-                                            {isNewOption && ` (Add "${option}")`}
+                                            {isNewOption && ` ${t('budget.addCategoryInline', { value: option })}`}
                                         </li>
                                     );
                                 }}
-                                renderInput={(params) => <TextField {...params} label="Category" variant="outlined" />}
+                                renderInput={(params) => <TextField {...params} label={t('budget.categoryLabel')} variant="outlined" />}
                             />
                         )}
                         <TextField
-                            label="Monthly Limit"
+                            label={t('budget.monthlyLimit')}
                             type="number"
                             value={newBudgetLimit}
                             onChange={(e) => setNewBudgetLimit(e.target.value)}
@@ -624,14 +634,14 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
                                 color="error"
                                 style={{ marginRight: 'auto' }}
                             >
-                                Delete
+                                {t('common:actions.delete')}
                             </Button>
                         )}
                         <Button
                             onClick={() => setIsAddModalOpen(false)}
                             style={{ color: theme.palette.text.secondary, borderRadius: '12px' }}
                         >
-                            Cancel
+                            {t('common:actions.cancel')}
                         </Button>
                         <Button
                             onClick={handleSaveBudget}
@@ -642,7 +652,7 @@ const BudgetModule: React.FC<BudgetModuleProps> = ({ onViewTransactions }) => {
                                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`
                             }}
                         >
-                            {savingBudget ? <CircularProgress size={24} color="inherit" /> : 'Save Budget'}
+                            {savingBudget ? <CircularProgress size={24} color="inherit" /> : t('budget.saveBudget')}
                         </Button>
                     </div>
                 </DialogContent>

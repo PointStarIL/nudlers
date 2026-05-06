@@ -16,9 +16,11 @@ import TransactionsTable from './components/TransactionsTable';
 import { useScreenContext } from '../Layout';
 import { useDateSelection, DateRangeMode } from '../../context/DateSelectionContext';
 import { useTransactions } from './useTransactions';
+import { useTranslation } from 'react-i18next';
 
 const CategoryDashboard: React.FC = () => {
   const theme = useTheme();
+  const { t } = useTranslation('views');
   const {
     selectedYear, setSelectedYear,
     selectedMonth, setSelectedMonth,
@@ -89,7 +91,7 @@ const CategoryDashboard: React.FC = () => {
       transactions: transactions.slice(0, 50).map(t => ({
         name: t.name,
         amount: t.price,
-        category: t.category || 'Unassigned',
+        category: t.category || 'Unassigned',  // server-side label, not user-visible
         date: t.date
       }))
     });
@@ -118,8 +120,8 @@ const CategoryDashboard: React.FC = () => {
       }}>
 
         <PageHeader
-          title="Transactions"
-          description="View and manage all your bank and credit card transactions"
+          title={t('transactions.title')}
+          description={t('transactions.description')}
           icon={<TableChartIcon sx={{ fontSize: '32px', color: '#ffffff' }} />}
           showDateSelectors={true}
           dateRangeMode={dateRangeMode}
@@ -143,7 +145,7 @@ const CategoryDashboard: React.FC = () => {
           startDate={startDate}
           endDate={endDate}
           actions={
-            <Tooltip title={favoritesOnly ? "Show All Transactions" : "Show Favorites Only"}>
+            <Tooltip title={favoritesOnly ? t('transactions.showAll') : t('transactions.showFavorites')}>
               <IconButton
                 onClick={() => setFavoritesOnly(!favoritesOnly)}
                 sx={{
@@ -209,7 +211,7 @@ const CategoryDashboard: React.FC = () => {
           {!hasMore && transactions.length > 0 && (
             <Box sx={{ p: 4, textAlign: 'center' }}>
               <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                That's all for this period ✨
+                {t('transactions.endOfPeriod')}
               </Typography>
             </Box>
           )}

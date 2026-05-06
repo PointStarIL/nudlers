@@ -1,0 +1,18 @@
+{
+  "actions": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteAll": "Delete All",
+    "clearAll": "Clear All",
+    "load": "Load"
+  },
+  "status": {
+    "saving": "Saving...",
+    "saved": "Saved",
+    "sending": "Sending...",
+    "loading": "Loading..."
+  }
+}

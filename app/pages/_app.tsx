@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { AppProps } from 'next/app';
 import '../styles/globals.css';
+import { LocaleProvider } from '../context/LocaleContext';
 import { AppThemeProvider } from '../context/ThemeContext';
 import { StatusProvider } from '../context/StatusContext';
 
@@ -25,11 +26,13 @@ function MyApp({ Component, pageProps }: AppProps) {
   }, []);
 
   return (
-    <AppThemeProvider>
-      <StatusProvider>
-        <Component {...pageProps} />
-      </StatusProvider>
-    </AppThemeProvider>
+    <LocaleProvider>
+      <AppThemeProvider>
+        <StatusProvider>
+          <Component {...pageProps} />
+        </StatusProvider>
+      </AppThemeProvider>
+    </LocaleProvider>
   );
 }
 

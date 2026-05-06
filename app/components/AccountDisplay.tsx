@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, useTheme, Tooltip } from '@mui/material';
 import { CardVendorIcon } from './CardVendorsModal';
 import { useCardVendors } from './CategoryDashboard/utils/useCardVendors';
+import { useTranslation } from 'react-i18next';
 
 interface AccountDisplayProps {
     /**
@@ -27,20 +28,7 @@ interface AccountDisplayProps {
     premium?: boolean;
 }
 
-const BANK_NAMES: Record<string, string> = {
-    'hapoalim': 'Bank Hapoalim',
-    'leumi': 'Bank Leumi',
-    'mizrahi': 'Mizrahi Tefahot',
-    'discount': 'Discount Bank',
-    'yahav': 'Bank Yahav',
-    'union': 'Union Bank',
-    'otsarHahayal': 'Otsar HaHayal',
-    'beinleumi': 'International Bank',
-    'massad': 'Massad Bank',
-    'pagi': 'Bank Pagi'
-};
-
-const BANK_VENDORS = Object.keys(BANK_NAMES);
+const BANK_VENDORS = ['hapoalim', 'leumi', 'mizrahi', 'discount', 'yahav', 'union', 'otsarHahayal', 'beinleumi', 'massad', 'pagi'];
 
 /**
  * A unified component to display account or card information.
@@ -48,6 +36,7 @@ const BANK_VENDORS = Object.keys(BANK_NAMES);
  */
 const AccountDisplay: React.FC<AccountDisplayProps & { compact?: boolean }> = React.memo(({ transaction, vendorOverride, premium = false, compact = false }) => {
     const theme = useTheme();
+    const { t } = useTranslation('misc');
     const { getCardVendor, getCardNickname } = useCardVendors();
 
     // Determine if it's a bank account
@@ -57,7 +46,7 @@ const AccountDisplay: React.FC<AccountDisplayProps & { compact?: boolean }> = Re
     if (isBank) {
         const vendor = transaction.vendor || vendorOverride || 'unknown';
         const nickname = transaction.vendor_nickname || transaction.bank_nickname;
-        const bankName = nickname || BANK_NAMES[vendor] || 'Bank Account';
+        const bankName = nickname || (BANK_VENDORS.includes(vendor) ? t(`accountDisplay.banks.${vendor}`, t('accountDisplay.fallbackBank')) : t('accountDisplay.fallbackBank'));
         const bankAccount = nickname ? null : (transaction.bank_account_display || transaction.account_number);
 
         return (
@@ -139,7 +128,7 @@ const AccountDisplay: React.FC<AccountDisplayProps & { compact?: boolean }> = Re
                                 textOverflow: 'ellipsis',
                                 maxWidth: '100px'
                             }}>
-                                {nickname || vendor || 'Credit Card'}
+                                {nickname || vendor || t('accountDisplay.creditCard')}
                             </span>
                         )}
                         <span style={{

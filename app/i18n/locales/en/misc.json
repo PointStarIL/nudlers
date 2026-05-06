@@ -1,0 +1,181 @@
+{
+  "cardVendors": {
+    "title": "Card Vendors",
+    "subtitle": "Assign a card issuer/brand to each card. This will display the card logo throughout the app.",
+    "loading": "Loading cards...",
+    "emptyState": "No cards found in the system",
+    "emptyTableMessage": "No cards found",
+    "columns": {
+      "card": "Card",
+      "transactions": "Transactions",
+      "vendor": "Card Vendor",
+      "nickname": "Nickname",
+      "bankAccount": "Bank Account"
+    },
+    "vendorNone": "None",
+    "clickToSetVendor": "Click to set vendor",
+    "noNickname": "No nickname",
+    "noNicknameSet": "No nickname set",
+    "nicknamePlaceholder": "e.g., Personal Card",
+    "noBankAccount": "No bank account",
+    "noBankAccountLinked": "No bank account linked",
+    "customBankAccount": "Custom Bank Account",
+    "customNicknamePlaceholder": "Nickname (e.g. My Bank)",
+    "customNumberPlaceholder": "Account Number",
+    "bankPrefix": "Bank: {{name}}",
+    "transactionsCount": "{{count}} txns",
+    "editingDesktopHint": "Editing available on desktop view",
+    "errors": {
+      "fetchCards": "Failed to fetch cards",
+      "saveCardVendor": "Failed to save card vendor",
+      "updateBankAccount": "Failed to update bank account assignment",
+      "customAccountRequired": "Please provide at least a number or nickname for the custom account",
+      "saveFailed": "Failed to save",
+      "generic": "An error occurred"
+    },
+    "snackbar": {
+      "vendorUpdated": "Vendor updated",
+      "nicknameSaved": "Nickname saved",
+      "bankAccountUpdated": "Bank account updated",
+      "customBankSaved": "Custom bank saved"
+    }
+  },
+  "databaseBackup": {
+    "title": "Database Backup & Restore",
+    "export": {
+      "heading": "Export Database",
+      "description": "Download a complete backup of all your data as a JSON file",
+      "button": "Export Backup",
+      "buttonExporting": "Exporting...",
+      "successMessage": "Exported {{rows}} records from {{tables}} tables",
+      "errorMessage": "Failed to export database",
+      "errorGeneric": "Export failed"
+    },
+    "import": {
+      "heading": "Import Database",
+      "description": "Restore your data from a previously exported backup file",
+      "modeLabel": "Import Mode:",
+      "replaceLabel": "Replace All",
+      "replaceDescription": "Clear existing data and import backup",
+      "mergeLabel": "Merge",
+      "mergeDescription": "Add new records, keep existing",
+      "replaceWarning": "Warning: This will delete all existing data before importing!",
+      "selectFile": "Select Backup File",
+      "button": "Import Backup",
+      "buttonImporting": "Importing...",
+      "successMessage": "Successfully imported {{count}} records",
+      "warningMessage": "Import completed with some errors",
+      "errorMessage": "Failed to import database",
+      "invalidFormatError": "Invalid backup file format",
+      "errorGeneric": "Import failed"
+    },
+    "results": {
+      "heading": "Import Results:",
+      "noData": "No data",
+      "recordsCount": "{{count}} records",
+      "errorsHeading": "Errors:"
+    }
+  },
+  "deleteAll": {
+    "title": "Delete All Transactions",
+    "warningPrimary": "This action will permanently delete ALL transactions from your database.",
+    "warningSecondary": "This cannot be undone. All transaction history will be lost forever.",
+    "backupOption": "Download backup before deleting (recommended)",
+    "downloadBackup": "Download Backup",
+    "downloading": "Downloading...",
+    "backupDownloaded": "Backup Downloaded ✓",
+    "typeToConfirm": "Type DELETE to confirm:",
+    "placeholder": "Type DELETE here",
+    "deleteButton": "Delete All Transactions",
+    "deleting": "Deleting...",
+    "errors": {
+      "exportFailed": "Failed to export database",
+      "downloadFailed": "Failed to download backup",
+      "typeDelete": "Please type DELETE to confirm",
+      "downloadFirst": "Please download backup first or uncheck the backup option",
+      "deleteFailed": "Failed to delete transactions"
+    }
+  },
+  "deleteConfirm": {
+    "title": "Delete Transaction?",
+    "prompt": "Are you sure you want to delete this transaction? This action cannot be undone.",
+    "fields": {
+      "description": "Description:",
+      "amount": "Amount:",
+      "date": "Date:",
+      "category": "Category:"
+    },
+    "deleteButton": "Delete Transaction"
+  },
+  "quickCategory": {
+    "title": "Quick Categorize",
+    "remaining": "{{count}} remaining",
+    "transactionsChip": "{{count}} transactions",
+    "table": {
+      "date": "Date",
+      "amount": "Amount",
+      "card": "Card",
+      "details": "Details"
+    },
+    "noTransactionsFound": "No transactions found",
+    "skipForNow": "Skip for now",
+    "selectCategory": "Select a category:",
+    "newCategoryPlaceholder": "New category name",
+    "addNew": "Add New",
+    "allDone": "All Done!",
+    "allDoneDescription": "All transactions have been categorized.",
+    "sessionComplete": "Session Complete!",
+    "sessionSummary": "You categorized {{count}} description(s).",
+    "sessionInline": "You categorized {{count}} description(s) in this session.",
+    "loadFailed": "Failed to load data. Please try again.",
+    "updateSuccess": "Updated {{count}} transaction(s) to \"{{category}}\"",
+    "updateFailed": "Failed to update category"
+  },
+  "databaseError": {
+    "title": "Database Connection Failed",
+    "description": "The application cannot connect to the database. Please verify that the database service is running and accessible.",
+    "retryButton": "Retry Connection",
+    "retrying": "Connecting..."
+  },
+  "accountDisplay": {
+    "banks": {
+      "hapoalim": "Bank Hapoalim",
+      "leumi": "Bank Leumi",
+      "mizrahi": "Mizrahi Tefahot",
+      "discount": "Discount Bank",
+      "yahav": "Bank Yahav",
+      "union": "Union Bank",
+      "otsarHahayal": "Otsar HaHayal",
+      "beinleumi": "International Bank",
+      "massad": "Massad Bank",
+      "pagi": "Bank Pagi"
+    },
+    "fallbackBank": "Bank Account",
+    "creditCard": "Credit Card"
+  },
+  "recentTransactions": {
+    "title": "Recent Transactions",
+    "itemsCount": "{{count}} items",
+    "empty": "No transactions for this period",
+    "endOfList": "End of list"
+  },
+  "versionIndicator": {
+    "tooltip": "New version available: v{{version}}. Click to see release notes.",
+    "label": "Update Available"
+  },
+  "databaseIndicator": {
+    "connected": "Database Connected",
+    "disconnected": "Database Disconnected"
+  },
+  "easterEgg": {
+    "_placeholder": ""
+  },
+  "errorBoundary": {
+    "updateTitle": "Update Available",
+    "errorTitle": "Something went wrong",
+    "updateDescription": "A newer version is available. Please reload the page.",
+    "errorDescription": "An unexpected error occurred. Please try again.",
+    "reloadButton": "Reload Page",
+    "tryAgainButton": "Try Again"
+  }
+}

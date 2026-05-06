@@ -53,6 +53,8 @@ import { useDateSelection, DateRangeMode } from '../context/DateSelectionContext
 import { logger } from '../utils/client-logger';
 import { isBankTransaction, BankCheckTransaction } from '../utils/transactionUtils';
 import { CREDIT_CARD_VENDORS, BANK_VENDORS } from '../utils/constants';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../context/LocaleContext';
 
 // Maximum date range in years
 const MAX_YEARS_RANGE = 5;
@@ -129,8 +131,8 @@ type GroupByType = 'vendor' | 'description' | 'last4digits';
 // Helper to format date range for display
 
 
-const formatNumber = (num: number): string => {
-  return new Intl.NumberFormat('he-IL').format(Math.round(num));
+const formatNumber = (num: number, locale: string = 'he-IL'): string => {
+  return new Intl.NumberFormat(locale).format(Math.round(num));
 };
 
 
@@ -187,6 +189,10 @@ const MonthlySummary: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { openAI, setInitialPrompt } = useAI();
+  const { t } = useTranslation('views');
+  const { locale } = useLocale();
+  const localeTag = locale === 'he' ? 'he-IL' : 'en-US';
+  const fmt = (n: number) => formatNumber(n, localeTag);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -210,7 +216,7 @@ const MonthlySummary: React.FC = () => {
 
     const cardOwnershipId = cardOwnershipMap[cardLast4];
     if (!cardOwnershipId) {
-      setSnackbar({ open: true, message: 'Cannot move this card (System ID not found)', severity: 'error' });
+      setSnackbar({ open: true, message: t('summary.snackbarMoveCardNoSystemId'), severity: 'error' });
       return;
     }
 
@@ -223,15 +229,15 @@ const MonthlySummary: React.FC = () => {
       });
 
       if (response.ok) {
-        setSnackbar({ open: true, message: 'Card moved successfully', severity: 'success' });
+        setSnackbar({ open: true, message: t('summary.snackbarCardMoved'), severity: 'success' });
         fetchMonthlySummary(true);
         // Also refresh vendors to update ownership map if needed, though ID shouldn't change
       } else {
-        setSnackbar({ open: true, message: 'Failed to move card', severity: 'error' });
+        setSnackbar({ open: true, message: t('summary.snackbarFailedToMove'), severity: 'error' });
       }
     } catch (e) {
       logger.error('Move failed', e);
-      setSnackbar({ open: true, message: 'Move failed', severity: 'error' });
+      setSnackbar({ open: true, message: t('summary.snackbarMoveFailed'), severity: 'error' });
     }
   };
 
@@ -305,7 +311,7 @@ const MonthlySummary: React.FC = () => {
     const endDateObj = new Date(end);
 
     if (startDateObj > endDateObj) {
-      setDateRangeError('Start date must be before end date');
+      setDateRangeError(t('summary.validationStartBeforeEnd'));
       return false;
     }
 
@@ -313,7 +319,7 @@ const MonthlySummary: React.FC = () => {
     const diffYears = diffTime / (1000 * 60 * 60 * 24 * 365);
 
     if (diffYears > MAX_YEARS_RANGE) {
-      setDateRangeError(`Date range cannot exceed ${MAX_YEARS_RANGE} years`);
+      setDateRangeError(t('summary.validationRangeExceeds', { years: MAX_YEARS_RANGE }));
       return false;
     }
 
@@ -326,7 +332,7 @@ const MonthlySummary: React.FC = () => {
   const handleSaveBudget = async () => {
     const limit = parseFloat(newBudgetLimit);
     if (isNaN(limit) || limit <= 0) {
-      setSnackbar({ open: true, message: 'Please enter a valid budget amount', severity: 'error' });
+      setSnackbar({ open: true, message: t('summary.snackbarInvalidBudget'), severity: 'error' });
       return;
     }
 
@@ -340,12 +346,12 @@ const MonthlySummary: React.FC = () => {
       if (res.ok) {
         setBudgetLimit(limit);
         setIsEditingBudget(false);
-        setSnackbar({ open: true, message: 'Budget updated successfully', severity: 'success' });
+        setSnackbar({ open: true, message: t('summary.snackbarBudgetUpdated'), severity: 'success' });
       } else {
         throw new Error('Failed to save');
       }
     } catch (e) {
-      setSnackbar({ open: true, message: 'Failed to update budget', severity: 'error' });
+      setSnackbar({ open: true, message: t('summary.snackbarFailedUpdateBudget'), severity: 'error' });
     }
   };
 
@@ -444,7 +450,10 @@ const MonthlySummary: React.FC = () => {
         }));
         setSnackbar({
           open: true,
-          message: `Card •••• ${selectedCardForVendor} set to ${CARD_VENDORS[vendorKey as keyof typeof CARD_VENDORS]?.name || vendorKey}`,
+          message: t('summary.snackbarCardVendorSet', {
+            last4: selectedCardForVendor,
+            vendor: CARD_VENDORS[vendorKey as keyof typeof CARD_VENDORS]?.name || vendorKey
+          }),
           severity: 'success'
         });
         // Trigger refresh for other components
@@ -457,7 +466,7 @@ const MonthlySummary: React.FC = () => {
       });
       setSnackbar({
         open: true,
-        message: 'Failed to save card vendor',
+        message: t('summary.snackbarFailedSaveVendor'),
         severity: 'error'
       });
     }
@@ -486,7 +495,9 @@ const MonthlySummary: React.FC = () => {
         }));
         setSnackbar({
           open: true,
-          message: nickname ? `Card nickname set to "${nickname}"` : 'Card nickname removed',
+          message: nickname
+            ? t('summary.snackbarNicknameSet', { nickname })
+            : t('summary.snackbarNicknameRemoved'),
           severity: 'success'
         });
         window.dispatchEvent(new CustomEvent('cardVendorsUpdated'));
@@ -498,7 +509,7 @@ const MonthlySummary: React.FC = () => {
       });
       setSnackbar({
         open: true,
-        message: 'Failed to save card nickname',
+        message: t('summary.snackbarFailedSaveNickname'),
         severity: 'error'
       });
     }
@@ -633,7 +644,7 @@ const MonthlySummary: React.FC = () => {
             if (!scrapedBankMap.has(key)) {
               scrapedBankMap.set(key, {
                 bank_account_id: item.bank_account_id || null,
-                bank_account_nickname: item.bank_account_nickname || item.card_nickname || transVendor || 'Unknown Bank',
+                bank_account_nickname: item.bank_account_nickname || item.card_nickname || transVendor || t('summary.unknownBank'),
                 bank_account_number: item.bank_account_number || item.last4digits,
                 bank_account_vendor: transVendor,
                 net_flow: 0,
@@ -657,7 +668,7 @@ const MonthlySummary: React.FC = () => {
           if (isCC) {
             // It's a card with expenses. Attribute to its linked bank.
             let bankKey = 'unassigned';
-            let bankName = 'Unassigned Cards';
+            let bankName = t('summary.unassignedCards');
             let bankId: number | null = null;
             let bankVendor: string | null = null;
             let bankNumber: string | null = null;
@@ -665,13 +676,13 @@ const MonthlySummary: React.FC = () => {
             if (item.bank_account_id) {
               bankKey = `id-${item.bank_account_id}`;
               bankId = item.bank_account_id;
-              bankName = item.bank_account_nickname || 'Unknown Bank';
+              bankName = item.bank_account_nickname || t('summary.unknownBank');
               bankVendor = item.bank_account_vendor || null;
               bankNumber = item.bank_account_number || null;
             } else if (item.custom_bank_account_nickname || item.custom_bank_account_number) {
               // Custom bank
               bankKey = `custom-${item.custom_bank_account_nickname || item.custom_bank_account_number}`;
-              bankName = item.custom_bank_account_nickname || 'Custom Bank';
+              bankName = item.custom_bank_account_nickname || t('summary.customBank');
               bankNumber = item.custom_bank_account_number || null;
             } else {
               // If it's unassigned, we might still want to show it under "Unassigned" or similar?
@@ -711,7 +722,7 @@ const MonthlySummary: React.FC = () => {
         window.scrollTo(0, scrollY);
       });
     }
-  }, [startDate, endDate, billingCycle, dateRangeMode, customStartDate, customEndDate, selectedYear, selectedMonth]);
+  }, [startDate, endDate, billingCycle, dateRangeMode, customStartDate, customEndDate, selectedYear, selectedMonth, t]);
 
   // Derived bank summary that includes ALL accounts from the REST API
   const finalBankSummary = useMemo(() => {
@@ -845,7 +856,7 @@ const MonthlySummary: React.FC = () => {
       const cardTransactions = transactions.filter((t: BankCheckTransaction) => !isBankTransaction(t));
 
       setModalData({
-        type: 'All Card Expenses',
+        type: t('summary.modalTitleAllCardExpenses'),
         data: cardTransactions
       });
       setIsModalOpen(true);
@@ -913,7 +924,7 @@ const MonthlySummary: React.FC = () => {
       const bankTransactions = transactions.filter((t: BankCheckTransaction) => isBankTransaction(t));
 
       setModalData({
-        type: `${bank.bank_account_nickname} (Bank Activity)`,
+        type: t('summary.modalTitleBankActivity', { name: bank.bank_account_nickname }),
         data: bankTransactions
       });
       setIsModalOpen(true);
@@ -978,7 +989,7 @@ const MonthlySummary: React.FC = () => {
       }
 
       setModalData({
-        type: `Cards linked to ${bank.bank_account_nickname}`,
+        type: t('summary.modalTitleCardsLinkedTo', { name: bank.bank_account_nickname }),
         data: ccTransactions
       });
       setIsModalOpen(true);
@@ -1022,7 +1033,9 @@ const MonthlySummary: React.FC = () => {
         cardInfo?.bank_account_vendor && BANK_VENDORS.includes(cardInfo.bank_account_vendor) && !cardInfo.card_vendor;
 
       setModalData({
-        type: isBank ? `Account ending in ${last4digits}` : `Card ending in ${last4digits}`,
+        type: isBank
+          ? t('summary.modalTitleAccountEnding', { last4: last4digits })
+          : t('summary.modalTitleCardEnding', { last4: last4digits }),
         data: transactions
       });
       setIsModalOpen(true);
@@ -1083,16 +1096,16 @@ const MonthlySummary: React.FC = () => {
   // Update document title and data
   useEffect(() => {
     if (dateRangeMode === 'custom' && customStartDate && customEndDate) {
-      const start = new Date(customStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const end = new Date(customEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      document.title = `Nudlers | ${start} - ${end}`;
+      const start = new Date(customStartDate).toLocaleDateString(localeTag, { month: 'short', day: 'numeric' });
+      const end = new Date(customEndDate).toLocaleDateString(localeTag, { month: 'short', day: 'numeric', year: 'numeric' });
+      document.title = t('summary.documentTitleRange', { start, end });
     } else if (selectedMonth && selectedYear) {
-      const monthName = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1).toLocaleDateString('en-US', { month: 'long' });
-      document.title = `Nudlers | ${monthName} ${selectedYear}`;
+      const monthName = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1).toLocaleDateString(localeTag, { month: 'long' });
+      document.title = t('summary.documentTitleMonth', { month: monthName, year: selectedYear });
     } else {
-      document.title = 'Nudlers | Summary';
+      document.title = t('summary.documentTitleSummary');
     }
-  }, [selectedMonth, selectedYear, dateRangeMode, customStartDate, customEndDate]);
+  }, [selectedMonth, selectedYear, dateRangeMode, customStartDate, customEndDate, localeTag, t]);
 
   if (error) {
     return (
@@ -1101,7 +1114,7 @@ const MonthlySummary: React.FC = () => {
         padding: '64px',
         color: '#ef4444'
       }}>
-        Error: {error}
+        {t('summary.errorPrefix', { message: error })}
       </div>
     );
   }
@@ -1126,13 +1139,15 @@ const MonthlySummary: React.FC = () => {
         color: theme.palette.text.primary
       }}>
         <PageHeader
-          title="Summary"
+          title={t('summary.title')}
           description={
             dateRangeMode === 'custom' && customStartDate && customEndDate
-              ? `${new Date(customStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(customEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+              ? `${new Date(customStartDate).toLocaleDateString(localeTag, { month: 'short', day: 'numeric' })} - ${new Date(customEndDate).toLocaleDateString(localeTag, { month: 'short', day: 'numeric', year: 'numeric' })}`
               : (selectedMonth && selectedYear
-                ? `Summary for ${new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
-                : 'Track and analyze your expenses')
+                ? t('summary.descriptionForMonth', {
+                    month: new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1).toLocaleDateString(localeTag, { month: 'long', year: 'numeric' })
+                  })
+                : t('summary.descriptionTrack'))
           }
           icon={<SummarizeIcon sx={{ fontSize: '32px', color: '#ffffff' }} />}
 
@@ -1199,7 +1214,7 @@ const MonthlySummary: React.FC = () => {
                 }}
               >
                 <Typography variant="overline" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: '0.1em', fontSize: '0.65rem' }}>
-                  Total Card Spend
+                  {t('summary.totalCardSpend')}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5, mb: 1.5 }}>
                   <Box sx={{
@@ -1218,7 +1233,7 @@ const MonthlySummary: React.FC = () => {
                   </Box>
                   <Box>
                     <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em', fontSize: { lg: '1.75rem' } }}>
-                      ₪{formatNumber(totals.card_expenses)}
+                      ₪{fmt(totals.card_expenses)}
                     </Typography>
 
                     {/* Budget Comparison */}
@@ -1228,7 +1243,7 @@ const MonthlySummary: React.FC = () => {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} onClick={e => e.stopPropagation()}>
                             <TextField
                               size="small"
-                              placeholder="Set Budget..."
+                              placeholder={t('summary.setBudgetPlaceholder')}
                               value={newBudgetLimit}
                               onChange={(e) => setNewBudgetLimit(e.target.value)}
                               autoFocus
@@ -1265,8 +1280,8 @@ const MonthlySummary: React.FC = () => {
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.65rem' }}>
                                 {totals.card_expenses > budgetLimit
-                                  ? `Over by ₪${formatNumber(totals.card_expenses - budgetLimit)}`
-                                  : `₪${formatNumber(budgetLimit - totals.card_expenses)} left`
+                                  ? t('summary.overBy', { amount: `₪${fmt(totals.card_expenses - budgetLimit)}` })
+                                  : t('summary.remainingLeft', { amount: `₪${fmt(budgetLimit - totals.card_expenses)}` })
                                 }
                               </Typography>
                             </Box>
@@ -1281,7 +1296,7 @@ const MonthlySummary: React.FC = () => {
                             }}
                             sx={{ fontSize: '0.65rem', py: 0.25, borderRadius: '12px' }}
                           >
-                            Set Budget
+                            {t('summary.setBudget')}
                           </Button>
                         )}
                       </Box>
@@ -1294,14 +1309,14 @@ const MonthlySummary: React.FC = () => {
                     endIcon={<ChevronRightIcon sx={{ fontSize: 14 }} />}
                     sx={{ width: 'fit-content', borderRadius: '12px', textTransform: 'none', fontWeight: 700, fontSize: '0.7rem', py: 0 }}
                   >
-                    All Transactions
+                    {t('summary.allTransactions')}
                   </Button>
                   <Button
                     size="small"
                     startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setInitialPrompt("Analyze my spending trends for this month compared to the previous one");
+                      setInitialPrompt(t('summary.analyzePrompt'));
                       openAI();
                     }}
                     sx={{
@@ -1320,7 +1335,7 @@ const MonthlySummary: React.FC = () => {
                     }}
                     variant="outlined"
                   >
-                    Analyze
+                    {t('summary.analyze')}
                   </Button>
                 </Box>
               </Box>
@@ -1334,7 +1349,7 @@ const MonthlySummary: React.FC = () => {
               {/* Right Section: Card Breakdown Grid (Grouped by Bank) */}
               <Box sx={{ flex: 1 }}>
                 <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600, mb: 2 }}>
-                  Credit Card Usage by Bank
+                  {t('summary.creditCardUsageByBank')}
                 </Typography>
                 <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
                   <Box sx={{
@@ -1423,7 +1438,7 @@ const MonthlySummary: React.FC = () => {
                                         {bank.bank_account_nickname}
                                       </Typography>
                                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.625rem' }}>
-                                        Linked Bank
+                                        {t('summary.linkedBank')}
                                       </Typography>
                                     </Box>
                                   </Box>
@@ -1447,7 +1462,7 @@ const MonthlySummary: React.FC = () => {
                                             color: balance >= 0 ? '#10B981' : '#F43F5E'
                                           }}
                                         >
-                                          ₪{formatNumber(balance)}
+                                          ₪{fmt(balance)}
                                         </Typography>
                                         <ChevronRightIcon sx={{ fontSize: 14, color: 'text.secondary', opacity: 0.7 }} />
                                       </Box>
@@ -1462,10 +1477,10 @@ const MonthlySummary: React.FC = () => {
                           <Box sx={{ p: 1.5, pt: 1 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1 }}>
                               <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.625rem' }}>
-                                {bank.card_count} Cards
+                                {t('summary.cardsCount', { count: bank.card_count })}
                               </Typography>
                               <Typography variant="subtitle1" sx={{ fontWeight: 800, fontSize: '0.9rem' }}>
-                                ₪{formatNumber(bank.total_cc_expenses)}
+                                ₪{fmt(bank.total_cc_expenses)}
                               </Typography>
                             </Box>
 
@@ -1580,7 +1595,7 @@ const MonthlySummary: React.FC = () => {
 
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, ml: 1 }}>
                                           <Typography variant="caption" sx={{ fontWeight: 800, fontSize: '0.75rem' }}>
-                                            ₪{formatNumber(card.card_expenses)}
+                                            ₪{fmt(card.card_expenses)}
                                           </Typography>
 
                                           <IconButton
@@ -1653,12 +1668,12 @@ const MonthlySummary: React.FC = () => {
               {/* Nickname Field */}
               <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
                 <span style={{ fontSize: '12px', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
-                  Card Nickname
+                  {t('summary.cardNickname')}
                 </span>
                 <TextField
                   size="small"
                   fullWidth
-                  placeholder="e.g., My Personal Card"
+                  placeholder={t('summary.cardNicknamePlaceholder')}
                   value={editingNickname}
                   onChange={(e) => setEditingNickname(e.target.value)}
                   onKeyDown={(e) => {
@@ -1696,7 +1711,7 @@ const MonthlySummary: React.FC = () => {
 
               <Box sx={{ px: 2, py: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
                 <span style={{ fontSize: '12px', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase' }}>
-                  Card Vendor
+                  {t('summary.cardVendor')}
                 </span>
               </Box>
               {Object.entries(CARD_VENDORS).map(([key, config]) => (
@@ -1747,7 +1762,7 @@ const MonthlySummary: React.FC = () => {
                       if (response.ok) {
                         const results = await response.json();
                         setModalData({
-                          type: `Category: ${category}`,
+                          type: t('summary.modalTitleCategory', { name: category }),
                           data: results
                         });
                         setIsModalOpen(true);

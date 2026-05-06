@@ -1,0 +1,18 @@
+{
+  "actions": {
+    "close": "סגירה",
+    "cancel": "ביטול",
+    "confirm": "אישור",
+    "save": "שמירה",
+    "delete": "מחיקה",
+    "deleteAll": "מחיקת הכול",
+    "clearAll": "ניקוי הכול",
+    "load": "טעינה"
+  },
+  "status": {
+    "saving": "שומר...",
+    "saved": "נשמר",
+    "sending": "שולח...",
+    "loading": "טוען..."
+  }
+}

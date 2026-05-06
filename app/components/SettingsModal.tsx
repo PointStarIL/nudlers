@@ -40,7 +40,11 @@ import { msToSeconds, secondsToMs } from '../utils/settings-utils';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import LockIcon from '@mui/icons-material/Lock';
+import LanguageIcon from '@mui/icons-material/Language';
 import { useStatus } from '../context/StatusContext';
+import { useLocale } from '../context/LocaleContext';
+import { useTranslation } from 'react-i18next';
+import type { Locale } from '../i18n/config';
 
 interface SettingsModalProps {
   open: boolean;
@@ -208,6 +212,8 @@ const StyledSelect = styled(Select)(({ theme }) => ({
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
   const theme = useTheme();
+  const { t } = useTranslation(['settings', 'common']);
+  const { locale, setLocale } = useLocale();
   const { isVaultLocked, startPasskeyRegistration, clearPasskeys, deletePasskey, fetchPasskeys, changePassphrase, hasPasskeys, passkeysCount, supportsWebAuthn } = useStatus();
   const [settings, setSettings] = useState<Settings>({
     sync_enabled: false,
@@ -403,11 +409,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
       }
     } catch (error) {
       logger.error('Auto-save error', error as Error);
-      setResult({ type: 'error', message: 'Failed to auto-save settings' });
+      setResult({ type: 'error', message: t('settings:errors.autoSaveFailed') });
     } finally {
       setSaving(false);
     }
-  }, [settings]);
+  }, [settings, t]);
 
   // Auto-save effect
   useEffect(() => {
@@ -469,16 +475,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <SettingsIcon sx={{ color: '#60a5fa' }} />
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            App Settings
+            {t('settings:title')}
           </Typography>
           {saving && (
             <Typography variant="caption" sx={{ color: theme.palette.text.secondary, ml: 1, fontStyle: 'italic' }}>
-              Saving...
+              {t('common:status.saving')}
             </Typography>
           )}
           {!saving && originalSettings && JSON.stringify(settings) === JSON.stringify(originalSettings) && (
             <Typography variant="caption" sx={{ color: '#22c55e', ml: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <CheckCircleIcon sx={{ fontSize: '14px' }} /> Saved
+              <CheckCircleIcon sx={{ fontSize: '14px' }} /> {t('common:status.saved')}
             </Typography>
           )}
         </Box>
@@ -501,12 +507,40 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               </Alert>
             )}
 
+            {/* Language & Region */}
+            <SettingSection>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <LanguageIcon sx={{ color: '#a78bfa' }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {t('settings:language.section')}
+                </Typography>
+              </Box>
+
+              <SettingRow>
+                <Box>
+                  <Typography variant="body1">{t('settings:language.label')}</Typography>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                    {t('settings:language.desc')}
+                  </Typography>
+                </Box>
+                <StyledSelect
+                  value={locale}
+                  onChange={(e) => setLocale(e.target.value as Locale)}
+                  size="small"
+                  sx={{ width: 180 }}
+                >
+                  <MenuItem value="en">{t('settings:language.english')}</MenuItem>
+                  <MenuItem value="he">{t('settings:language.hebrew')}</MenuItem>
+                </StyledSelect>
+              </SettingRow>
+            </SettingSection>
+
             {/* Sync Settings */}
             <SettingSection>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <SyncIcon sx={{ color: '#22c55e' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Sync Configuration
+                  {t('settings:sync.section')}
                 </Typography>
               </Box>
 
@@ -514,9 +548,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Enable Auto Sync</Typography>
+                  <Typography variant="body1">{t('settings:sync.enableLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Automatically sync transactions in the background
+                    {t('settings:sync.enableDesc')}
                   </Typography>
                 </Box>
                 <Switch
@@ -537,9 +571,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Sync at Hour</Typography>
+                  <Typography variant="body1">{t('settings:sync.hourLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Hour of the day to trigger background sync (0-23)
+                    {t('settings:sync.hourDesc')}
                   </Typography>
                 </Box>
                 <StyledTextField
@@ -556,9 +590,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Days to Sync Back</Typography>
+                  <Typography variant="body1">{t('settings:sync.daysBackLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Number of days to fetch when syncing
+                    {t('settings:sync.daysBackDesc')}
                   </Typography>
                 </Box>
                 <StyledTextField
@@ -577,7 +611,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <CalendarTodayIcon sx={{ color: '#a78bfa' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Display Preferences
+                  {t('settings:display.section')}
                 </Typography>
               </Box>
 
@@ -585,9 +619,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Default Currency</Typography>
+                  <Typography variant="body1">{t('settings:display.currencyLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Currency symbol for transactions
+                    {t('settings:display.currencyDesc')}
                   </Typography>
                 </Box>
                 <StyledTextField
@@ -603,9 +637,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Date Format</Typography>
+                  <Typography variant="body1">{t('settings:display.dateFormatLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    How dates are displayed
+                    {t('settings:display.dateFormatDesc')}
                   </Typography>
                 </Box>
                 <StyledTextField
@@ -620,9 +654,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Billing Cycle Start Day</Typography>
+                  <Typography variant="body1">{t('settings:display.billingCycleLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Day of month when credit card billing cycle starts
+                    {t('settings:display.billingCycleDesc')}
                   </Typography>
                 </Box>
                 <StyledTextField
@@ -641,7 +675,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <SyncIcon sx={{ color: '#60a5fa' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Scraper Configuration
+                  {t('settings:scraper.section')}
                 </Typography>
               </Box>
 
@@ -658,9 +692,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Update Categories on Re-Scrape</Typography>
+                  <Typography variant="body1">{t('settings:scraper.updateCategoriesLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    If an existing transaction has a new category from the bank, update it.
+                    {t('settings:scraper.updateCategoriesDesc')}
                   </Typography>
                 </Box>
                 <Switch
@@ -681,9 +715,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Scrape Failure Retries</Typography>
+                  <Typography variant="body1">{t('settings:scraper.retriesLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Number of times to retry if scraping fails (default: 3)
+                    {t('settings:scraper.retriesDesc')}
                   </Typography>
                 </Box>
                 <StyledTextField
@@ -700,9 +734,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Scraper Timeout (seconds)</Typography>
+                  <Typography variant="body1">{t('settings:scraper.timeoutLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Maximum duration for scraping operations (default: 90 seconds)
+                    {t('settings:scraper.timeoutDesc')}
                   </Typography>
                 </Box>
                 <StyledTextField
@@ -717,9 +751,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Log HTTP Requests</Typography>
+                  <Typography variant="body1">{t('settings:scraper.logHttpLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Output all HTTP requests from the scraper to the console (useful for debugging).
+                    {t('settings:scraper.logHttpDesc')}
                   </Typography>
                 </Box>
                 <Switch
@@ -738,15 +772,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <Box sx={{ mt: 3, mb: 2, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Vendor Specific Features
+                  {t('settings:scraper.vendorSpecific')}
                 </Typography>
               </Box>
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Scrape Isracard Categories</Typography>
+                  <Typography variant="body1">{t('settings:scraper.isracardLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Fetch categories from Isracard/Amex API (slower, but provides bank categorization).
+                    {t('settings:scraper.isracardDesc')}
                   </Typography>
                 </Box>
                 <Switch
@@ -769,15 +803,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <BugReportIcon sx={{ color: '#f43f5e' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Debugging Tools
+                  {t('settings:debug.section')}
                 </Typography>
               </Box>
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Puppeteer Screenshots</Typography>
+                  <Typography variant="body1">{t('settings:debug.screenshotsLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    View captured screenshots from scraper sessions
+                    {t('settings:debug.screenshotsDesc')}
                   </Typography>
                 </Box>
                 <Button
@@ -787,7 +821,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                   onClick={() => setScreenshotViewerOpen(true)}
                   sx={{ borderColor: theme.palette.divider, color: theme.palette.text.primary }}
                 >
-                  View Screenshots
+                  {t('settings:debug.viewScreenshots')}
                 </Button>
               </SettingRow>
             </SettingSection>
@@ -797,20 +831,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <AutoAwesomeIcon sx={{ color: '#ec4899' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  AI Provider
+                  {t('settings:ai.section')}
                 </Typography>
               </Box>
 
               <Typography variant="caption" sx={{ display: 'block', color: theme.palette.text.secondary, mb: 1 }}>
-                Configure any OpenAI-compatible provider (OpenRouter, Groq, Together, OpenAI, LMStudio, Ollama, etc.).
-                Use one of the presets below or paste a custom base URL.
+                {t('settings:ai.blurb')}
               </Typography>
 
               <SettingRow>
                 <Box sx={{ flex: 1, mr: 2 }}>
-                  <Typography variant="body1">Provider Preset</Typography>
+                  <Typography variant="body1">{t('settings:ai.presetLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Quickly fill the base URL for popular providers
+                    {t('settings:ai.presetDesc')}
                   </Typography>
                 </Box>
                 <StyledSelect
@@ -840,20 +873,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                   size="small"
                   sx={{ width: 250 }}
                 >
-                  <MenuItem value="openrouter">OpenRouter (Recommended)</MenuItem>
-                  <MenuItem value="openai">OpenAI</MenuItem>
-                  <MenuItem value="groq">Groq</MenuItem>
-                  <MenuItem value="together">Together AI</MenuItem>
-                  <MenuItem value="gemini">Google Gemini (OpenAI-compat)</MenuItem>
-                  <MenuItem value="custom">Custom</MenuItem>
+                  <MenuItem value="openrouter">{t('settings:ai.presetOpenrouter')}</MenuItem>
+                  <MenuItem value="openai">{t('settings:ai.presetOpenai')}</MenuItem>
+                  <MenuItem value="groq">{t('settings:ai.presetGroq')}</MenuItem>
+                  <MenuItem value="together">{t('settings:ai.presetTogether')}</MenuItem>
+                  <MenuItem value="gemini">{t('settings:ai.presetGemini')}</MenuItem>
+                  <MenuItem value="custom">{t('settings:ai.presetCustom')}</MenuItem>
                 </StyledSelect>
               </SettingRow>
 
               <SettingRow>
                 <Box sx={{ flex: 1, mr: 2 }}>
-                  <Typography variant="body1">Base URL</Typography>
+                  <Typography variant="body1">{t('settings:ai.baseUrlLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    OpenAI-compatible endpoint, e.g. https://openrouter.ai/api/v1
+                    {t('settings:ai.baseUrlDesc')}
                   </Typography>
                 </Box>
                 <StyledTextField
@@ -867,16 +900,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box sx={{ flex: 1, mr: 2 }}>
-                  <Typography variant="body1">API Key</Typography>
+                  <Typography variant="body1">{t('settings:ai.apiKeyLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Bearer token for the selected provider
+                    {t('settings:ai.apiKeyDesc')}
                   </Typography>
                 </Box>
                 <StyledTextField
                   type="password"
                   value={settings.ai_api_key}
                   onChange={(e) => setSettings({ ...settings, ai_api_key: e.target.value })}
-                  placeholder={settings.ai_api_key ? '••••••••••••••••' : 'Enter API Key'}
+                  placeholder={settings.ai_api_key ? '••••••••••••••••' : t('settings:ai.apiKeyPlaceholder')}
                   size="small"
                   sx={{ width: '350px' }}
                 />
@@ -884,9 +917,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box sx={{ flex: 1, mr: 2 }}>
-                  <Typography variant="body1">Model</Typography>
+                  <Typography variant="body1">{t('settings:ai.modelLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Provider-specific model slug. Examples: <code>google/gemini-2.5-flash</code>,{' '}
+                    {t('settings:ai.modelDescPrefix')} <code>google/gemini-2.5-flash</code>,{' '}
                     <code>openai/gpt-4o-mini</code>, <code>anthropic/claude-3.5-sonnet</code>
                   </Typography>
                 </Box>
@@ -905,7 +938,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <AutoAwesomeIcon sx={{ color: '#10b981' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  WhatsApp Daily Summary
+                  {t('settings:whatsapp.section')}
                 </Typography>
 
                 {/* Status Indicator */}
@@ -931,7 +964,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               {whatsappStatus.status === 'QR_READY' && whatsappStatus.qr && (
                 <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', borderRadius: 2 }}>
                   <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }}>
-                    Scan this QR code with WhatsApp (Settings {'>'} Linked Devices)
+                    {t('settings:whatsapp.scanInstruction')}
                   </Typography>
                   <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 2 }}>
                     <QRCode value={whatsappStatus.qr} size={200} />
@@ -954,10 +987,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                       },
                     }}
                   >
-                    Generate QR Code
+                    {t('settings:whatsapp.generateQr')}
                   </Button>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary, textAlign: 'center' }}>
-                    Click to start WhatsApp connection and generate QR code
+                    {t('settings:whatsapp.generateQrHelp')}
                   </Typography>
                 </Box>
               )}
@@ -968,11 +1001,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CircularProgress size={20} sx={{ color: '#f59e0b' }} />
                     <Typography variant="body2" sx={{ color: '#f59e0b' }}>
-                      Generating QR Code...
+                      {t('settings:whatsapp.generatingQr')}
                     </Typography>
                   </Box>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Please wait, this may take a few seconds
+                    {t('settings:whatsapp.generatingQrHelp')}
                   </Typography>
                 </Box>
               )}
@@ -995,27 +1028,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                         },
                       }}
                     >
-                      Renew QR Code
+                      {t('settings:whatsapp.renewQr')}
                     </Button>
                     <Button
                       size="small"
                       color="error"
                       onClick={() => handleWhatsAppAction('disconnect')}
                     >
-                      Disconnect Session
+                      {t('settings:whatsapp.disconnect')}
                     </Button>
                   </Box>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary, textAlign: 'center' }}>
-                    Renew QR to link a different WhatsApp account or fix connection issues
+                    {t('settings:whatsapp.renewHelp')}
                   </Typography>
                 </Box>
               )}
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Enable Daily Summary</Typography>
+                  <Typography variant="body1">{t('settings:whatsapp.enableLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Send a daily financial summary via WhatsApp
+                    {t('settings:whatsapp.enableDesc')}
                   </Typography>
                 </Box>
                 <Switch
@@ -1037,9 +1070,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Summary Mode</Typography>
+                  <Typography variant="body1">{t('settings:whatsapp.modeLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Time period to cover in the summary
+                    {t('settings:whatsapp.modeDesc')}
                   </Typography>
                 </Box>
                 <StyledSelect
@@ -1048,8 +1081,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                   size="small"
                   sx={{ width: 220 }}
                 >
-                  <MenuItem value="calendar">Calendar Month (1st-30th)</MenuItem>
-                  <MenuItem value="cycle">Billing Cycle (from {settings.billing_cycle_start_day}th)</MenuItem>
+                  <MenuItem value="calendar">{t('settings:whatsapp.modeCalendar')}</MenuItem>
+                  <MenuItem value="cycle">{t('settings:whatsapp.modeCycle', { day: settings.billing_cycle_start_day })}</MenuItem>
                 </StyledSelect>
               </SettingRow>
 
@@ -1057,9 +1090,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">Send at Hour</Typography>
+                  <Typography variant="body1">{t('settings:whatsapp.hourLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Hour of the day to send summary (0-23)
+                    {t('settings:whatsapp.hourDesc')}
                   </Typography>
                 </Box>
                 <StyledTextField
@@ -1080,11 +1113,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow sx={{ alignItems: 'flex-start' }}>
                 <Box sx={{ flex: 1, mr: 2, pt: 1 }}>
-                  <Typography variant="body1">Recipients</Typography>
+                  <Typography variant="body1">{t('settings:whatsapp.recipientsLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Numbers: 972501234567<br />
-                    Groups: 120363024523351234@g.us<br />
-                    <span style={{ fontStyle: 'italic', fontSize: '0.75rem', opacity: 0.8 }}>Press Enter or tab to add a recipient</span>
+                    {t('settings:whatsapp.recipientsDescNumbers')}<br />
+                    {t('settings:whatsapp.recipientsDescGroups')}<br />
+                    <span style={{ fontStyle: 'italic', fontSize: '0.75rem', opacity: 0.8 }}>{t('settings:whatsapp.recipientsDescHint')}</span>
                   </Typography>
                 </Box>
                 <Box sx={{ width: '450px' }}>
@@ -1113,7 +1146,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        placeholder={settings.whatsapp_to ? "" : "Enter number or group ID"}
+                        placeholder={settings.whatsapp_to ? "" : t('settings:whatsapp.recipientsPlaceholder')}
                         size="small"
                       />
                     )}
@@ -1141,10 +1174,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                     }
                   }}
                 >
-                  {testingWhatsApp ? 'Sending...' : 'Test & Send Message'}
+                  {testingWhatsApp ? t('common:status.sending') : t('settings:whatsapp.test')}
                 </Button>
                 <Typography variant="caption" sx={{ display: 'block', mt: 1, color: theme.palette.text.secondary }}>
-                  This will generate a daily summary and send it to your WhatsApp now
+                  {t('settings:whatsapp.testHelp')}
                 </Typography>
               </Box>
 
@@ -1157,8 +1190,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                     sx={{ mb: 2 }}
                   >
                     {whatsappTestResult.success
-                      ? '✅ Message sent successfully!'
-                      : `❌ Failed: ${whatsappTestResult.error}`}
+                      ? t('settings:whatsapp.testSuccess')
+                      : `${t('settings:whatsapp.testFailedPrefix')} ${whatsappTestResult.error}`}
                   </Alert>
 
                   {whatsappTestResult.message && (
@@ -1171,7 +1204,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                       overflow: 'auto'
                     }}>
                       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#10b981' }}>
-                        📝 Generated Message:
+                        {t('settings:whatsapp.generatedMessage')}
                       </Typography>
                       <Typography
                         variant="body2"
@@ -1195,7 +1228,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <LockIcon sx={{ color: '#818cf8' }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Vault Security
+                  {t('settings:vault.section')}
                 </Typography>
               </Box>
 
@@ -1212,21 +1245,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <SettingRow sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
-                    <Typography variant="body1">Passkey Authentication</Typography>
+                    <Typography variant="body1">{t('settings:vault.passkeyLabel')}</Typography>
                     <Typography variant="caption" sx={{ color: 'var(--n-text-secondary)' }}>
                       {supportsWebAuthn
-                        ? 'Use biometric or security key to unlock your vault without a passphrase.'
-                        : 'Passkeys are not supported in this browser.'}
+                        ? t('settings:vault.passkeySupported')
+                        : t('settings:vault.passkeyUnsupported')}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     {isVaultLocked ? (
                       <Typography variant="caption" sx={{ color: 'var(--n-error)', fontWeight: 600 }}>
-                        Unlock vault to manage passkeys
+                        {t('settings:vault.unlockToManage')}
                       </Typography>
                     ) : !supportsWebAuthn ? (
                       <Typography variant="caption" sx={{ color: 'var(--n-text-tertiary)', fontWeight: 600 }}>
-                        Not available
+                        {t('settings:vault.notAvailable')}
                       </Typography>
                     ) : !showPasskeyRegister ? (
                       <Button
@@ -1241,7 +1274,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                           },
                         }}
                       >
-                        Register Passkey
+                        {t('settings:vault.registerPasskey')}
                       </Button>
                     ) : null}
                   </Box>
@@ -1250,8 +1283,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                   <Box sx={{ display: 'flex', gap: 1, mt: 2, alignItems: 'center' }}>
                     <StyledTextField
                       type="password"
-                      label="Vault Passphrase"
-                      placeholder="Enter your passphrase to confirm"
+                      label={t('settings:vault.vaultPassphrase')}
+                      placeholder={t('settings:vault.passphrasePlaceholder')}
                       value={passkeyRegPass}
                       onChange={(e) => setPasskeyRegPass(e.target.value)}
                       size="small"
@@ -1273,13 +1306,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                         setSecurityResult(null);
                         const result = await startPasskeyRegistration(passkeyRegPass);
                         if (result.success) {
-                          setSecurityResult({ type: 'success', message: 'Passkey registered successfully!' });
+                          setSecurityResult({ type: 'success', message: t('settings:vault.passkeyRegisteredOk') });
                           const passkeys = await fetchPasskeys();
                           setPasskeyList(passkeys);
                           setShowPasskeyRegister(false);
                           setPasskeyRegPass('');
                         } else {
-                          setSecurityResult({ type: 'error', message: 'Failed to register passkey: ' + result.error });
+                          setSecurityResult({ type: 'error', message: t('settings:vault.passkeyRegisterFail', { error: result.error || '' }) });
                         }
                         setRegisteringPasskey(false);
                       }}
@@ -1292,7 +1325,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {registeringPasskey ? <CircularProgress size={20} color="inherit" /> : 'Confirm'}
+                      {registeringPasskey ? <CircularProgress size={20} color="inherit" /> : t('common:actions.confirm')}
                     </Button>
                     <Button
                       variant="text"
@@ -1301,7 +1334,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                       onClick={() => { setShowPasskeyRegister(false); setPasskeyRegPass(''); }}
                       sx={{ color: 'var(--n-text-secondary)', minWidth: 'auto' }}
                     >
-                      Cancel
+                      {t('common:actions.cancel')}
                     </Button>
                   </Box>
                 )}
@@ -1311,9 +1344,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <SettingRow sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                   <Box>
-                    <Typography variant="body1">Registered Passkeys ({passkeysCount})</Typography>
+                    <Typography variant="body1">{t('settings:vault.registeredPasskeys', { count: passkeysCount })}</Typography>
                     <Typography variant="caption" sx={{ color: 'var(--n-text-secondary)' }}>
-                      Manage your registered passkeys individually.
+                      {t('settings:vault.registeredPasskeysDesc')}
                     </Typography>
                   </Box>
                   {!isVaultLocked && passkeyList.length === 0 && !loadingPasskeys && (
@@ -1327,7 +1360,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                         setLoadingPasskeys(false);
                       }}
                     >
-                      Load
+                      {t('common:actions.load')}
                     </Button>
                   )}
                 </Box>
@@ -1357,10 +1390,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                           <FingerprintIcon sx={{ color: 'var(--n-primary-500)', fontSize: 20 }} />
                           <Box>
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              Passkey #{pk.id}
+                              {t('settings:vault.passkeyItem', { id: pk.id })}
                             </Typography>
                             <Typography variant="caption" sx={{ color: 'var(--n-text-secondary)' }}>
-                              Registered {new Date(pk.createdAt).toLocaleDateString()}
+                              {t('settings:vault.registeredOn', { date: new Date(pk.createdAt).toLocaleDateString(locale === 'he' ? 'he-IL' : undefined) })}
                             </Typography>
                           </Box>
                         </Box>
@@ -1374,9 +1407,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                             const result = await deletePasskey(pk.id);
                             if (result.success) {
                               setPasskeyList(prev => prev.filter(p => p.id !== pk.id));
-                              setSecurityResult({ type: 'success', message: 'Passkey deleted' });
+                              setSecurityResult({ type: 'success', message: t('settings:vault.passkeyDeletedOk') });
                             } else {
-                              setSecurityResult({ type: 'error', message: result.error || 'Failed to delete passkey' });
+                              setSecurityResult({ type: 'error', message: result.error || t('settings:vault.passkeyDeleteFail') });
                             }
                             setDeletingPasskeyId(null);
                           }}
@@ -1398,7 +1431,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                           onClick={() => setClearPasskeyConfirm(true)}
                           disabled={clearingPasskeys || isVaultLocked}
                         >
-                          Clear All
+                          {t('common:actions.clearAll')}
                         </Button>
                       ) : (
                         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1412,15 +1445,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                               const result = await clearPasskeys();
                               if (result.success) {
                                 setPasskeyList([]);
-                                setSecurityResult({ type: 'success', message: `Cleared ${result.cleared || 0} passkey(s)` });
+                                setSecurityResult({ type: 'success', message: t('settings:vault.passkeysClearedOk', { count: result.cleared || 0 }) });
                               } else {
-                                setSecurityResult({ type: 'error', message: result.error || 'Failed to clear passkeys' });
+                                setSecurityResult({ type: 'error', message: result.error || t('settings:vault.passkeysClearFail') });
                               }
                               setClearingPasskeys(false);
                               setClearPasskeyConfirm(false);
                             }}
                           >
-                            {clearingPasskeys ? <CircularProgress size={20} color="inherit" /> : 'Confirm Clear All'}
+                            {clearingPasskeys ? <CircularProgress size={20} color="inherit" /> : t('settings:vault.confirmClearAll')}
                           </Button>
                           <Button
                             variant="outlined"
@@ -1428,7 +1461,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                             onClick={() => setClearPasskeyConfirm(false)}
                             disabled={clearingPasskeys}
                           >
-                            Cancel
+                            {t('common:actions.cancel')}
                           </Button>
                         </Box>
                       )}
@@ -1438,7 +1471,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
                 {!isVaultLocked && passkeyList.length === 0 && !loadingPasskeys && passkeysCount === 0 && supportsWebAuthn && (
                   <Typography variant="caption" sx={{ color: 'var(--n-text-muted)', fontStyle: 'italic' }}>
-                    No passkeys registered yet. Register one above to enable biometric unlock.
+                    {t('settings:vault.noPasskeys')}
                   </Typography>
                 )}
               </SettingRow>
@@ -1447,9 +1480,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <SettingRow sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                   <Box>
-                    <Typography variant="body1">Change Passphrase</Typography>
+                    <Typography variant="body1">{t('settings:vault.changePassphrase')}</Typography>
                     <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                      Update your vault passphrase. All passkeys will be invalidated.
+                      {t('settings:vault.changePassphraseDesc')}
                     </Typography>
                   </Box>
                   <Box>
@@ -1473,11 +1506,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                           },
                         }}
                       >
-                        {showChangePassphrase ? 'Cancel' : 'Change'}
+                        {showChangePassphrase ? t('common:actions.cancel') : t('settings:vault.change')}
                       </Button>
                     ) : (
                       <Typography variant="caption" sx={{ color: '#f87171', fontWeight: 600 }}>
-                        Unlock vault first
+                        {t('settings:vault.unlockFirst')}
                       </Typography>
                     )}
                   </Box>
@@ -1486,7 +1519,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                   <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <StyledTextField
                       type="password"
-                      label="Current Passphrase"
+                      label={t('settings:vault.currentPassphrase')}
                       value={currentPass}
                       onChange={(e) => setCurrentPass(e.target.value)}
                       size="small"
@@ -1495,17 +1528,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                     />
                     <StyledTextField
                       type="password"
-                      label="New Passphrase"
+                      label={t('settings:vault.newPassphrase')}
                       value={newPass}
                       onChange={(e) => setNewPass(e.target.value)}
                       size="small"
                       fullWidth
                       disabled={changingPassphrase}
-                      helperText="Must be at least 8 characters"
+                      helperText={t('settings:vault.newPassphraseHelp')}
                     />
                     <StyledTextField
                       type="password"
-                      label="Confirm New Passphrase"
+                      label={t('settings:vault.confirmNewPassphrase')}
                       value={confirmNewPass}
                       onChange={(e) => setConfirmNewPass(e.target.value)}
                       size="small"
@@ -1517,7 +1550,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                       disabled={changingPassphrase || !currentPass || !newPass || !confirmNewPass || newPass !== confirmNewPass || newPass.length < 8}
                       onClick={async () => {
                         if (newPass !== confirmNewPass) {
-                          setSecurityResult({ type: 'error', message: 'New passphrases do not match' });
+                          setSecurityResult({ type: 'error', message: t('settings:vault.passphrasesMismatch') });
                           return;
                         }
                         setChangingPassphrase(true);
@@ -1525,14 +1558,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                         if (result.success) {
                           setSecurityResult({
                             type: 'success',
-                            message: `Passphrase changed successfully${result.passkeysCleared ? `. ${result.passkeysCleared} passkey(s) were invalidated — re-register if needed.` : '.'}`
+                            message: result.passkeysCleared
+                              ? t('settings:vault.passphraseChangedWithCleared', { count: result.passkeysCleared })
+                              : t('settings:vault.passphraseChangedOk'),
                           });
                           setShowChangePassphrase(false);
                           setCurrentPass('');
                           setNewPass('');
                           setConfirmNewPass('');
                         } else {
-                          setSecurityResult({ type: 'error', message: result.error || 'Failed to change passphrase' });
+                          setSecurityResult({ type: 'error', message: result.error || t('settings:vault.passphraseChangeFail') });
                         }
                         setChangingPassphrase(false);
                       }}
@@ -1544,7 +1579,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                         alignSelf: 'flex-start',
                       }}
                     >
-                      {changingPassphrase ? <CircularProgress size={20} color="inherit" /> : 'Update Passphrase'}
+                      {changingPassphrase ? <CircularProgress size={20} color="inherit" /> : t('settings:vault.updatePassphrase')}
                     </Button>
                   </Box>
                 )}
@@ -1561,7 +1596,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <WarningAmberIcon sx={{ color: theme.palette.error.main }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, color: theme.palette.error.main }}>
-                  Danger Zone
+                  {t('settings:danger.section')}
                 </Typography>
               </Box>
 
@@ -1569,9 +1604,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box sx={{ flex: 1, mr: 2 }}>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>Delete All Transactions</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>{t('settings:danger.deleteAllLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Permanently delete all transactions from the database. This action cannot be undone.
+                    {t('settings:danger.deleteAllDesc')}
                   </Typography>
                 </Box>
                 <Button
@@ -1586,7 +1621,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                     },
                   }}
                 >
-                  Delete All
+                  {t('common:actions.deleteAll')}
                 </Button>
               </SettingRow>
             </SettingSection>
@@ -1610,7 +1645,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
           variant="outlined"
           sx={{ borderColor: theme.palette.divider, color: theme.palette.text.secondary }}
         >
-          Close
+          {t('common:actions.close')}
         </Button>
       </DialogActions>
 
@@ -1618,7 +1653,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         onSuccess={() => {
-          setResult({ type: 'success', message: 'All transactions deleted successfully' });
+          setResult({ type: 'success', message: t('settings:danger.deletedOk') });
           window.dispatchEvent(new CustomEvent('dataRefresh'));
         }}
       />

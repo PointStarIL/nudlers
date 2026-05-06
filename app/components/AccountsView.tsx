@@ -33,6 +33,7 @@ import { logger } from '../utils/client-logger';
 import PageHeader from './PageHeader';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import { useStatus } from '../context/StatusContext';
+import { useTranslation, Trans } from 'react-i18next';
 
 interface Account {
     id: number;
@@ -62,6 +63,7 @@ interface CardOwnership {
 
 const AccountsView: React.FC = () => {
     const theme = useTheme();
+    const { t } = useTranslation('views');
     const { showNotification } = useNotification();
     const { setSyncDrawerOpen } = useView();
 
@@ -99,11 +101,11 @@ const AccountsView: React.FC = () => {
                 setAccounts(await response.json());
             }
         } catch (err) {
-            showNotification('Failed to fetch accounts', 'error');
+            showNotification(t('accounts.notifications.fetchFailed'), 'error');
         } finally {
             setIsLoading(false);
         }
-    }, [showNotification]);
+    }, [showNotification, t]);
 
     const fetchCardOwnership = useCallback(async () => {
         try {
@@ -133,10 +135,11 @@ const AccountsView: React.FC = () => {
             if (response.ok) {
                 const updated = await response.json();
                 setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, is_active: updated.is_active } : a));
-                showNotification(`${account.nickname || account.vendor} ${updated.is_active ? 'activated' : 'deactivated'}`, 'success');
+                const name = account.nickname || account.vendor;
+                showNotification(updated.is_active ? t('accounts.notifications.activated', { name }) : t('accounts.notifications.deactivated', { name }), 'success');
             }
         } catch (err) {
-            showNotification('Failed to toggle account status', 'error');
+            showNotification(t('accounts.notifications.toggleFailed'), 'error');
         }
     };
 
@@ -152,15 +155,15 @@ const AccountsView: React.FC = () => {
     };
 
     const handleDeleteAccount = async (id: number) => {
-        if (!window.confirm('Are you sure you want to remove this account? This will only remove the credentials, not the transactions.')) return;
+        if (!window.confirm(t('accounts.removeConfirm'))) return;
         try {
             const response = await fetch(`/api/credentials/${id}`, { method: 'DELETE' });
             if (response.ok) {
                 setAccounts(prev => prev.filter(a => a.id !== id));
-                showNotification('Account removed successfully', 'success');
+                showNotification(t('accounts.notifications.removed'), 'success');
             }
         } catch (err) {
-            showNotification('Failed to remove account', 'error');
+            showNotification(t('accounts.notifications.removeFailed'), 'error');
         }
     };
 
@@ -171,11 +174,11 @@ const AccountsView: React.FC = () => {
             const response = await fetch(`/api/credentials/truncate/${truncateConfirm.account.id}`, { method: 'DELETE' });
             if (response.ok) {
                 const result = await response.json();
-                showNotification(`Successfully deleted ${result.deletedCount} transactions`, 'success');
+                showNotification(t('accounts.notifications.deletedTransactions', { count: result.deletedCount }), 'success');
                 window.dispatchEvent(new CustomEvent('dataRefresh'));
             }
         } catch (err) {
-            showNotification('Failed to delete transactions', 'error');
+            showNotification(t('accounts.notifications.deleteTransactionsFailed'), 'error');
         } finally {
             setIsTruncating(false);
             setTruncateConfirm({ isOpen: false, account: null });
@@ -191,10 +194,10 @@ const AccountsView: React.FC = () => {
             });
             if (response.ok) {
                 fetchCardOwnership();
-                showNotification('Link updated successfully', 'success');
+                showNotification(t('accounts.notifications.linkUpdated'), 'success');
             }
         } catch (err) {
-            showNotification('Failed to update link', 'error');
+            showNotification(t('accounts.notifications.linkUpdateFailed'), 'error');
         }
     };
 
@@ -216,14 +219,14 @@ const AccountsView: React.FC = () => {
                 setCardOwnership(prev => prev.map(co =>
                     co.id === cardId ? { ...co, is_hidden: !isHidden } : co
                 ));
-                showNotification('Failed to update visibility', 'error');
+                showNotification(t('accounts.notifications.visibilityFailed'), 'error');
             }
         } catch (err) {
             // Revert on error
             setCardOwnership(prev => prev.map(co =>
                 co.id === cardId ? { ...co, is_hidden: !isHidden } : co
             ));
-            showNotification('Failed to update visibility', 'error');
+            showNotification(t('accounts.notifications.visibilityFailed'), 'error');
         }
     };
 
@@ -244,13 +247,13 @@ const AccountsView: React.FC = () => {
                 setIsAdding(false);
                 setIsEditing(false);
                 setEditingAccount(null);
-                showNotification(`Account ${isEditingMode ? 'updated' : 'added'} successfully`, 'success');
+                showNotification(isEditingMode ? t('accounts.notifications.accountUpdated') : t('accounts.notifications.accountAdded'), 'success');
             } else {
                 const data = await response.json();
-                showNotification(data.error || `Failed to ${isEditingMode ? 'update' : 'add'} account`, 'error');
+                showNotification(data.error || (isEditingMode ? t('accounts.notifications.updateFailed') : t('accounts.notifications.addFailed')), 'error');
             }
         } catch (err) {
-            showNotification('An error occurred', 'error');
+            showNotification(t('accounts.notifications.genericError'), 'error');
         }
     };
 
@@ -291,8 +294,8 @@ const AccountsView: React.FC = () => {
     return (
         <Box sx={{ pb: 8 }}>
             <PageHeader
-                title="Accounts & Cards"
-                description="Manage your bank and credit card connections"
+                title={t('accounts.title')}
+                description={t('accounts.description')}
                 icon={<ManageAccountsIcon sx={{ fontSize: '32px', color: '#fff' }} />}
                 actions={
                     <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -310,9 +313,9 @@ const AccountsView: React.FC = () => {
                                 '&:hover': { background: alpha('#fff', 0.1), borderColor: alpha(theme.palette.divider, 0.2) }
                             }}
                         >
-                            History
+                            {t('accounts.history')}
                         </Button>
-                        <Tooltip title={isVaultLocked ? "Unlock vault to add a connection" : ""}>
+                        <Tooltip title={isVaultLocked ? t('accounts.unlockToAdd') : ""}>
                             <span>
                                 <Button
                                     variant="contained"
@@ -329,7 +332,7 @@ const AccountsView: React.FC = () => {
                                         '&:hover': { background: isVaultLocked ? 'none' : 'linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)' }
                                     }}
                                 >
-                                    Add Connection
+                                    {t('accounts.addConnection')}
                                 </Button>
                             </span>
                         </Tooltip>
@@ -348,7 +351,7 @@ const AccountsView: React.FC = () => {
                         <Box sx={{ mb: 6 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                                 <AccountBalanceIcon color="primary" />
-                                <Typography variant="h5" fontWeight={700}>Bank Accounts</Typography>
+                                <Typography variant="h5" fontWeight={700}>{t('accounts.bankAccounts')}</Typography>
                                 <Typography variant="body2" sx={{ color: 'text.secondary', ml: 1 }}>{bankAccounts.length}</Typography>
                             </Box>
                             <Grid container spacing={3}>
@@ -368,7 +371,7 @@ const AccountsView: React.FC = () => {
                                 {bankAccounts.length === 0 && (
                                     <Grid item xs={12}>
                                         <Box sx={{ p: 4, textAlign: 'center', borderRadius: '24px', border: `1px dashed ${theme.palette.divider}` }}>
-                                            <Typography color="text.secondary">No bank accounts connected</Typography>
+                                            <Typography color="text.secondary">{t('accounts.noBankAccounts')}</Typography>
                                         </Box>
                                     </Grid>
                                 )}
@@ -379,7 +382,7 @@ const AccountsView: React.FC = () => {
                         <Box sx={{ mb: 6 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                                 <CreditCardIcon sx={{ color: '#8b5cf6' }} />
-                                <Typography variant="h5" fontWeight={700}>Credit Cards</Typography>
+                                <Typography variant="h5" fontWeight={700}>{t('accounts.creditCards')}</Typography>
                                 <Typography variant="body2" sx={{ color: 'text.secondary', ml: 1 }}>{creditAccounts.length}</Typography>
                             </Box>
                             <Grid container spacing={3}>
@@ -402,7 +405,7 @@ const AccountsView: React.FC = () => {
                                 {creditAccounts.length === 0 && (
                                     <Grid item xs={12}>
                                         <Box sx={{ p: 4, textAlign: 'center', borderRadius: '24px', border: `1px dashed ${theme.palette.divider}` }}>
-                                            <Typography color="text.secondary">No credit cards connected</Typography>
+                                            <Typography color="text.secondary">{t('accounts.noCreditCards')}</Typography>
                                         </Box>
                                     </Grid>
                                 )}
@@ -429,21 +432,21 @@ const AccountsView: React.FC = () => {
                 }}
             >
                 <DialogTitle sx={{ fontWeight: 700 }}>
-                    {isEditing ? 'Edit Connection' : 'Add New Connection'}
+                    {isEditing ? t('accounts.editConnection') : t('accounts.addConnectionTitle')}
                 </DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                         <TextField
                             fullWidth
-                            label="Nickname"
-                            placeholder="e.g. My Personal Account"
+                            label={t('accounts.fields.nickname')}
+                            placeholder={t('accounts.fields.nicknamePlaceholder')}
                             value={formAccount.nickname}
                             onChange={(e) => setFormAccount({ ...formAccount, nickname: e.target.value })}
                         />
                         <TextField
                             fullWidth
                             select
-                            label="Provider (Vendor)"
+                            label={t('accounts.fields.providerVendor')}
                             value={formAccount.vendor}
                             onChange={(e) => setFormAccount({ ...formAccount, vendor: e.target.value })}
                         >
@@ -461,23 +464,23 @@ const AccountsView: React.FC = () => {
                                 <TextField
                                     fullWidth
                                     type="email"
-                                    label="Email"
+                                    label={t('accounts.fields.email')}
                                     value={formAccount.username}
                                     onChange={(e) => setFormAccount({ ...formAccount, username: e.target.value })}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Phone Number (e.g. +972501234567)"
-                                    placeholder="+972501234567"
+                                    label={t('accounts.fields.phoneNumber')}
+                                    placeholder={t('accounts.fields.phoneNumberPlaceholder')}
                                     value={formAccount.phone_number}
                                     onChange={(e) => setFormAccount({ ...formAccount, phone_number: e.target.value })}
-                                    helperText="Used to send a one-time SMS code on first sync; subsequent syncs reuse a long-term token."
+                                    helperText={t('accounts.fields.phoneNumberHelper')}
                                 />
                             </>
                         ) : (formAccount.vendor === 'visaCal' || formAccount.vendor === 'max' || BANK_VENDORS.includes(formAccount.vendor)) ? (
                             <TextField
                                 fullWidth
-                                label="Username / ID"
+                                label={t('accounts.fields.usernameOrId')}
                                 value={formAccount.username}
                                 onChange={(e) => setFormAccount({ ...formAccount, username: e.target.value })}
                             />
@@ -485,13 +488,13 @@ const AccountsView: React.FC = () => {
                             <Box sx={{ display: 'flex', gap: 2 }}>
                                 <TextField
                                     fullWidth
-                                    label="ID Number"
+                                    label={t('accounts.fields.idNumber')}
                                     value={formAccount.id_number}
                                     onChange={(e) => setFormAccount({ ...formAccount, id_number: e.target.value })}
                                 />
                                 <TextField
                                     fullWidth
-                                    label="Last 6 Digits"
+                                    label={t('accounts.fields.card6Digits')}
                                     value={formAccount.card6_digits}
                                     onChange={(e) => setFormAccount({ ...formAccount, card6_digits: e.target.value })}
                                 />
@@ -501,7 +504,7 @@ const AccountsView: React.FC = () => {
                         {STANDARD_BANK_VENDORS.includes(formAccount.vendor) && formAccount.vendor !== 'onezero' && (
                             <TextField
                                 fullWidth
-                                label="Account Number"
+                                label={t('accounts.fields.accountNumber')}
                                 value={formAccount.bank_account_number}
                                 onChange={(e) => setFormAccount({ ...formAccount, bank_account_number: e.target.value })}
                             />
@@ -510,14 +513,14 @@ const AccountsView: React.FC = () => {
                         <TextField
                             fullWidth
                             type="password"
-                            label={isEditing ? "Password (leave blank for no change)" : "Password"}
+                            label={isEditing ? t('accounts.fields.passwordEdit') : t('accounts.fields.password')}
                             value={formAccount.password}
                             onChange={(e) => setFormAccount({ ...formAccount, password: e.target.value })}
                         />
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
-                    <Button onClick={() => { setIsAdding(false); setIsEditing(false); }}>Cancel</Button>
+                    <Button onClick={() => { setIsAdding(false); setIsEditing(false); }}>{t('accounts.actions.cancel')}</Button>
                     <Button
                         variant="contained"
                         onClick={handleSaveAccount}
@@ -527,7 +530,7 @@ const AccountsView: React.FC = () => {
                             background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
                         }}
                     >
-                        {isEditing ? 'Save Changes' : 'Connect'}
+                        {isEditing ? t('accounts.actions.saveChanges') : t('accounts.actions.connect')}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -540,16 +543,20 @@ const AccountsView: React.FC = () => {
             >
                 <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
                     <WarningAmberIcon />
-                    Delete Transaction History?
+                    {t('accounts.deleteHistoryTitle')}
                 </DialogTitle>
                 <DialogContent>
                     <Typography>
-                        This will permanently delete all transactions associated with <strong>{truncateConfirm.account?.nickname || truncateConfirm.account?.vendor}</strong>.
-                        This action cannot be undone.
+                        <Trans
+                            i18nKey="accounts.deleteHistoryBody"
+                            t={t}
+                            values={{ name: truncateConfirm.account?.nickname || truncateConfirm.account?.vendor || '' }}
+                            components={{ strong: <strong /> }}
+                        />
                     </Typography>
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
-                    <Button onClick={() => setTruncateConfirm({ isOpen: false, account: null })}>Cancel</Button>
+                    <Button onClick={() => setTruncateConfirm({ isOpen: false, account: null })}>{t('accounts.actions.cancel')}</Button>
                     <Button
                         variant="contained"
                         color="error"
@@ -557,7 +564,7 @@ const AccountsView: React.FC = () => {
                         disabled={isTruncating}
                         sx={{ borderRadius: '12px' }}
                     >
-                        {isTruncating ? <CircularProgress size={20} color="inherit" /> : 'Delete All Data'}
+                        {isTruncating ? <CircularProgress size={20} color="inherit" /> : t('accounts.deleteAllData')}
                     </Button>
                 </DialogActions>
             </Dialog>

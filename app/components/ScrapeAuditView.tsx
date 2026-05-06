@@ -9,6 +9,8 @@ import { useTheme } from '@mui/material/styles';
 import Table from './Table';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
+import { useTranslation } from 'react-i18next';
+import { useLocale } from '../context/LocaleContext';
 
 interface ScrapeEvent {
     id: number;
@@ -32,6 +34,9 @@ export default function ScrapeAuditView() {
     const [currentTab, setCurrentTab] = useState(0);
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
     const theme = useTheme();
+    const { t } = useTranslation('views');
+    const { locale } = useLocale();
+    const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
 
     const fetchEvents = async () => {
         try {
@@ -85,8 +90,8 @@ export default function ScrapeAuditView() {
             zIndex: 1
         }}>
             <PageHeader
-                title="Audit"
-                description="History of system events and scraping status"
+                title={t('audit.title')}
+                description={t('audit.description')}
                 icon={<HistoryIcon sx={{ fontSize: '32px', color: '#ffffff' }} />}
                 onRefresh={fetchEvents}
             />
@@ -107,8 +112,8 @@ export default function ScrapeAuditView() {
                         }
                     }}
                 >
-                    <Tab label="Scrape Audit" />
-                    <Tab label="Audit History" />
+                    <Tab label={t('audit.tabScrape')} />
+                    <Tab label={t('audit.tabAuditHistory')} />
                 </Tabs>
             </Box>
 
@@ -127,26 +132,26 @@ export default function ScrapeAuditView() {
                     </Box>
                 ) : displayEvents.length === 0 ? (
                     <Box sx={{ p: 4, textAlign: 'center' }}>
-                        <Typography color="text.secondary">No {currentTab === 0 ? 'scrape' : 'audit'} events found</Typography>
+                        <Typography color="text.secondary">{currentTab === 0 ? t('audit.noScrapeEvents') : t('audit.noAuditEvents')}</Typography>
                     </Box>
                 ) : (
                     <Table
                         rows={displayEvents}
                         rowKey={(row) => row.id}
-                        emptyMessage="No events found"
+                        emptyMessage={t('audit.noEventsFound')}
                         expandedRowIds={expandedRows}
                         onRowToggle={(id) => toggleRow(id as number)}
                         columns={[
-                            { id: 'created_at', label: 'Time', format: (val) => new Date(val).toLocaleString() },
-                            { id: 'vendor', label: 'Vendor' },
-                            ...(currentTab === 0 ? [{ id: 'start_date', label: 'Start Date', format: (val: any) => new Date(val).toLocaleDateString() }] : []),
-                            { id: 'triggered_by', label: 'Triggered By', format: (val) => val || '-' },
+                            { id: 'created_at', label: t('audit.timeColumn'), format: (val) => new Date(val).toLocaleString(dateLocale) },
+                            { id: 'vendor', label: t('audit.vendorColumn') },
+                            ...(currentTab === 0 ? [{ id: 'start_date', label: t('audit.startDateColumn'), format: (val: any) => new Date(val).toLocaleDateString(dateLocale) }] : []),
+                            { id: 'triggered_by', label: t('audit.triggeredByColumn'), format: (val) => val || t('audit.emptyDash') },
                             {
                                 id: 'status',
-                                label: 'Status',
+                                label: t('audit.statusColumn'),
                                 format: (val) => (
                                     <Chip
-                                        label={val}
+                                        label={val === 'success' ? t('audit.success') : val === 'failed' ? t('audit.failed') : val === 'started' ? t('audit.running') : val}
                                         color={statusColor(val) as any}
                                         size="small"
                                         sx={{ fontWeight: 600, textTransform: 'capitalize' }}
@@ -155,7 +160,7 @@ export default function ScrapeAuditView() {
                             },
                             {
                                 id: 'message',
-                                label: 'Message',
+                                label: t('audit.messageColumn'),
                                 format: (val, row) => {
                                     const hasDetails = !!(row.report_json || val);
                                     return (
@@ -167,8 +172,8 @@ export default function ScrapeAuditView() {
                                             color: hasDetails ? 'primary.main' : 'inherit',
                                             fontWeight: hasDetails ? 600 : 400
                                         }} title={val}>
-                                            {val || '-'}
-                                            {hasDetails && ' (Click to view)'}
+                                            {val || t('audit.emptyDash')}
+                                            {hasDetails && t('audit.clickToView')}
                                         </Box>
                                     );
                                 }
@@ -179,7 +184,7 @@ export default function ScrapeAuditView() {
                             return (
                                 <Box sx={{ p: 3, bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', borderRadius: 2, m: 2 }}>
                                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700, opacity: 0.7 }}>
-                                        {row.vendor === 'whatsapp_summary' ? 'Full Message Body:' : 'Scrape Result / Details:'}
+                                        {row.vendor === 'whatsapp_summary' ? t('audit.fullMessageBody') : t('audit.scrapeResultDetails')}
                                     </Typography>
                                     <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', overflowX: 'auto', fontSize: '0.8125rem' }}>
                                         {row.vendor === 'whatsapp_summary' && row.report_json?.body
@@ -196,19 +201,19 @@ export default function ScrapeAuditView() {
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                                     <Typography variant="subtitle2" fontWeight={700}>{row.vendor}</Typography>
                                     <Chip
-                                        label={row.status}
+                                        label={row.status === 'success' ? t('audit.success') : row.status === 'failed' ? t('audit.failed') : row.status === 'started' ? t('audit.running') : row.status}
                                         color={statusColor(row.status) as any}
                                         size="small"
                                         sx={{ height: 20, fontSize: '10px' }}
                                     />
                                 </Box>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <Typography variant="caption" color="text.secondary">{new Date(row.created_at).toLocaleString()}</Typography>
-                                    <Typography variant="caption" color="text.secondary">{row.message || '-'}</Typography>
+                                    <Typography variant="caption" color="text.secondary">{new Date(row.created_at).toLocaleString(dateLocale)}</Typography>
+                                    <Typography variant="caption" color="text.secondary">{row.message || t('audit.emptyDash')}</Typography>
                                 </Box>
                                 {(row.report_json || row.message) && (
                                     <Typography variant="caption" color="primary" sx={{ mt: 1, display: 'block', fontWeight: 600 }}>
-                                        Tap to view {row.vendor === 'whatsapp_summary' ? 'summary body' : 'details'}
+                                        {row.vendor === 'whatsapp_summary' ? t('audit.tapToViewSummary') : t('audit.tapToViewDetails')}
                                     </Typography>
                                 )}
                             </Box>

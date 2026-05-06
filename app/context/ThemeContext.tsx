@@ -2,7 +2,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { lightTheme, darkTheme } from '../styles/theme';
+import { buildTheme } from '../styles/theme';
+import { useLocale } from './LocaleContext';
 
 type ColorMode = 'light' | 'dark';
 
@@ -19,6 +20,7 @@ const ColorModeContext = createContext<ColorModeContextType>({
 export const useColorMode = () => useContext(ColorModeContext);
 
 export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { direction } = useLocale();
     const [mode, setMode] = useState<ColorMode>(() => {
         if (typeof window !== 'undefined') {
             const savedMode = localStorage.getItem('themeMode') as ColorMode;
@@ -46,7 +48,7 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         [mode],
     );
 
-    const theme = useMemo(() => (mode === 'light' ? lightTheme : darkTheme), [mode]);
+    const theme = useMemo(() => buildTheme(mode, direction), [mode, direction]);
 
     // Sync with Global CSS Variables
     useEffect(() => {

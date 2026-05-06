@@ -1,0 +1,72 @@
+{
+  "table": {
+    "columnDescription": "תיאור",
+    "columnCategory": "קטגוריה",
+    "columnAmount": "סכום",
+    "columnInstallments": "תשלום",
+    "columnCard": "כרטיס",
+    "columnDate": "תאריך",
+    "columnActions": "פעולות",
+    "columnName": "שם",
+    "sortByDate": "תאריך",
+    "sortByAmount": "סכום",
+    "sortByName": "שם",
+    "sortByCategory": "קטגוריה",
+    "loading": "טוען...",
+    "empty": "אין עסקאות.",
+    "fallbackCardLabel": "כרטיס"
+  },
+  "groupHeader": {
+    "today": "היום",
+    "yesterday": "אתמול"
+  },
+  "actions": {
+    "edit": "עריכה",
+    "addNote": "הוספת הערה",
+    "applyToAll": "החלה על כל העסקאות עם תיאור זה"
+  },
+  "tooltips": {
+    "favorite": "סימון כמועדף",
+    "unfavorite": "הסרה מהמועדפים",
+    "editTransaction": "עריכת עסקה",
+    "deleteTransaction": "מחיקת עסקה",
+    "openNotes": "פתיחת הערות",
+    "viewNotes": "הצגת הערות"
+  },
+  "notes": {
+    "title": "הערות",
+    "placeholder": "הוסיפו הערה..."
+  },
+  "snackbar": {
+    "deleteSuccess": "העסקה נמחקה בהצלחה",
+    "deleteError": "שגיאה במחיקת העסקה",
+    "updateError": "העדכון נכשל",
+    "updatedManyAndRule": "עודכנו {{count}} עסקאות והכלל נשמר.",
+    "categoryUpdatedAndRule": "הקטגוריה עודכנה והכלל נשמר.",
+    "updateTransactionFailed": "עדכון העסקה נכשל",
+    "updateTransactionError": "שגיאה בעדכון העסקה",
+    "deleteTransactionFailed": "מחיקת העסקה נכשלה",
+    "missingIdentifier": "לא ניתן למחוק את העסקה: חסר מזהה או ספק"
+  },
+  "card": {
+    "budgetLabel": "תקציב: {{amount}}",
+    "budgetOverBy": "חריגה של {{amount}}",
+    "budgetRemaining": "נותרו {{amount}}",
+    "editBudget": "עריכה",
+    "setBudget": "הגדרת תקציב"
+  },
+  "categoryRow": {
+    "overBudget": "חריגה מהתקציב",
+    "remainingLeft": "נותרו {{amount}}"
+  },
+  "metrics": {
+    "totalTransactions": "סה״כ עסקאות",
+    "totalTransactionsSubtitle": "מאז ומעולם",
+    "activeCategories": "קטגוריות פעילות",
+    "activeCategoriesSubtitle": "בשימוש",
+    "latestActivity": "פעילות אחרונה",
+    "latestActivitySubtitle": "העסקה האחרונה",
+    "notAvailable": "לא זמין",
+    "togglePanel": "הצגה/הסתרה של מדדים"
+  }
+}

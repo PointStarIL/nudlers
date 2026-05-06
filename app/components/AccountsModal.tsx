@@ -39,9 +39,11 @@ import { dateUtils } from './CategoryDashboard/utils/dateUtils';
 import { useNotification } from './NotificationContext';
 import ModalHeader from './ModalHeader';
 import { useView } from './Layout';
+import { useTranslation, Trans } from 'react-i18next';
 
-// Format a date as a relative time string (e.g., "2 hours ago", "3 days ago")
-function formatRelativeTime(dateString: string): string {
+// Format a date as a relative time string (translation-aware)
+type TFunc = (key: string, options?: Record<string, unknown>) => string;
+function formatRelativeTime(dateString: string, t: TFunc): string {
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -51,19 +53,19 @@ function formatRelativeTime(dateString: string): string {
   const diffDays = Math.floor(diffHours / 24);
 
   if (diffSeconds < 60) {
-    return 'Just now';
+    return t('accounts.justNow');
   } else if (diffMinutes < 60) {
-    return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+    return t('accounts.minutesAgo', { count: diffMinutes });
   } else if (diffHours < 24) {
-    return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    return t('accounts.hoursAgo', { count: diffHours });
   } else if (diffDays < 7) {
-    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    return t('accounts.daysAgo', { count: diffDays });
   } else if (diffDays < 30) {
     const weeks = Math.floor(diffDays / 7);
-    return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
+    return t('accounts.weeksAgo', { count: weeks });
   } else {
     const months = Math.floor(diffDays / 30);
-    return `${months} month${months !== 1 ? 's' : ''} ago`;
+    return t('accounts.monthsAgo', { count: months });
   }
 }
 
@@ -148,6 +150,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
   const { showNotification } = useNotification();
   const { setSyncDrawerOpen } = useView();
   const theme = useTheme();
+  const { t } = useTranslation('views');
   const [formAccount, setFormAccount] = useState({
     vendor: 'isracard',
     username: '',
@@ -177,12 +180,12 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
       setIsLoading(true);
       const response = await fetch('/api/credentials');
       if (!response.ok) {
-        throw new Error('Failed to fetch accounts');
+        throw new Error(t('accounts.notifications.fetchFailed'));
       }
       const data = await response.json();
       setAccounts(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('accounts.notifications.genericError'));
     } finally {
       setIsLoading(false);
     }
@@ -223,15 +226,15 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update card bank account');
+        throw new Error(t('accounts.notifications.cardBankUpdateFailed'));
       }
 
       await fetchCardOwnership();
       setEditingCardBankAccount(null);
-      showNotification('Card bank account updated successfully', 'success');
+      showNotification(t('accounts.notifications.cardBankUpdated'), 'success');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update card bank account');
-      showNotification('Failed to update card bank account', 'error');
+      setError(err instanceof Error ? err.message : t('accounts.notifications.cardBankUpdateFailed'));
+      showNotification(t('accounts.notifications.cardBankUpdateFailed'), 'error');
     }
   };
 
@@ -246,14 +249,14 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update account visibility');
+        throw new Error(t('accounts.notifications.accountVisibilityFailed'));
       }
 
       await fetchCardOwnership();
-      showNotification(`Account ${isHidden ? 'hidden' : 'shown'} successfully`, 'success');
+      showNotification(isHidden ? t('accounts.notifications.accountHidden') : t('accounts.notifications.accountShown'), 'success');
       window.dispatchEvent(new CustomEvent('dataRefresh'));
     } catch (err) {
-      showNotification('Failed to update account visibility', 'error');
+      showNotification(t('accounts.notifications.accountVisibilityFailed'), 'error');
     }
   };
 
@@ -275,50 +278,50 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
     // Validate based on vendor type
     if (formAccount.vendor === 'visaCal' || formAccount.vendor === 'max') {
       if (!formAccount.username) {
-        setError('Username is required for Visa Cal and Max');
+        setError(t('accounts.validation.usernameVisaCalMax'));
         return false;
       }
       if (formAccount.id_number) {
-        setError('ID number is not used for Visa Cal and Max');
+        setError(t('accounts.validation.idNumberNotUsedVisaCalMax'));
         return false;
       }
     } else if (formAccount.vendor === 'isracard' || formAccount.vendor === 'amex') {
       if (!formAccount.id_number) {
-        setError('ID number is required for Isracard and American Express');
+        setError(t('accounts.validation.idNumberRequired'));
         return false;
       }
       if (!formAccount.card6_digits) {
-        setError('Card 6 digits is required for Isracard and American Express login');
+        setError(t('accounts.validation.card6DigitsRequired'));
         return false;
       }
       if (formAccount.username) {
-        setError('Username is not used for Isracard and American Express');
+        setError(t('accounts.validation.usernameNotUsedIsracardAmex'));
         return false;
       }
     } else if (BEINLEUMI_GROUP_VENDORS.includes(formAccount.vendor)) {
       // Beinleumi Group banks only need username/ID, no account number
       if (!formAccount.username) {
-        setError('Username/ID is required for Beinleumi Group banks');
+        setError(t('accounts.validation.usernameRequiredBeinleumi'));
         return false;
       }
     } else if (STANDARD_BANK_VENDORS.includes(formAccount.vendor)) {
       // Standard banks need both username and account number
       if (!formAccount.username) {
-        setError('Username is required for bank accounts');
+        setError(t('accounts.validation.usernameRequiredBank'));
         return false;
       }
       if (!formAccount.bank_account_number) {
-        setError('Bank account number is required for bank accounts');
+        setError(t('accounts.validation.bankAccountNumberRequired'));
         return false;
       }
     }
 
     if (requirePassword && !formAccount.password) {
-      setError('Password is required');
+      setError(t('accounts.validation.passwordRequired'));
       return false;
     }
     if (!formAccount.nickname) {
-      setError('Account nickname is required');
+      setError(t('accounts.validation.nicknameRequired'));
       return false;
     }
     return true;
@@ -340,12 +343,12 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
         await fetchAccounts();
         resetFormAccount();
         setIsAdding(false);
-        showNotification('Account added successfully', 'success');
+        showNotification(t('accounts.notifications.accountAdded'), 'success');
       } else {
-        throw new Error('Failed to add account');
+        throw new Error(t('accounts.notifications.addFailed'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('accounts.notifications.genericError'));
     }
   };
 
@@ -384,12 +387,12 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
         resetFormAccount();
         setIsEditing(false);
         setEditingAccountId(null);
-        showNotification('Account updated successfully', 'success');
+        showNotification(t('accounts.notifications.accountUpdated'), 'success');
       } else {
-        throw new Error('Failed to update account');
+        throw new Error(t('accounts.notifications.updateFailed'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('accounts.notifications.genericError'));
     }
   };
 
@@ -409,10 +412,10 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
       if (response.ok) {
         setAccounts(accounts.filter((account) => account.id !== accountID));
       } else {
-        throw new Error('Failed to delete account');
+        throw new Error(t('accounts.notifications.removeFailed'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('accounts.notifications.genericError'));
     }
   };
 
@@ -431,14 +434,16 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
           a.id === account.id ? { ...a, is_active: updatedAccount.is_active } : a
         ));
         showNotification(
-          `Account ${account.nickname} ${updatedAccount.is_active ? 'activated' : 'deactivated'}`,
+          updatedAccount.is_active
+            ? t('accounts.notifications.accountActivated', { name: account.nickname })
+            : t('accounts.notifications.accountDeactivated', { name: account.nickname }),
           'success'
         );
       } else {
-        throw new Error('Failed to update account status');
+        throw new Error(t('accounts.notifications.toggleFailed'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('accounts.notifications.genericError'));
     }
   };
 
@@ -456,17 +461,23 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to truncate account data');
+        throw new Error(t('accounts.notifications.truncateFailed'));
       }
 
       const result = await response.json();
-      showNotification(`Successfully deleted ${result.deletedCount} transactions for ${truncateConfirm.account.nickname || truncateConfirm.account.vendor}`, 'success');
+      showNotification(
+        t('accounts.notifications.deletedTransactionsForAccount', {
+          count: result.deletedCount,
+          name: truncateConfirm.account.nickname || truncateConfirm.account.vendor,
+        }),
+        'success'
+      );
 
       // Refresh data across the app
       window.dispatchEvent(new CustomEvent('dataRefresh'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to truncate account data');
-      showNotification('Failed to truncate account data', 'error');
+      setError(err instanceof Error ? err.message : t('accounts.notifications.truncateFailed'));
+      showNotification(t('accounts.notifications.truncateFailed'), 'error');
     } finally {
       setIsTruncating(false);
       setTruncateConfirm({ isOpen: false, account: null });
@@ -493,11 +504,11 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
       }
     }));
 
-    showNotification(`Starting sync for ${account.nickname || account.vendor}...`, 'info');
+    showNotification(t('accounts.notifications.syncStarting', { name: account.nickname || account.vendor }), 'info');
   };
 
   const handleScrapeSuccess = () => {
-    showNotification('Scraping process completed successfully!', 'success');
+    showNotification(t('accounts.notifications.scrapeSuccess'), 'success');
     window.dispatchEvent(new CustomEvent('dataRefresh'));
     // Refresh accounts to update last_synced_at and card ownership
     fetchAccounts();
@@ -518,7 +529,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
           color: theme.palette.text.secondary,
           fontStyle: 'italic'
         }}>
-          No {type === 'bank' ? 'bank' : 'credit card'} accounts found
+          {type === 'bank' ? t('accounts.noBankAccountsTable') : t('accounts.noCreditCardsTable')}
         </Box>
       );
     }
@@ -526,13 +537,13 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
     const columns = [
       {
         id: 'nickname',
-        label: 'Nickname',
+        label: t('accounts.table.nickname'),
         format: (_: any, account: Account) => (
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Typography variant="body2" sx={{ fontWeight: 600 }}>{account.nickname}</Typography>
               {!account.is_active && (
-                <Tooltip title="Account is inactive - won't be synced automatically">
+                <Tooltip title={t('accounts.inactiveTooltip')}>
                   <PauseCircleOutlineIcon
                     sx={{
                       fontSize: '16px',
@@ -570,7 +581,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                           }}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <option value="">No bank account</option>
+                          <option value="">{t('accounts.table.noBankAccount')}</option>
                           {getBankAccounts().map((bankAccount) => (
                             <option key={bankAccount.id} value={bankAccount.id}>
                               {bankAccount.nickname} ({bankAccount.bank_account_number || bankAccount.vendor})
@@ -597,19 +608,22 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                         <Tooltip
                           title={
                             <Box>
-                              <Box>{card.card_nickname || card.card_vendor || `Account ending in ${card.account_number}`}</Box>
+                              <Box>{card.card_nickname || card.card_vendor || t('accounts.table.accountEndingIn', { number: card.account_number })}</Box>
                               {card.bank_account_nickname ? (
                                 <Box sx={{ mt: 0.5, fontSize: '11px' }}>
-                                  Linked Bank: {card.bank_account_nickname} ({card.bank_account_number || card.bank_account_vendor})
+                                  {t('accounts.table.linkedBank', {
+                                    name: card.bank_account_nickname,
+                                    detail: card.bank_account_number || card.bank_account_vendor || ''
+                                  })}
                                 </Box>
                               ) : (
                                 <Box sx={{ mt: 0.5, fontSize: '11px', fontStyle: 'italic' }}>
-                                  No bank account linked
+                                  {t('accounts.table.noBankLinked')}
                                 </Box>
                               )}
                               {card.is_hidden && (
                                 <Box sx={{ mt: 0.5, fontSize: '11px', color: 'error.main', fontWeight: 700 }}>
-                                  HIDDEN FROM REPORTS
+                                  {t('accounts.table.hiddenFromReports')}
                                 </Box>
                               )}
                             </Box>
@@ -661,7 +675,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                             }}
                           />
                         </Tooltip>
-                        <Tooltip title={card.is_hidden ? "Show in reports" : "Hide from reports (fix duplicates)"}>
+                        <Tooltip title={card.is_hidden ? t('accounts.table.showInReports') : t('accounts.table.hideFromReports')}>
                           <IconButton
                             size="small"
                             onClick={(e) => {
@@ -689,36 +703,36 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
       },
       {
         id: 'vendor',
-        label: 'Vendor',
+        label: t('accounts.table.vendor'),
         format: (val: string) => <Chip label={val} size="small" variant="outlined" sx={{ borderRadius: '6px' }} />
       },
       {
         id: 'username',
-        label: type === 'bank' ? 'Username' : 'ID Number',
+        label: type === 'bank' ? t('accounts.table.username') : t('accounts.table.idNumber'),
         format: (_: any, account: Account) => account.username || account.id_number || '-'
       },
       {
         id: 'identifier',
-        label: type === 'bank' ? 'Account Number' : 'Card Last Digits',
+        label: type === 'bank' ? t('accounts.table.accountNumber') : t('accounts.table.cardLastDigits'),
         format: (_: any, account: Account) => type === 'bank' ? (account.bank_account_number || '-') : (account.card6_digits || '-')
       },
       {
         id: 'last_synced_at',
-        label: 'Last Synced',
+        label: t('accounts.table.lastSynced'),
         format: (val: string) => val ? (
           <Tooltip title={dateUtils.formatDate(val)}>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{formatRelativeTime(val)}</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{formatRelativeTime(val, t)}</Typography>
           </Tooltip>
         ) : (
-          <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>Never</Typography>
+          <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>{t('accounts.never')}</Typography>
         )
       },
       {
         id: 'is_active',
-        label: 'Active',
+        label: t('accounts.table.active'),
         align: 'center',
         format: (val: boolean, account: Account) => (
-          <Tooltip title={val ? 'Click to deactivate' : 'Click to activate'}>
+          <Tooltip title={val ? t('accounts.clickToDeactivate') : t('accounts.clickToActivate')}>
             <Switch
               checked={val}
               onChange={(e) => {
@@ -733,11 +747,11 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
       },
       {
         id: 'actions',
-        label: 'Actions',
+        label: t('accounts.table.actions'),
         align: 'right',
         format: (_: any, account: Account) => (
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-            <Tooltip title="Edit account">
+            <Tooltip title={t('accounts.table.editAccount')}>
               <IconButton
                 onClick={(e) => {
                   e.stopPropagation();
@@ -749,7 +763,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                 <EditIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title={account.is_active ? "Sync transactions" : "Activate account to sync"}>
+            <Tooltip title={account.is_active ? t('accounts.table.syncTransactions') : t('accounts.table.activateToSync')}>
               <span>
                 <IconButton
                   onClick={(e) => {
@@ -768,7 +782,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title="Delete all transactions">
+            <Tooltip title={t('accounts.table.deleteAllTransactions')}>
               <IconButton
                 onClick={(e) => {
                   e.stopPropagation();
@@ -780,7 +794,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                 <DeleteSweepIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Delete account">
+            <Tooltip title={t('accounts.table.deleteAccount')}>
               <IconButton
                 onClick={(e) => {
                   e.stopPropagation();
@@ -802,7 +816,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
         rows={accounts}
         columns={columns as any}
         rowKey={(row) => row.id}
-        emptyMessage={`No ${type === 'bank' ? 'bank' : 'credit card'} accounts found`}
+        emptyMessage={type === 'bank' ? t('accounts.noBankAccountsTable') : t('accounts.noCreditCardsTable')}
         mobileCardRenderer={(account) => (
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -811,10 +825,10 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
             </Box>
             <Box sx={{ mb: 1 }}>
               <Typography variant="caption" display="block" color="text.secondary">
-                {type === 'bank' ? 'Username: ' : 'ID: '} {account.username || account.id_number || '-'}
+                {type === 'bank' ? `${t('accounts.table.username')}: ` : `${t('accounts.table.idNumber')}: `} {account.username || account.id_number || '-'}
               </Typography>
               <Typography variant="caption" display="block" color="text.secondary">
-                {type === 'bank' ? 'Account: ' : 'Card: '} {type === 'bank' ? (account.bank_account_number || '-') : (account.card6_digits || '-')}
+                {type === 'bank' ? `${t('accounts.table.accountNumber')}: ` : `${t('accounts.table.cardLastDigits')}: `} {type === 'bank' ? (account.bank_account_number || '-') : (account.card6_digits || '-')}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -872,7 +886,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
         }}
       >
         <ModalHeader
-          title={isEditing ? "Edit Account" : "Accounts Management"}
+          title={isEditing ? t('accounts.editAccount') : t('accounts.title')}
           onClose={() => {
             if (isAdding || isEditing) {
               handleCancelForm();
@@ -899,7 +913,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                   }
                 }}
               >
-                Sync History
+                {t('accounts.syncHistory')}
               </Button>
             )
           }
@@ -916,7 +930,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                   },
                 }}
               >
-                Add Account
+                {t('accounts.addAccount')}
               </Button>
             )
           }
@@ -938,20 +952,20 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
           )}
           {isLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
-              Loading accounts...
+              {t('accounts.loadingAccounts')}
             </Box>
           ) : accounts.length === 0 && !isAdding && !isEditing ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', padding: '32px' }}>
-              No saved accounts found
+              {t('accounts.noSavedAccounts')}
             </Box>
           ) : isAdding || isEditing ? (
             <Box sx={{ p: 2 }}>
               <Typography variant="h6" sx={{ mb: 2, color: isEditing ? '#8b5cf6' : '#3b82f6' }}>
-                {isEditing ? 'Edit Account' : 'Add New Account'}
+                {isEditing ? t('accounts.editAccount') : t('accounts.addAccountTitle')}
               </Typography>
               <TextField
                 fullWidth
-                label="Account Nickname"
+                label={t('accounts.fields.accountNickname')}
                 value={formAccount.nickname}
                 onChange={(e) => setFormAccount({ ...formAccount, nickname: e.target.value })}
                 margin="normal"
@@ -960,7 +974,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
               <TextField
                 fullWidth
                 select
-                label="Vendor"
+                label={t('accounts.fields.vendor')}
                 value={formAccount.vendor}
                 onChange={(e) => {
                   const vendor = e.target.value;
@@ -994,7 +1008,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
               {(formAccount.vendor === 'visaCal' || formAccount.vendor === 'max' || BANK_VENDORS.includes(formAccount.vendor)) ? (
                 <TextField
                   fullWidth
-                  label="Username"
+                  label={t('accounts.fields.username')}
                   value={formAccount.username}
                   onChange={(e) => setFormAccount({ ...formAccount, username: e.target.value })}
                   margin="normal"
@@ -1003,7 +1017,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
               ) : (
                 <TextField
                   fullWidth
-                  label="ID Number"
+                  label={t('accounts.fields.idNumber')}
                   value={formAccount.id_number}
                   onChange={(e) => setFormAccount({ ...formAccount, id_number: e.target.value })}
                   margin="normal"
@@ -1013,49 +1027,49 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
               {STANDARD_BANK_VENDORS.includes(formAccount.vendor) && (
                 <TextField
                   fullWidth
-                  label="Bank Account Number"
+                  label={t('accounts.fields.bankAccountNumber')}
                   value={formAccount.bank_account_number}
                   onChange={(e) => setFormAccount({ ...formAccount, bank_account_number: e.target.value })}
                   margin="normal"
                   required
-                  helperText="Required for standard banks"
+                  helperText={t('accounts.fields.bankAccountHelper')}
                 />
               )}
               {BEINLEUMI_GROUP_VENDORS.includes(formAccount.vendor) && (
                 <TextField
                   fullWidth
-                  label="Username / ID"
+                  label={t('accounts.fields.usernameOrId')}
                   value={formAccount.username}
                   onChange={(e) => setFormAccount({ ...formAccount, username: e.target.value })}
                   margin="normal"
                   required
-                  helperText="Your ID number (no account number needed for this bank)"
+                  helperText={t('accounts.fields.beinleumiHelper')}
                 />
               )}
               {(formAccount.vendor === 'isracard' || formAccount.vendor === 'amex') && (
                 <TextField
                   fullWidth
-                  label="Card Last 6 Digits"
+                  label={t('accounts.fields.cardLast6Digits')}
                   value={formAccount.card6_digits}
                   onChange={(e) => setFormAccount({ ...formAccount, card6_digits: e.target.value })}
                   margin="normal"
                   required
-                  helperText="Required for login - the last 6 digits of your credit card"
+                  helperText={t('accounts.fields.card6DigitsHelper')}
                 />
               )}
               <TextField
                 fullWidth
-                label={isEditing ? "Password (leave blank to keep current)" : "Password"}
+                label={isEditing ? t('accounts.fields.passwordEditAlt') : t('accounts.fields.password')}
                 type="password"
                 value={formAccount.password}
                 onChange={(e) => setFormAccount({ ...formAccount, password: e.target.value })}
                 margin="normal"
                 required={!isEditing}
-                helperText={isEditing ? "Leave blank to keep the existing password" : undefined}
+                helperText={isEditing ? t('accounts.fields.passwordEditHelper') : undefined}
               />
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
                 <Button onClick={handleCancelForm} sx={{ mr: 1 }}>
-                  Cancel
+                  {t('accounts.actions.cancel')}
                 </Button>
                 <Button
                   variant="contained"
@@ -1067,7 +1081,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                     },
                   }}
                 >
-                  {isEditing ? 'Save Changes' : 'Add'}
+                  {isEditing ? t('accounts.actions.saveChanges') : t('accounts.actions.add')}
                 </Button>
               </Box>
             </Box>
@@ -1078,7 +1092,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                 <SectionHeader>
                   <AccountBalanceIcon sx={{ color: '#3b82f6', fontSize: '24px' }} />
                   <Typography variant="h6" color="primary">
-                    Bank Accounts ({bankAccounts.length})
+                    {t('accounts.bankAccountsCount', { count: bankAccounts.length })}
                   </Typography>
                 </SectionHeader>
                 {renderAccountTable(bankAccounts, 'bank')}
@@ -1089,7 +1103,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
                 <SectionHeader>
                   <CreditCardIcon sx={{ color: '#8b5cf6', fontSize: '24px' }} />
                   <Typography variant="h6" sx={{ color: '#8b5cf6' }}>
-                    Credit Card Accounts ({creditAccounts.length})
+                    {t('accounts.creditCardAccountsCount', { count: creditAccounts.length })}
                   </Typography>
                 </SectionHeader>
                 {renderAccountTable(creditAccounts, 'credit')}
@@ -1149,15 +1163,19 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
           gap: 1
         }}>
           <DeleteSweepIcon />
-          Truncate Account Data
+          {t('accounts.truncateTitle')}
         </DialogTitle>
         <DialogContent>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            Are you sure you want to delete <strong>all transactions</strong> for account{' '}
-            <strong>{truncateConfirm.account?.nickname || truncateConfirm.account?.vendor}</strong>?
+            <Trans
+              i18nKey="accounts.truncateConfirmBody"
+              t={t}
+              values={{ name: truncateConfirm.account?.nickname || truncateConfirm.account?.vendor || '' }}
+              components={{ strong: <strong /> }}
+            />
           </Typography>
           <Typography variant="body2" sx={{ color: '#ef4444' }}>
-            ⚠️ This action cannot be undone. All transaction history for this account will be permanently deleted.
+            {t('accounts.truncateWarning')}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ padding: '16px 24px' }}>
@@ -1165,7 +1183,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
             onClick={handleTruncateCancel}
             disabled={isTruncating}
           >
-            Cancel
+            {t('accounts.actions.cancel')}
           </Button>
           <Button
             onClick={handleTruncateConfirm}
@@ -1178,7 +1196,7 @@ export default function AccountsModal({ isOpen, onClose }: AccountsModalProps) {
               },
             }}
           >
-            {isTruncating ? 'Deleting...' : 'Delete All Transactions'}
+            {isTruncating ? t('accounts.deletingEllipsis') : t('accounts.deleteAllTransactions')}
           </Button>
         </DialogActions>
       </Dialog>

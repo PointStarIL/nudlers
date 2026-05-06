@@ -8,6 +8,7 @@ import {
     Checkbox,
     Typography
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface CategoryAutocompleteProps {
     value: string;
@@ -27,9 +28,10 @@ const CategoryAutocomplete: React.FC<CategoryAutocompleteProps> = ({
     applyToAll,
     onApplyToAllChange,
     showApplyToAll = false,
-    placeholder = "Enter category...",
+    placeholder,
     autoFocus = false
 }) => {
+    const { t } = useTranslation('tx');
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <Autocomplete
@@ -64,7 +66,7 @@ const CategoryAutocomplete: React.FC<CategoryAutocompleteProps> = ({
                 renderInput={(params) => (
                     <TextField
                         {...params}
-                        placeholder={placeholder}
+                        placeholder={placeholder ?? t('table.columnCategory')}
                         autoFocus={autoFocus}
                         sx={{
                             '& .MuiInputBase-input': {
@@ -76,7 +78,7 @@ const CategoryAutocomplete: React.FC<CategoryAutocompleteProps> = ({
                 )}
             />
             {showApplyToAll && onApplyToAllChange && (
-                <Tooltip title="When checked, applies to all transactions with the same description and creates a rule for future transactions">
+                <Tooltip title={t('actions.applyToAll')}>
                     <FormControlLabel
                         control={
                             <Checkbox
@@ -94,7 +96,7 @@ const CategoryAutocomplete: React.FC<CategoryAutocompleteProps> = ({
                         }
                         label={
                             <Typography sx={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                                Apply to all & create rule
+                                {t('actions.applyToAll')}
                             </Typography>
                         }
                         sx={{ margin: 0 }}

@@ -1,0 +1,122 @@
+{
+  "modal": {
+    "title": "Category Management"
+  },
+  "tabs": {
+    "categories": "Categories",
+    "rules": "Rules",
+    "mappings": "Mappings",
+    "uncategorized": "Uncategorized"
+  },
+  "categories": {
+    "selectedToMerge": "Selected to Merge ({{count}})",
+    "clickToSelect": "Click categories below to select",
+    "newCategoryName": "New Category Name",
+    "newCategoryPlaceholder": "e.g., Food & Dining",
+    "mergeCategories": "Merge Categories",
+    "autoMappingHint": "Auto-mapping will be created for future imports",
+    "allCategories": "All Categories ({{count}})",
+    "searchPlaceholder": "Search categories..."
+  },
+  "rules": {
+    "sectionTitle": "Categorization Rules",
+    "description": "Create rules to automatically categorize transactions based on their names. Rules will be applied to existing and new transactions.",
+    "patternLabel": "Transaction Name Pattern",
+    "patternPlaceholder": "e.g., 'starbucks' or 'netflix'",
+    "targetCategoryLabel": "Target Category",
+    "targetCategoryPlaceholder": "e.g., 'Food' or 'Entertainment'",
+    "addButton": "Add",
+    "applyToExisting": "Apply Rules to Existing Transactions",
+    "activeRules": "Active Rules ({{count}})",
+    "noRules": "No rules created yet. Create your first rule above.",
+    "ruleIfContains": "IF transaction name contains \"{{pattern}}\"",
+    "ruleThenSet": "THEN set category to \"{{category}}\"",
+    "editRuleTitle": "Edit Rule",
+    "updateButton": "Update"
+  },
+  "mappings": {
+    "sectionTitle": "Category Mappings",
+    "description": "When you merge categories, a mapping is created. Any new transactions scraped from a source category will automatically be moved to the target category.",
+    "infoNotice": "Mappings are created automatically during the Merge process.",
+    "createManual": "Create Manual Mapping",
+    "sourceLabel": "Source Category",
+    "sourcePlaceholder": "e.g. Scraper Category",
+    "targetLabel": "Target Mapping",
+    "targetPlaceholder": "e.g. Your Category",
+    "addButton": "Add",
+    "activeMappings": "Active Mappings ({{count}})",
+    "noMappings": "No mappings found. Merge categories to create them.",
+    "sourceColumn": "Source",
+    "targetColumn": "Target",
+    "tooltipEditTarget": "Edit target category",
+    "tooltipRemove": "Remove mapping"
+  },
+  "quick": {
+    "allDone": "All Done!",
+    "allDoneSubtitle": "All transactions have been categorized.",
+    "sessionTotal": "You categorized {{count}} description(s) in this session.",
+    "sessionComplete": "Session Complete!",
+    "sessionCompleteSubtitle": "You categorized {{count}} description(s).",
+    "assignCategories": "Assign Categories",
+    "remainingCount": "{{count}} remaining",
+    "txnsBadge": "{{count}} txns",
+    "skipForNow": "Skip for now",
+    "selectCategoryHint": "Select a category:",
+    "newCategoryPlaceholder": "New category",
+    "addNewButton": "Add New",
+    "tableDate": "Date",
+    "tableAmount": "Amount",
+    "tableCard": "Card"
+  },
+  "renameDialog": {
+    "title": "Rename Category",
+    "description": "Rename \"{{name}}\" to a new name. All transactions with this category will be updated.",
+    "newNameLabel": "New Category Name",
+    "renameButton": "Rename"
+  },
+  "deleteDialog": {
+    "title": "Delete Category",
+    "description": "Are you sure you want to delete \"{{name}}\"? All transactions with this category will become uncategorized.",
+    "alsoDeleteRules": "Also delete categorization rules targeting this category",
+    "alsoDeleteBudget": "Also delete budget for this category"
+  },
+  "errors": {
+    "selectAtLeastTwo": "Please select at least 2 categories to merge",
+    "enterMergedName": "Please enter a name for the new merged category",
+    "failedToMerge": "Failed to merge categories",
+    "failedToFetchUncategorized": "Failed to fetch uncategorized descriptions",
+    "failedToFetchTransactions": "Failed to fetch transactions",
+    "failedToUpdateCategory": "Failed to update category",
+    "loadCategories": "Failed to load categories: {{message}}",
+    "loadRules": "Failed to load rules",
+    "failedToFetchRules": "Failed to fetch rules",
+    "loadMappings": "Failed to load category mappings",
+    "failedToFetchMappings": "Failed to fetch mappings",
+    "failedToDeleteMapping": "Failed to delete mapping",
+    "failedToUpdateMapping": "Failed to update mapping",
+    "failedToCreateMapping": "Failed to create mapping",
+    "enterNewName": "Please enter a new category name",
+    "newNameDifferent": "New category name must be different from the current name",
+    "failedToRename": "Failed to rename category",
+    "failedToDeleteCategory": "Failed to delete category",
+    "patternAndCategory": "Please enter both pattern and category",
+    "failedToCreateRule": "Failed to create rule",
+    "failedToUpdateRule": "Failed to update rule",
+    "failedToDeleteRule": "Failed to delete rule",
+    "failedToApplyRules": "Failed to apply rules",
+    "unknown": "Unknown error occurred"
+  },
+  "success": {
+    "merged": "Successfully merged {{count}} categories into \"{{name}}\"",
+    "renamed": "Successfully renamed \"{{oldName}}\" to \"{{newName}}\" ({{count}} transactions updated)",
+    "deletedCategory": "Successfully deleted \"{{name}}\" ({{count}} transactions uncategorized)",
+    "ruleCreated": "Rule created successfully",
+    "ruleUpdated": "Rule updated successfully",
+    "ruleDeleted": "Rule deleted successfully",
+    "rulesApplied": "Successfully applied {{rules}} rules to {{transactions}} transactions",
+    "quickUpdated": "Updated {{count}} transaction(s) to \"{{category}}\"",
+    "mappingCreated": "Mapping created successfully",
+    "mappingUpdated": "Mapping updated successfully",
+    "mappingRemoved": "Mapping removed successfully"
+  }
+}

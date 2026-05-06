@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { logger } from '../utils/client-logger';
 import {
   Dialog,
@@ -72,6 +73,7 @@ const HiddenInput = styled('input')({
 
 const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose }) => {
   const theme = useTheme();
+  const { t } = useTranslation(['misc', 'common']);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMode, setImportMode] = useState<'replace' | 'merge'>('replace');
@@ -88,7 +90,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
       const response = await fetch('/api/maintenance/database/export');
 
       if (!response.ok) {
-        throw new Error('Export failed');
+        throw new Error(t('misc:databaseBackup.export.errorGeneric'));
       }
 
       const data = await response.json();
@@ -112,13 +114,13 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
 
       setResult({
         type: 'success',
-        message: `Exported ${totalRows} records from ${Object.keys(data.tables).length} tables`
+        message: t('misc:databaseBackup.export.successMessage', { rows: totalRows, tables: Object.keys(data.tables).length })
       });
     } catch (error) {
       logger.error('Export error', error as Error);
       setResult({
         type: 'error',
-        message: 'Failed to export database'
+        message: t('misc:databaseBackup.export.errorMessage')
       });
     } finally {
       setExporting(false);
@@ -147,7 +149,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
 
       // Validate backup format
       if (!data.tables || !data.version) {
-        throw new Error('Invalid backup file format');
+        throw new Error(t('misc:databaseBackup.import.invalidFormatError'));
       }
 
       const response = await fetch('/api/maintenance/database/import', {
@@ -161,7 +163,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
       const importRes: ImportResult = await response.json();
 
       if (!response.ok) {
-        throw new Error((importRes as any).error || 'Import failed');
+        throw new Error((importRes as any).error || t('misc:databaseBackup.import.errorGeneric'));
       }
 
       setImportResult(importRes);
@@ -173,21 +175,21 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
         );
         setResult({
           type: 'success',
-          message: `Successfully imported ${totalImported} records`
+          message: t('misc:databaseBackup.import.successMessage', { count: totalImported })
         });
         // Trigger data refresh
         window.dispatchEvent(new CustomEvent('dataRefresh'));
       } else {
         setResult({
           type: 'warning',
-          message: 'Import completed with some errors'
+          message: t('misc:databaseBackup.import.warningMessage')
         });
       }
     } catch (error: any) {
       logger.error('Import error', error);
       setResult({
         type: 'error',
-        message: error.message || 'Failed to import database'
+        message: error.message || t('misc:databaseBackup.import.errorMessage')
       });
     } finally {
       setImporting(false);
@@ -215,7 +217,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
       }}>
         <StorageIcon sx={{ color: 'var(--status-info)' }} />
         <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
-          Database Backup & Restore
+          {t('misc:databaseBackup.title')}
         </Typography>
       </DialogTitle>
 
@@ -240,10 +242,10 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
               <CloudDownloadIcon sx={{ color: 'var(--status-success)', fontSize: 32 }} />
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5, color: theme.palette.text.primary }}>
-                  Export Database
+                  {t('misc:databaseBackup.export.heading')}
                 </Typography>
                 <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                  Download a complete backup of all your data as a JSON file
+                  {t('misc:databaseBackup.export.description')}
                 </Typography>
               </Box>
             </Box>
@@ -260,7 +262,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
                 }
               }}
             >
-              {exporting ? 'Exporting...' : 'Export Backup'}
+              {exporting ? t('misc:databaseBackup.export.buttonExporting') : t('misc:databaseBackup.export.button')}
             </Button>
             {exporting && <LinearProgress sx={{ mt: 2 }} />}
           </ActionCard>
@@ -273,17 +275,17 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
               <CloudUploadIcon sx={{ color: 'var(--status-info)', fontSize: 32 }} />
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5, color: theme.palette.text.primary }}>
-                  Import Database
+                  {t('misc:databaseBackup.import.heading')}
                 </Typography>
                 <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                  Restore your data from a previously exported backup file
+                  {t('misc:databaseBackup.import.description')}
                 </Typography>
               </Box>
             </Box>
 
             <FormControl component="fieldset" sx={{ mb: 2 }}>
               <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 1 }}>
-                Import Mode:
+                {t('misc:databaseBackup.import.modeLabel')}
               </Typography>
               <RadioGroup
                 row
@@ -295,9 +297,9 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
                   control={<Radio size="small" />}
                   label={
                     <Box>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>Replace All</Typography>
+                      <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>{t('misc:databaseBackup.import.replaceLabel')}</Typography>
                       <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                        Clear existing data and import backup
+                        {t('misc:databaseBackup.import.replaceDescription')}
                       </Typography>
                     </Box>
                   }
@@ -308,9 +310,9 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
                   control={<Radio size="small" />}
                   label={
                     <Box>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>Merge</Typography>
+                      <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>{t('misc:databaseBackup.import.mergeLabel')}</Typography>
                       <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                        Add new records, keep existing
+                        {t('misc:databaseBackup.import.mergeDescription')}
                       </Typography>
                     </Box>
                   }
@@ -320,7 +322,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
 
             {importMode === 'replace' && (
               <Alert severity="warning" sx={{ mb: 2 }}>
-                Warning: This will delete all existing data before importing!
+                {t('misc:databaseBackup.import.replaceWarning')}
               </Alert>
             )}
 
@@ -344,7 +346,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
                   }
                 }}
               >
-                Select Backup File
+                {t('misc:databaseBackup.import.selectFile')}
               </Button>
               {selectedFile && (
                 <Chip
@@ -376,7 +378,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
                 }
               }}
             >
-              {importing ? 'Importing...' : 'Import Backup'}
+              {importing ? t('misc:databaseBackup.import.buttonImporting') : t('misc:databaseBackup.import.button')}
             </Button>
             {importing && <LinearProgress sx={{ mt: 2 }} />}
           </ActionCard>
@@ -391,7 +393,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
             }}>
               <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1, color: theme.palette.text.primary }}>
                 <TableChartIcon fontSize="small" />
-                Import Results:
+                {t('misc:databaseBackup.results.heading')}
               </Typography>
               <List dense>
                 {Object.entries(importResult.imported).map(([table, info]) => (
@@ -411,7 +413,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
                       }
                       secondary={
                         <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                          {info.skipped ? 'No data' : `${info.count} records`}
+                          {info.skipped ? t('misc:databaseBackup.results.noData') : t('misc:databaseBackup.results.recordsCount', { count: info.count })}
                         </Typography>
                       }
                     />
@@ -421,7 +423,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
               {importResult.errors.length > 0 && (
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="subtitle2" sx={{ color: 'var(--status-error)', mb: 1 }}>
-                    Errors:
+                    {t('misc:databaseBackup.results.errorsHeading')}
                   </Typography>
                   {importResult.errors.map((err, idx) => (
                     <Typography key={idx} variant="caption" sx={{ color: 'var(--error-text)', display: 'block' }}>
@@ -443,7 +445,7 @@ const DatabaseBackupModal: React.FC<DatabaseBackupModalProps> = ({ open, onClose
           onClick={handleClose}
           sx={{ color: theme.palette.text.secondary }}
         >
-          Close
+          {t('common:actions.close')}
         </Button>
       </DialogActions>
     </StyledDialog>

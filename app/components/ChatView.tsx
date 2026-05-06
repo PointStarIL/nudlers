@@ -28,6 +28,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ChatIcon from '@mui/icons-material/Chat';
 import { useScreenContext } from './Layout';
+import { useTranslation } from 'react-i18next';
 
 interface Message {
     id: string;
@@ -95,6 +96,7 @@ const ChatView: React.FC = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { screenContext } = useScreenContext();
+    const { t } = useTranslation('views');
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -229,11 +231,11 @@ const ChatView: React.FC = () => {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || 'Failed to get response');
+                throw new Error(errorData.error || t('chat.errorFailedToGet'));
             }
 
             const reader = response.body?.getReader();
-            if (!reader) throw new Error('No stream');
+            if (!reader) throw new Error(t('chat.errorNoStream'));
 
             const decoder = new TextDecoder();
             let buffer = '';
@@ -259,9 +261,9 @@ const ChatView: React.FC = () => {
                             if (data.error) {
                                 setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: data.error, status: 'error' } : m));
                             } else if (data.status === 'thinking') {
-                                setCurrentStatus('Thinking...');
+                                setCurrentStatus(t('chat.thinking'));
                             } else if (data.status === 'fetching_data') {
-                                setCurrentStatus(data.message || 'Fetching data...');
+                                setCurrentStatus(data.message || t('chat.fetchingDataDefault'));
                             } else if (data.status === 'streaming' || data.status === 'complete') {
                                 setCurrentStatus('');
                                 setMessages(prev => prev.map(m =>
@@ -280,7 +282,7 @@ const ChatView: React.FC = () => {
             }
         } catch (err) {
             if ((err as Error).name !== 'AbortError') {
-                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: 'Error: ' + (err as Error).message, status: 'error' } : m));
+                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, content: t('chat.errorWithMessage', { message: (err as Error).message }), status: 'error' } : m));
             }
         } finally {
             setIsLoading(false);
@@ -331,7 +333,7 @@ const ChatView: React.FC = () => {
                             }
                         }}
                     >
-                        New Chat
+                        {t('chat.newChat')}
                     </Button>
                 </Box>
 
@@ -367,7 +369,7 @@ const ChatView: React.FC = () => {
                                             <ChatIcon fontSize="small" />
                                         </ListItemIcon>
                                         <ListItemText
-                                            primary={session.title || 'New Conversation'}
+                                            primary={session.title || t('chat.newConversation')}
                                             sx={{
                                                 '& .MuiTypography-root': {
                                                     fontSize: '0.875rem',
@@ -412,14 +414,14 @@ const ChatView: React.FC = () => {
                                 <ForumIcon sx={{ fontSize: 40, color: 'white' }} />
                             </Box>
                             <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>
-                                Chat with Nudlers AI
+                                {t('chat.emptyStateTitle')}
                             </Typography>
                             <Typography variant="body1" sx={{ color: 'text.secondary', textAlign: 'center', maxWidth: 400 }}>
-                                Ask me anything about your expenses, budgets, or financial trends. I have full access to your transaction history.
+                                {t('chat.emptyStateDescription')}
                             </Typography>
 
                             <Box sx={{ mt: 4, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
-                                {["Summarize my spending this month", "What are my biggest expenses?", "How much did I spend on groceries in the last 3 months?"].map((q, i) => (
+                                {[t('chat.examples.summarizeMonth'), t('chat.examples.biggestExpenses'), t('chat.examples.groceriesLast3Months')].map((q, i) => (
                                     <Button
                                         key={i}
                                         variant="outlined"
@@ -485,7 +487,7 @@ const ChatView: React.FC = () => {
                                         ) : (
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.5 }}>
                                                 <CircularProgress size={16} sx={{ color: msg.role === 'user' ? 'white' : '#6366f1' }} />
-                                                <Typography variant="body2" sx={{ opacity: 0.8 }}>{currentStatus || 'Thinking...'}</Typography>
+                                                <Typography variant="body2" sx={{ opacity: 0.8 }}>{currentStatus || t('chat.thinking')}</Typography>
                                             </Box>
                                         )}
                                     </Paper>
@@ -503,7 +505,7 @@ const ChatView: React.FC = () => {
                                 fullWidth
                                 multiline
                                 maxRows={6}
-                                placeholder="Ask Nudlers Assistant..."
+                                placeholder={t('chat.placeholderNudlers')}
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={(e) => {
