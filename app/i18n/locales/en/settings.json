@@ -76,6 +76,8 @@
     "renewHelp": "Renew QR to link a different WhatsApp account or fix connection issues",
     "enableLabel": "Enable Daily Summary",
     "enableDesc": "Send a daily financial summary via WhatsApp",
+    "notifyUnlockLabel": "Notify on Unlock After Restart",
+    "notifyUnlockDesc": "Send a one-shot WhatsApp message the first time the vault is unlocked after the app restarts",
     "modeLabel": "Summary Mode",
     "modeDesc": "Time period to cover in the summary",
     "modeCalendar": "Calendar Month (1st-30th)",
