@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { sendWhatsAppMessage } from '../utils/whatsapp.js';
-import { getOrCreateClient } from '../utils/whatsapp-client.js';
+import { ensureConnected } from '../utils/whatsapp-client.js';
 
 // Mock the modules
 vi.mock('../utils/whatsapp-client.js', () => ({
-    getOrCreateClient: vi.fn(),
+    ensureConnected: vi.fn(),
 }));
 
 vi.mock('../utils/logger.js', () => ({
@@ -23,10 +23,7 @@ describe('sendWhatsAppMessage', () => {
         mockClient = {
             sendMessage: vi.fn().mockResolvedValue({ id: { _serialized: 'msg123' } }),
         };
-        (getOrCreateClient as any).mockReturnValue(mockClient);
-
-        // Mock global status
-        (global as any).whatsappStatus = 'READY';
+        (ensureConnected as any).mockResolvedValue(mockClient);
     });
 
     it('should send a message to a single phone number', async () => {
@@ -74,13 +71,15 @@ describe('sendWhatsAppMessage', () => {
         expect(result.sent).toBe(2);
     });
 
-    it('should throw error if client is not ready', async () => {
-        (global as any).whatsappStatus = 'DISCONNECTED';
+    it('should throw error if client cannot be connected', async () => {
+        (ensureConnected as any).mockRejectedValueOnce(
+            new Error('WhatsApp client did not become ready within 60000ms')
+        );
 
         await expect(sendWhatsAppMessage({
             to: '972501234567',
             body: 'Hello',
-        })).rejects.toThrow(/WhatsApp client not ready/);
+        })).rejects.toThrow(/did not become ready/);
     });
 
     it('should continue if one recipient fails but others succeed', async () => {

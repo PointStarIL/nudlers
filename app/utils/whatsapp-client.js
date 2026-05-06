@@ -269,6 +269,62 @@ export async function restartClient() {
     return initializeClient();
 }
 
+const READY_TIMEOUT_MS = 60000;
+
+/**
+ * Wait until `ready` fires (or `auth_failure` / timeout). Used by ensureConnected()
+ * after a fresh init to confirm the client is actually usable, not just constructed.
+ */
+function waitForReady(client, timeoutMs) {
+    return new Promise((resolve, reject) => {
+        const cleanup = () => {
+            clearTimeout(timer);
+            client.off?.('ready', onReady);
+            client.off?.('auth_failure', onAuthFail);
+        };
+        const onReady = () => { cleanup(); resolve(); };
+        const onAuthFail = (msg) => {
+            cleanup();
+            reject(new Error(`WhatsApp authentication failure: ${msg}`));
+        };
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error(`WhatsApp client did not become ready within ${timeoutMs}ms`));
+        }, timeoutMs);
+        client.once('ready', onReady);
+        client.once('auth_failure', onAuthFail);
+    });
+}
+
+/**
+ * Verify the client is actually connected and ready to send.
+ * Probes client.getState() — this catches the "zombie READY" case where our
+ * cached event-based status is READY but the underlying Chromium has died.
+ * If unhealthy or missing, restarts and waits for `ready` before returning.
+ * Throws if reconnection fails (e.g. session expired and a fresh QR scan is needed).
+ */
+export async function ensureConnected({ timeoutMs = READY_TIMEOUT_MS } = {}) {
+    const existing = getClient();
+    if (existing) {
+        try {
+            const state = await existing.getState();
+            if (state === 'CONNECTED') {
+                return existing;
+            }
+            logger.warn({ state }, 'WhatsApp client not CONNECTED, will reconnect before sending');
+        } catch (err) {
+            logger.warn({ err: err.message }, 'WhatsApp client.getState() threw, will reconnect before sending');
+        }
+    } else {
+        logger.info('No WhatsApp client instance, will initialize before sending');
+    }
+
+    const fresh = await restartClient();
+    await waitForReady(fresh, timeoutMs);
+    logger.info('WhatsApp client reconnected and ready');
+    return fresh;
+}
+
 /**
  * Clear the persisted WhatsApp session from disk.
  * This removes the stored authentication data, requiring a fresh QR scan.
