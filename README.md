@@ -12,6 +12,8 @@
 
 <p align="center">
   <em>Automatically aggregate, categorize, and analyze your finances from all Israeli banks and credit cards in one beautiful dashboard.</em>
+  <br>
+  Self-hosted · Open source · Hebrew &amp; English (RTL) · Local-only by design
 </p>
 
 <p align="center">
@@ -32,6 +34,7 @@ Managing finances across multiple Israeli banks and credit cards is a nightmare.
 |-------------|---------------------|
 | Scattered data across 5+ apps | One unified dashboard |
 | Manual transaction logging | Automatic daily sync |
+| Forgotten subscriptions and silent price hikes | Insights inbox flags them automatically |
 | No cross-bank insights | AI-powered analysis |
 | Time wasted on categorization | Smart auto-categorization |
 | Missed budget alerts | WhatsApp notifications |
@@ -61,14 +64,25 @@ Stop wasting time manually categorizing transactions. Nudlers learns your spendi
 
 > 95%+ of transactions are categorized automatically after initial setup
 
+### 🔔 Insights — anomalies worth your attention
+
+A dedicated "Insights" view (תובנות) surfaces things that would otherwise hide in the noise. Everything is computed locally, fingerprinted so re-runs don't double-flag, and re-evaluated automatically after each daily sync.
+
+- **Price hikes on subscriptions** — "Apple Music: ₪19.90 → ₪29.90 after 8 stable months." Catches silent price increases that most apps miss because the new amount clusters separately from the historical pattern.
+- **New recurring charges** — Surfaces forgotten free trials that quietly turned into monthly charges, on the second or third confirmation.
+- **Category spend spikes** — Flags weeks where a category jumps statistically far above its trailing-12-week mean (μ + 2σ). Skips income/refund weeks; requires real history before it'll fire.
+- **Daily WhatsApp digest** — High and medium-severity anomalies are folded into the top of the daily summary message, so you see them without opening the app.
+- **Inbox actions** — Dismiss, mark "this is normal," or acknowledge — with optimistic updates and rollback on failure.
+
 ### 📱 Native WhatsApp Integration
 
 Get your daily financial summary delivered right to WhatsApp — no Twilio, no third-party services.
 
-- **Daily Summaries** — Wake up to yesterday's spending overview
-- **Budget Alerts** — Know when you're approaching limits
+- **Daily Summaries** — Wake up to yesterday's spending overview, with insight alerts at the top when something fired
+- **Restart Notification** — Optional one-shot ping when the app comes back up and the vault is locked, so you know to go unlock it (great for catching unexpected NAS reboots or deploys)
+- **Resilient Send Path** — Connection is verified before each send and reconnected automatically if the WhatsApp Web session drifted into a stale state
 - **Group Support** — Share summaries with family or partners
-- **QR Code Setup** — Connect in seconds, stays connected forever
+- **QR Code Setup** — Connect in seconds, session persists across restarts
 
 ### 🤖 AI-Powered Insights
 
@@ -128,6 +142,16 @@ Your credentials never leave your machine unencrypted.
 - **Secure by Design** — Credentials decrypted only at scraping time
 - **Memory-Locked Vault** — Mandatory security layer. Your master key exists only in RAM. Even if your server is compromised, credentials remain unreadable without your passphrase
 - **Passkey / Biometric Unlock** — Use TouchID, FaceID, or a hardware security key to unlock the vault without typing your passphrase
+- **Native 2FA Flows** — Built-in support for OneZero's two-factor authentication and Bank Hapoalim's OTP, no third-party extensions required
+- **Zero Telemetry** — No analytics, no remote logs, no "anonymized usage data." If you don't see it in DevTools, it isn't happening
+
+### 🌐 Hebrew & English, with proper RTL
+
+Built for the Israeli banking ecosystem, with first-class support for both languages.
+
+- **Live language switch** — Toggle between עברית and English from the menu; the entire UI flips direction without a reload
+- **Real RTL** — Card corners, arrow direction, table alignment, financial number layout — all behave correctly in both directions, not bolt-on right-to-left
+- **Hebrew display fonts** — Heebo for the UI, with English text rendering in Inter when the app is in English mode
 
 ### 🔒 Memory-Locked Credentials (Vault)
 
@@ -217,6 +241,9 @@ From powerful servers to a Raspberry Pi — Nudlers adapts to your hardware.
 | **Hapoalim** | **Leumi** | **Mizrahi Tefahot** | **Discount** |
 | **FIBI** | **Yahav** | **Otsar Hahayal** | **Beinleumi** |
 | **Massad** | **Union** | **Jerusalem** | **Pepper** |
+| **OneZero** | | | |
+
+> **Native 2FA** is built in for OneZero and Bank Hapoalim's OTP flow — no manual code-typing per sync.
 
 ### Credit Cards
 | | | | |
@@ -305,11 +332,13 @@ All settings are configurable through the **Settings UI** (gear icon in navigati
 
 | Category | Settings |
 |----------|----------|
+| **Language** | Hebrew or English (RTL flips automatically) |
 | **Sync** | Enable/disable, sync hour, days to fetch |
 | **Display** | Currency, date format, billing cycle start day |
 | **Scraper** | Timeout, show browser (debugging), category fetching |
 | **AI** | Provider base URL, API key, model slug |
-| **WhatsApp** | Enable, send hour, recipients, summary mode |
+| **WhatsApp** | Enable summary, send hour, recipients, summary mode, restart-locked notification |
+| **Vault** | Passphrase, passkeys, change-passphrase |
 
 ---
 
@@ -568,10 +597,11 @@ nudlers/
 │   │   ├── Layout.tsx            # App shell with navigation
 │   │   └── ...
 │   ├── pages/
-│   │   ├── api/                  # 55 API endpoints
+│   │   ├── api/                  # API routes
 │   │   │   ├── transactions/     # Transaction CRUD
 │   │   │   ├── scrapers/         # Scraper control
 │   │   │   ├── reports/          # Financial reports
+│   │   │   ├── anomalies/        # Insights inbox + manual evaluator
 │   │   │   ├── mcp.ts            # MCP integration endpoint
 │   │   │   └── ...
 │   │   └── index.tsx
