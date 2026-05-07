@@ -154,10 +154,63 @@ async function maybeNotifyUnlock() {
     });
     const body = `🔓 Nudlers — הכספת נפתחה\n${time}\n(אחרי הפעלה מחדש של האפליקציה)`;
 
+    // At server startup the WhatsApp client is usually still INITIALIZING
+    // (loading its persisted session). Sending immediately would throw
+    // "client not ready", get swallowed by our fire-and-forget catch, and
+    // burn the one-shot flag for nothing. Wait for it to actually be usable
+    // before attempting the send.
+    try {
+        await waitForWhatsAppReady(90_000);
+    } catch (err) {
+        logger.warn({ err: err.message }, 'WhatsApp not ready in time; skipping unlock notification');
+        return;
+    }
+
     // Dynamic import so a missing/broken WhatsApp module never breaks unlock.
     const { sendWhatsAppMessage } = await import('./whatsapp.js');
     await sendWhatsAppMessage({ to: recipients, body });
     logger.info('Unlock notification sent');
+}
+
+/**
+ * Resolve when the WhatsApp client is READY (or AUTHENTICATED) and able to
+ * send. Resolves immediately if it already is. Otherwise listens for the
+ * `ready` event on the underlying singleton, with a hard timeout. Rejects on
+ * `auth_failure` or timeout — both are signals to drop the notification rather
+ * than spin forever.
+ */
+async function waitForWhatsAppReady(timeoutMs) {
+    const globalAny = global;
+    const status = globalAny.whatsappStatus;
+    if (status === 'READY' || status === 'AUTHENTICATED') return;
+
+    // Pull a client reference (creates one if the singleton hasn't booted yet,
+    // which can happen if instrumentation.ts skipped initialization).
+    const { getOrCreateClient } = await import('./whatsapp-client.js');
+    const client = getOrCreateClient();
+
+    return new Promise((resolve, reject) => {
+        const cleanup = () => {
+            clearTimeout(timer);
+            client.off?.('ready', onReady);
+            client.off?.('authenticated', onAuthed);
+            client.off?.('auth_failure', onFail);
+        };
+        const onReady = () => { cleanup(); resolve(); };
+        const onAuthed = () => { cleanup(); resolve(); };
+        const onFail = (msg) => {
+            cleanup();
+            reject(new Error(`WhatsApp authentication failure: ${msg}`));
+        };
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error(`WhatsApp client did not become ready within ${timeoutMs}ms`));
+        }, timeoutMs);
+
+        client.once('ready', onReady);
+        client.once('authenticated', onAuthed);
+        client.once('auth_failure', onFail);
+    });
 }
 
 /**

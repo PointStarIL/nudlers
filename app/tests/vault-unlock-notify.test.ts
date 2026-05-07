@@ -8,6 +8,32 @@ vi.mock('../pages/api/db', () => ({
 vi.mock('../utils/whatsapp.js', () => ({
     sendWhatsAppMessage: vi.fn(),
 }));
+vi.mock('../utils/whatsapp-client.js', () => {
+    // A minimal EventEmitter stand-in for the wwjs client. Tests can fire
+    // 'ready' / 'auth_failure' on it to drive the readiness wait.
+    const listeners = new Map<string, Function[]>();
+    const client = {
+        once: vi.fn((evt: string, cb: Function) => {
+            if (!listeners.has(evt)) listeners.set(evt, []);
+            listeners.get(evt)!.push(cb);
+        }),
+        off: vi.fn((evt: string, cb: Function) => {
+            const arr = listeners.get(evt);
+            if (!arr) return;
+            const idx = arr.indexOf(cb);
+            if (idx >= 0) arr.splice(idx, 1);
+        }),
+        emit: (evt: string, ...args: unknown[]) => {
+            const arr = listeners.get(evt) || [];
+            // Drain — `once` semantics mean we only fire each callback at most once.
+            const snapshot = arr.slice();
+            arr.length = 0;
+            snapshot.forEach((cb) => cb(...args));
+        },
+        _reset: () => listeners.clear(),
+    };
+    return { getOrCreateClient: vi.fn(() => client), __mockClient: client };
+});
 vi.mock('../utils/logger.js', () => ({
     default: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
@@ -15,7 +41,11 @@ vi.mock('../utils/logger.js', () => ({
 import { unlockVaultWithPassphrase, _resetUnlockNotificationFlagForTests } from '../utils/vault-utils';
 import { getDB } from '../pages/api/db';
 import { sendWhatsAppMessage } from '../utils/whatsapp.js';
+import * as whatsappClientModule from '../utils/whatsapp-client.js';
 import VaultStore from '../pages/api/utils/VaultStore';
+
+// Pull the EventEmitter-shaped stand-in we built in the mock factory.
+const mockWaClient = (whatsappClientModule as unknown as { __mockClient: { emit: (evt: string, ...args: unknown[]) => void; _reset: () => void } }).__mockClient;
 
 const PASSPHRASE = 'test-passphrase-123';
 
@@ -76,10 +106,16 @@ describe('unlockVaultWithPassphrase — WhatsApp notify on unlock', () => {
         vi.clearAllMocks();
         VaultStore.clear();
         _resetUnlockNotificationFlagForTests();
+        mockWaClient._reset();
+        // Default for the existing tests: WhatsApp is already up and running,
+        // so waitForWhatsAppReady() short-circuits and tests don't need to
+        // emit any event to make the send happen.
+        (global as unknown as { whatsappStatus?: string }).whatsappStatus = 'READY';
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
+        delete (global as unknown as { whatsappStatus?: string }).whatsappStatus;
     });
 
     it('does NOT send a WhatsApp message when the setting is disabled', async () => {
@@ -144,6 +180,52 @@ describe('unlockVaultWithPassphrase — WhatsApp notify on unlock', () => {
         await flushMicrotasks();
 
         expect(result.success).toBe(true);
+        expect(VaultStore.isLocked()).toBe(false);
+    });
+
+    it('waits for the ready event when WhatsApp is still INITIALIZING at unlock time, then sends', async () => {
+        // Reproduce the actual production race: user just restarted the app
+        // and unlocked while the WhatsApp client is still loading its session.
+        (global as unknown as { whatsappStatus?: string }).whatsappStatus = 'INITIALIZING';
+
+        const { wrappedStr, saltHex } = buildWrappedMasterKey();
+        mockSettingsRows({ wrappedStr, saltHex, notifyEnabled: true, recipients: '972501234567' });
+        (sendWhatsAppMessage as any).mockResolvedValue({ success: true, sent: 1 });
+
+        const result = await unlockVaultWithPassphrase(PASSPHRASE);
+        await flushMicrotasks();
+
+        expect(result.success).toBe(true);
+        // Send must NOT have happened yet — we're still waiting on `ready`.
+        expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+
+        // Simulate WhatsApp finishing its session restore.
+        mockWaClient.emit('ready');
+        // Two flushes: one for `ready` resolving the wait, one for the awaited send.
+        await flushMicrotasks();
+        await flushMicrotasks();
+
+        expect(sendWhatsAppMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops the notification (without crashing) if WhatsApp auth fails while we wait', async () => {
+        (global as unknown as { whatsappStatus?: string }).whatsappStatus = 'INITIALIZING';
+
+        const { wrappedStr, saltHex } = buildWrappedMasterKey();
+        mockSettingsRows({ wrappedStr, saltHex, notifyEnabled: true, recipients: '972501234567' });
+
+        const result = await unlockVaultWithPassphrase(PASSPHRASE);
+        await flushMicrotasks();
+
+        expect(result.success).toBe(true);
+        expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+
+        mockWaClient.emit('auth_failure', 'session expired');
+        await flushMicrotasks();
+        await flushMicrotasks();
+
+        // Still no send — auth failure aborted the wait, and unlock survived.
+        expect(sendWhatsAppMessage).not.toHaveBeenCalled();
         expect(VaultStore.isLocked()).toBe(false);
     });
 
