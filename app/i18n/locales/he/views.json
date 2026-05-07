@@ -7,6 +7,27 @@
     "endOfPeriod": "זה הכל לתקופה זו ✨",
     "unassigned": "ללא קטגוריה"
   },
+  "insights": {
+    "title": "תובנות",
+    "subtitle": "דברים ששווה להעיף מבט שני עליהם",
+    "empty": "אין משהו חריג — הפיננסים שלך נראים בסדר.",
+    "emptyHint": "כאן יופיעו עליות מחירים, מנויים חדשים, וקפיצות בהוצאה לפי קטגוריה.",
+    "filterAll": "הכול",
+    "filterPriceHike": "עליות מחיר",
+    "filterNewRecurring": "מנויים חדשים",
+    "filterCategorySpike": "קפיצות בקטגוריה",
+    "actionAcknowledge": "ראיתי",
+    "actionDismiss": "סגור",
+    "actionNormal": "זה תקין",
+    "actionReview": "צפייה בעסקאות",
+    "severityHigh": "עדיפות גבוהה",
+    "severityMedium": "שווה מבט",
+    "severityLow": "לידיעה",
+    "evaluateNow": "סריקה מחדש",
+    "evaluating": "סורק…",
+    "evaluatedSummary": "נמצאו {{detected}} ({{inserted}} חדשים, {{updated}} עודכנו)",
+    "loadFailed": "לא הצלחנו לטעון את התובנות"
+  },
   "summary": {
     "title": "סיכום",
     "description": "הכנסות, הוצאות ופירוט לפי קטגוריה לתקופה הנבחרת",

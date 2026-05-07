@@ -35,6 +35,7 @@ import DatabaseIndicator from './DatabaseIndicator';
 import SyncStatusIndicator from './SyncStatusIndicator';
 import { useNotification } from './NotificationContext';
 import RepeatIcon from '@mui/icons-material/Repeat';
+import InsightsIcon from '@mui/icons-material/Insights';
 import TuneIcon from '@mui/icons-material/Tune';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -59,8 +60,8 @@ const SyncStatusModal = dynamic(() => import('./SyncStatusModal'), { ssr: false 
 
 
 interface ResponsiveAppBarProps {
-  currentView?: 'dashboard' | 'summary' | 'budget' | 'chat' | 'audit' | 'recurring' | 'design' | 'breakdown' | 'projection' | 'accounts';
-  onViewChange?: (view: 'dashboard' | 'summary' | 'budget' | 'chat' | 'audit' | 'recurring' | 'design' | 'breakdown' | 'projection' | 'accounts') => void;
+  currentView?: 'dashboard' | 'summary' | 'budget' | 'chat' | 'audit' | 'recurring' | 'design' | 'breakdown' | 'projection' | 'accounts' | 'insights';
+  onViewChange?: (view: 'dashboard' | 'summary' | 'budget' | 'chat' | 'audit' | 'recurring' | 'design' | 'breakdown' | 'projection' | 'accounts' | 'insights') => void;
 }
 
 
@@ -174,6 +175,7 @@ function ResponsiveAppBar({ currentView = 'summary', onViewChange }: ResponsiveA
     { label: t('view.summary'), icon: <SummarizeIcon />, view: 'summary' as const, color: 'var(--n-primary)' },
     { label: t('view.transactions'), icon: <DashboardIcon />, view: 'dashboard' as const, color: 'var(--n-primary)' },
     { label: t('view.breakdown'), icon: <ViewListIcon />, view: 'breakdown' as const, color: 'var(--n-primary)' },
+    { label: t('view.insights'), icon: <InsightsIcon />, view: 'insights' as const, color: 'var(--n-primary)' },
     { label: t('view.recurring'), icon: <RepeatIcon />, view: 'recurring' as const, color: 'var(--n-primary)' },
     { label: t('view.projection'), icon: <TimelineIcon />, view: 'projection' as const, color: 'var(--n-primary)' },
 

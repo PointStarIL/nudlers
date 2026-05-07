@@ -7,6 +7,27 @@
     "endOfPeriod": "That's all for this period ✨",
     "unassigned": "Unassigned"
   },
+  "insights": {
+    "title": "Insights",
+    "subtitle": "Things worth a second look",
+    "empty": "Nothing unusual — your finances look normal.",
+    "emptyHint": "We'll surface price hikes, new subscriptions, and category spikes here.",
+    "filterAll": "All",
+    "filterPriceHike": "Price hikes",
+    "filterNewRecurring": "New subscriptions",
+    "filterCategorySpike": "Category spikes",
+    "actionAcknowledge": "Got it",
+    "actionDismiss": "Dismiss",
+    "actionNormal": "This is normal",
+    "actionReview": "Review transactions",
+    "severityHigh": "High priority",
+    "severityMedium": "Worth a look",
+    "severityLow": "FYI",
+    "evaluateNow": "Re-scan now",
+    "evaluating": "Scanning…",
+    "evaluatedSummary": "Found {{detected}} ({{inserted}} new, {{updated}} refreshed)",
+    "loadFailed": "Couldn't load insights"
+  },
   "summary": {
     "title": "Summary",
     "description": "Income, expenses, and category breakdown for the selected period",
