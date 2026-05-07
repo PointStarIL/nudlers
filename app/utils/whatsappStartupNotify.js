@@ -29,7 +29,7 @@ export async function notifyAppStartedWithLockedVault(opts = {}) {
     try {
         const result = await dbClient.query(
             `SELECT key, value FROM app_settings
-             WHERE key IN ('wrapped_master_key', 'whatsapp_notify_on_unlock', 'whatsapp_to')`
+             WHERE key IN ('wrapped_master_key', 'whatsapp_notify_on_restart', 'whatsapp_to')`
         );
         for (const row of result.rows) {
             if (row.key === 'wrapped_master_key') {
@@ -37,15 +37,20 @@ export async function notifyAppStartedWithLockedVault(opts = {}) {
                 let v = row.value;
                 try { v = JSON.parse(v); } catch { /* fall through with raw */ }
                 vaultIsInitialized = typeof v === 'string' && v.length > 0;
-            } else if (row.key === 'whatsapp_notify_on_unlock') {
+            } else if (row.key === 'whatsapp_notify_on_restart') {
                 try { enabled = JSON.parse(row.value) === true; } catch { enabled = row.value === 'true'; }
             } else if (row.key === 'whatsapp_to') {
                 try { recipients = JSON.parse(row.value) || ''; } catch { recipients = String(row.value || '').replace(/"/g, ''); }
             }
         }
     } finally {
-        dbClient.release();
+        // release() shouldn't throw in pg, but if it ever does, swallow it —
+        // a prior error from inside the try block is more important to surface.
+        try { dbClient.release(); } catch { /* ignore */ }
     }
+
+    // Strip leading/trailing whitespace; "  " shouldn't count as recipients.
+    recipients = typeof recipients === 'string' ? recipients.trim() : '';
 
     if (!vaultIsInitialized) {
         logger.info('[startup-notify] Vault not initialized; nothing to unlock — skipping notification');
@@ -113,8 +118,11 @@ async function resolveDependencies(overrides) {
  */
 function waitForWhatsAppReady({ getOrCreateClient, timeoutMs }) {
     const globalAny = globalThis;
-    const status = globalAny.whatsappStatus;
-    if (status === 'READY' || status === 'AUTHENTICATED') return Promise.resolve();
+    const isReady = () => {
+        const s = globalAny.whatsappStatus;
+        return s === 'READY' || s === 'AUTHENTICATED';
+    };
+    if (isReady()) return Promise.resolve();
 
     const client = getOrCreateClient();
     return new Promise((resolve, reject) => {
@@ -134,5 +142,13 @@ function waitForWhatsAppReady({ getOrCreateClient, timeoutMs }) {
         client.once('ready', onReady);
         client.once('authenticated', onAuthed);
         client.once('auth_failure', onFail);
+
+        // Closes the TOCTOU race: between the initial isReady() above and the
+        // listener registration, the underlying client could have fired the
+        // event we'd otherwise miss. Re-check now that we're listening.
+        if (isReady()) {
+            cleanup();
+            resolve();
+        }
     });
 }

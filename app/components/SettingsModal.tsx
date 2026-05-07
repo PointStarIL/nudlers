@@ -72,7 +72,7 @@ interface Settings {
   whatsapp_hour: number;
   whatsapp_to: string;
   whatsapp_summary_mode: 'calendar' | 'cycle';
-  whatsapp_notify_on_unlock: boolean;
+  whatsapp_notify_on_restart: boolean;
 
 }
 
@@ -236,7 +236,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
     whatsapp_hour: 8,
     whatsapp_to: '',
     whatsapp_summary_mode: 'calendar',
-    whatsapp_notify_on_unlock: false,
+    whatsapp_notify_on_restart: false,
 
   });
   const [loading, setLoading] = useState(true);
@@ -369,7 +369,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
           whatsapp_hour: parseInt(data.settings.whatsapp_hour) || 8,
           whatsapp_to: (data.settings.whatsapp_to || '').replace(/"/g, ''),
           whatsapp_summary_mode: (data.settings.whatsapp_summary_mode || 'calendar').replace(/"/g, '') as 'calendar' | 'cycle',
-          whatsapp_notify_on_unlock: parseBool(data.settings.whatsapp_notify_on_unlock),
+          whatsapp_notify_on_restart: parseBool(data.settings.whatsapp_notify_on_restart),
 
         };
         setSettings(newSettings);
@@ -1070,14 +1070,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
 
               <SettingRow>
                 <Box>
-                  <Typography variant="body1">{t('settings:whatsapp.notifyUnlockLabel')}</Typography>
+                  <Typography variant="body1">{t('settings:whatsapp.notifyRestartLabel')}</Typography>
                   <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    {t('settings:whatsapp.notifyUnlockDesc')}
+                    {t('settings:whatsapp.notifyRestartDesc')}
                   </Typography>
                 </Box>
                 <Switch
-                  checked={settings.whatsapp_notify_on_unlock}
-                  onChange={(e) => setSettings({ ...settings, whatsapp_notify_on_unlock: e.target.checked })}
+                  checked={settings.whatsapp_notify_on_restart}
+                  onChange={(e) => setSettings({ ...settings, whatsapp_notify_on_restart: e.target.checked })}
                   sx={{
                     '& .MuiSwitch-switchBase.Mui-checked': {
                       color: '#10b981',

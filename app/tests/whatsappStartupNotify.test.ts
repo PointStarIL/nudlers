@@ -68,7 +68,7 @@ describe('notifyAppStartedWithLockedVault', () => {
 
     it('does NOT send when the vault is uninitialized (no wrapped key)', async () => {
         const { getDB } = makeDB([
-            { key: 'whatsapp_notify_on_unlock', value: JSON.stringify(true) },
+            { key: 'whatsapp_notify_on_restart', value: JSON.stringify(true) },
             { key: 'whatsapp_to', value: JSON.stringify('972501234567') },
             // wrapped_master_key intentionally absent
         ]);
@@ -83,7 +83,7 @@ describe('notifyAppStartedWithLockedVault', () => {
     it('does NOT send when the setting is disabled', async () => {
         const { getDB } = makeDB([
             { key: 'wrapped_master_key', value: JSON.stringify('iv:data:tag') },
-            { key: 'whatsapp_notify_on_unlock', value: JSON.stringify(false) },
+            { key: 'whatsapp_notify_on_restart', value: JSON.stringify(false) },
             { key: 'whatsapp_to', value: JSON.stringify('972501234567') },
         ]);
 
@@ -97,8 +97,22 @@ describe('notifyAppStartedWithLockedVault', () => {
     it('does NOT send when there are no recipients configured', async () => {
         const { getDB } = makeDB([
             { key: 'wrapped_master_key', value: JSON.stringify('iv:data:tag') },
-            { key: 'whatsapp_notify_on_unlock', value: JSON.stringify(true) },
+            { key: 'whatsapp_notify_on_restart', value: JSON.stringify(true) },
             { key: 'whatsapp_to', value: JSON.stringify('') },
+        ]);
+
+        const result = await notifyAppStartedWithLockedVault({ getDB, sendWhatsAppMessage, getOrCreateClient });
+
+        expect(result.sent).toBe(false);
+        expect(result.reason).toBe('no_recipients');
+        expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+    });
+
+    it('treats whitespace-only recipients as no recipients (no silent send-to-nobody)', async () => {
+        const { getDB } = makeDB([
+            { key: 'wrapped_master_key', value: JSON.stringify('iv:data:tag') },
+            { key: 'whatsapp_notify_on_restart', value: JSON.stringify(true) },
+            { key: 'whatsapp_to', value: JSON.stringify('   \t  ') },
         ]);
 
         const result = await notifyAppStartedWithLockedVault({ getDB, sendWhatsAppMessage, getOrCreateClient });
@@ -111,7 +125,7 @@ describe('notifyAppStartedWithLockedVault', () => {
     it('sends the message when vault is initialized + setting on + recipients configured', async () => {
         const { getDB } = makeDB([
             { key: 'wrapped_master_key', value: JSON.stringify('iv:data:tag') },
-            { key: 'whatsapp_notify_on_unlock', value: JSON.stringify(true) },
+            { key: 'whatsapp_notify_on_restart', value: JSON.stringify(true) },
             { key: 'whatsapp_to', value: JSON.stringify('972501234567') },
         ]);
 
@@ -136,7 +150,7 @@ describe('notifyAppStartedWithLockedVault', () => {
 
         const { getDB } = makeDB([
             { key: 'wrapped_master_key', value: JSON.stringify('iv:data:tag') },
-            { key: 'whatsapp_notify_on_unlock', value: JSON.stringify(true) },
+            { key: 'whatsapp_notify_on_restart', value: JSON.stringify(true) },
             { key: 'whatsapp_to', value: JSON.stringify('972501234567') },
         ]);
 
@@ -159,7 +173,7 @@ describe('notifyAppStartedWithLockedVault', () => {
 
         const { getDB } = makeDB([
             { key: 'wrapped_master_key', value: JSON.stringify('iv:data:tag') },
-            { key: 'whatsapp_notify_on_unlock', value: JSON.stringify(true) },
+            { key: 'whatsapp_notify_on_restart', value: JSON.stringify(true) },
             { key: 'whatsapp_to', value: JSON.stringify('972501234567') },
         ]);
 
@@ -177,7 +191,7 @@ describe('notifyAppStartedWithLockedVault', () => {
     it('treats wrapped_master_key set to JSON empty-string as uninitialized', async () => {
         const { getDB } = makeDB([
             { key: 'wrapped_master_key', value: JSON.stringify('') },
-            { key: 'whatsapp_notify_on_unlock', value: JSON.stringify(true) },
+            { key: 'whatsapp_notify_on_restart', value: JSON.stringify(true) },
             { key: 'whatsapp_to', value: JSON.stringify('972501234567') },
         ]);
 
@@ -190,7 +204,7 @@ describe('notifyAppStartedWithLockedVault', () => {
 
         const { getDB } = makeDB([
             { key: 'wrapped_master_key', value: JSON.stringify('iv:data:tag') },
-            { key: 'whatsapp_notify_on_unlock', value: JSON.stringify(true) },
+            { key: 'whatsapp_notify_on_restart', value: JSON.stringify(true) },
             { key: 'whatsapp_to', value: JSON.stringify('972501234567') },
         ]);
 
