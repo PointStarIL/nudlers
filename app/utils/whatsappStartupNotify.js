@@ -1,10 +1,10 @@
 import logger from './logger.js';
 
 /**
- * Send a WhatsApp message at app startup if the vault is initialized but
- * locked — i.e. "the app just came back online and it's waiting for you to
- * unlock it." This is the only signal you get that something restarted your
- * server (NAS reboot, deploy, OOM) without having to constantly check.
+ * Send a notification at app startup if the vault is initialized but locked
+ * — i.e. "the app just came back online and it's waiting for you to unlock
+ * it." This is the only signal you get that something restarted your server
+ * (NAS reboot, deploy, OOM) without having to actively check.
  *
  * The vault is *always* locked at startup by design: the master key lives in
  * memory only and is wiped on process exit. So "vault is locked" is a sloppy
@@ -12,66 +12,68 @@ import logger from './logger.js';
  * existing so we don't spam users who haven't initialized the vault at all.
  *
  * Fire-and-forget by design — the caller in instrumentation.ts should not
- * await this. A missing WhatsApp client, a stale session, or a network blip
- * must never break startup.
+ * await this. A missing client, a stale session, or a network blip must
+ * never break startup.
+ *
+ * Filename is historical: this used to be WhatsApp-only. It now fans out to
+ * every enabled provider through the messaging dispatcher.
  */
 
 const READY_TIMEOUT_MS = 90_000;
 
 export async function notifyAppStartedWithLockedVault(opts = {}) {
-    const { getDB, sendWhatsAppMessage, getOrCreateClient, now } = await resolveDependencies(opts);
+    const {
+        getDB,
+        sendNotification,
+        getOrCreateClient,
+        loadMessagingSettings,
+        now,
+    } = await resolveDependencies(opts);
 
     let vaultIsInitialized = false;
-    let enabled = false;
-    let recipients = '';
+    const settings = await loadMessagingSettings({ getDB });
 
+    // Vault-init flag isn't part of messaging settings; fetch it separately.
     const dbClient = await getDB();
     try {
         const result = await dbClient.query(
-            `SELECT key, value FROM app_settings
-             WHERE key IN ('wrapped_master_key', 'whatsapp_notify_on_restart', 'whatsapp_to')`
+            `SELECT value FROM app_settings WHERE key = 'wrapped_master_key'`
         );
-        for (const row of result.rows) {
-            if (row.key === 'wrapped_master_key') {
-                // Initialized iff the wrapped key is a non-empty string.
-                let v = row.value;
-                try { v = JSON.parse(v); } catch { /* fall through with raw */ }
-                vaultIsInitialized = typeof v === 'string' && v.length > 0;
-            } else if (row.key === 'whatsapp_notify_on_restart') {
-                try { enabled = JSON.parse(row.value) === true; } catch { enabled = row.value === 'true'; }
-            } else if (row.key === 'whatsapp_to') {
-                try { recipients = JSON.parse(row.value) || ''; } catch { recipients = String(row.value || '').replace(/"/g, ''); }
-            }
+        const row = result.rows[0];
+        if (row) {
+            let v = row.value;
+            try { v = JSON.parse(v); } catch { /* fall through with raw */ }
+            vaultIsInitialized = typeof v === 'string' && v.length > 0;
         }
     } finally {
-        // release() shouldn't throw in pg, but if it ever does, swallow it —
-        // a prior error from inside the try block is more important to surface.
         try { dbClient.release(); } catch { /* ignore */ }
     }
-
-    // Strip leading/trailing whitespace; "  " shouldn't count as recipients.
-    recipients = typeof recipients === 'string' ? recipients.trim() : '';
 
     if (!vaultIsInitialized) {
         logger.info('[startup-notify] Vault not initialized; nothing to unlock — skipping notification');
         return { sent: false, reason: 'not_initialized' };
     }
-    if (!enabled) {
+
+    const wantsWhatsapp = settings.whatsapp_notify_on_restart && settings.whatsapp_to;
+    const wantsTelegram = settings.telegram_notify_on_restart && settings.telegram_enabled && settings.telegram_to;
+
+    if (!wantsWhatsapp && !wantsTelegram) {
         return { sent: false, reason: 'disabled' };
     }
-    if (!recipients) {
-        logger.info('[startup-notify] Notification enabled but no whatsapp_to configured — skipping');
-        return { sent: false, reason: 'no_recipients' };
-    }
 
-    // Wait for WhatsApp to authenticate from its persisted session (or whatever
-    // state it ends up in). At server boot this is usually still happening —
-    // no point sending while the client is in INITIALIZING.
-    try {
-        await waitForWhatsAppReady({ getOrCreateClient, timeoutMs: READY_TIMEOUT_MS });
-    } catch (err) {
-        logger.warn({ err: err.message }, '[startup-notify] WhatsApp not ready in time; dropping notification');
-        return { sent: false, reason: 'whatsapp_not_ready' };
+    // If WhatsApp wants the message, wait for the WA client to be ready before
+    // dispatching — Telegram doesn't need this, but the dispatcher fires both
+    // in parallel so the slowest one sets the latency floor anyway.
+    if (wantsWhatsapp) {
+        try {
+            await waitForWhatsAppReady({ getOrCreateClient, timeoutMs: READY_TIMEOUT_MS });
+        } catch (err) {
+            logger.warn({ err: err.message }, '[startup-notify] WhatsApp not ready in time — Telegram (if configured) will still try');
+            // Don't bail; if Telegram is enabled it can still deliver.
+            if (!wantsTelegram) {
+                return { sent: false, reason: 'whatsapp_not_ready' };
+            }
+        }
     }
 
     const when = now ?? new Date();
@@ -85,9 +87,17 @@ export async function notifyAppStartedWithLockedVault(opts = {}) {
     });
     const body = `🔒 Nudlers — האפליקציה הופעלה מחדש\nהכספת נעולה ומחכה לפתיחה\n${time}`;
 
-    await sendWhatsAppMessage({ to: recipients, body });
-    logger.info('[startup-notify] Notification sent — app restarted with locked vault');
-    return { sent: true, reason: 'ok' };
+    const dispatch = await sendNotification({
+        body,
+        purpose: 'restart_notify',
+    });
+
+    if (dispatch.succeeded > 0) {
+        logger.info({ dispatch }, '[startup-notify] Notification dispatched');
+        return { sent: true, reason: 'ok', dispatch };
+    }
+    logger.warn({ dispatch }, '[startup-notify] Notification dispatch failed on all channels');
+    return { sent: false, reason: 'all_channels_failed', dispatch };
 }
 
 /**
@@ -96,15 +106,22 @@ export async function notifyAppStartedWithLockedVault(opts = {}) {
  * it. Tests pass overrides for easy mocking without `vi.mock` gymnastics.
  */
 async function resolveDependencies(overrides) {
-    if (overrides.getDB && overrides.sendWhatsAppMessage && overrides.getOrCreateClient) {
+    if (
+        overrides.getDB &&
+        overrides.sendNotification &&
+        overrides.getOrCreateClient &&
+        overrides.loadMessagingSettings
+    ) {
         return overrides;
     }
-    const dbModule = await import('../pages/api/db');
-    const waModule = await import('./whatsapp.js');
+    const dbModule = await import('../pages/api/db.js');
+    const dispatcherModule = await import('./messaging/dispatcher.js');
+    const settingsModule = await import('./messaging/settings.js');
     const waClientModule = await import('./whatsapp-client.js');
     return {
         getDB: overrides.getDB || dbModule.getDB,
-        sendWhatsAppMessage: overrides.sendWhatsAppMessage || waModule.sendWhatsAppMessage,
+        sendNotification: overrides.sendNotification || dispatcherModule.sendNotification,
+        loadMessagingSettings: overrides.loadMessagingSettings || settingsModule.loadMessagingSettings,
         getOrCreateClient: overrides.getOrCreateClient || waClientModule.getOrCreateClient,
         now: overrides.now,
     };

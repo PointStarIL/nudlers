@@ -95,6 +95,25 @@
     "testFailedPrefix": "❌ נכשל:",
     "generatedMessage": "📝 ההודעה שנוצרה:"
   },
+  "telegram": {
+    "section": "טלגרם",
+    "enableLabel": "הפעלת טלגרם",
+    "enableDesc": "שליחת התראות בטלגרם (פועל במקביל לוואטסאפ אם שניהם מופעלים)",
+    "notifyRestartLabel": "התראה כאשר האפליקציה מופעלת מחדש (כספת נעולה)",
+    "notifyRestartDesc": "שליחת הודעת טלגרם כאשר האפליקציה מופעלת מחדש והכספת ממתינה לפתיחה",
+    "tokenLabel": "טוקן הבוט",
+    "tokenDesc": "צרו בוט דרך @BotFather בטלגרם והדביקו כאן את הטוקן שתקבלו.",
+    "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+    "recipientsLabel": "מזהי צ'אט",
+    "recipientsDesc": "צ'אט אישי הוא מספר חיובי (למשל 123456789); קבוצה או סופר־קבוצה הם מספרים שליליים (למשל ‎-1001234567890). על כל נמען לפתוח צ'אט עם הבוט לפחות פעם אחת.",
+    "recipientsHint": "הקישו Enter או Tab כדי להוסיף מזהה צ'אט",
+    "recipientsPlaceholder": "הזינו מזהה צ'אט",
+    "verifyToken": "בדיקת טוקן",
+    "sendTest": "שליחת הודעת בדיקה",
+    "testHelp": "אמתו את הטוקן ואז שלחו הודעת בדיקה קצרה לכל מזהי הצ'אט שהוגדרו.",
+    "testSuccess": "✅ טלגרם זמין",
+    "testFailedPrefix": "❌ שגיאת טלגרם:"
+  },
   "vault": {
     "section": "אבטחת הכספת",
     "passkeyLabel": "אימות באמצעות Passkey",

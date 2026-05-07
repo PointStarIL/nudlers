@@ -74,6 +74,10 @@ interface Settings {
   whatsapp_summary_mode: 'calendar' | 'cycle';
   whatsapp_notify_on_restart: boolean;
 
+  telegram_enabled: boolean;
+  telegram_bot_token: string;
+  telegram_to: string;
+  telegram_notify_on_restart: boolean;
 }
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
@@ -238,6 +242,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
     whatsapp_summary_mode: 'calendar',
     whatsapp_notify_on_restart: false,
 
+    telegram_enabled: false,
+    telegram_bot_token: '',
+    telegram_to: '',
+    telegram_notify_on_restart: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -371,6 +379,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
           whatsapp_summary_mode: (data.settings.whatsapp_summary_mode || 'calendar').replace(/"/g, '') as 'calendar' | 'cycle',
           whatsapp_notify_on_restart: parseBool(data.settings.whatsapp_notify_on_restart),
 
+          telegram_enabled: parseBool(data.settings.telegram_enabled),
+          telegram_bot_token: (data.settings.telegram_bot_token || '').replace(/^"(.*)"$/, '$1'),
+          telegram_to: (data.settings.telegram_to || '').replace(/^"(.*)"$/, '$1'),
+          telegram_notify_on_restart: parseBool(data.settings.telegram_notify_on_restart),
         };
         setSettings(newSettings);
         setOriginalSettings(newSettings);
@@ -462,6 +474,46 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
       });
     } finally {
       setTestingWhatsApp(false);
+    }
+  };
+
+  // Telegram test state
+  const [testingTelegram, setTestingTelegram] = useState(false);
+  const [telegramTestResult, setTelegramTestResult] = useState<{
+    success: boolean;
+    error: string | null;
+    info: string | null;
+  } | null>(null);
+
+  const handleTestTelegram = async (mode: 'verify' | 'send') => {
+    setTestingTelegram(true);
+    setTelegramTestResult(null);
+    try {
+      const response = await fetch('/api/telegram-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode })
+      });
+      const data = await response.json();
+      let info: string | null = null;
+      if (data.success && mode === 'verify' && data.bot) {
+        info = `@${data.bot.username} (${data.bot.firstName || data.bot.id})`;
+      } else if (data.success && mode === 'send') {
+        info = 'Message delivered';
+      }
+      setTelegramTestResult({
+        success: !!data.success,
+        error: data.error || null,
+        info,
+      });
+    } catch (error) {
+      setTelegramTestResult({
+        success: false,
+        info: null,
+        error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    } finally {
+      setTestingTelegram(false);
     }
   };
 
@@ -1241,6 +1293,149 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {
                       </Typography>
                     </Box>
                   )}
+                </Box>
+              )}
+            </SettingSection>
+
+            {/* Telegram */}
+            <SettingSection>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <SendIcon sx={{ color: '#0088cc' }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {t('settings:telegram.section')}
+                </Typography>
+              </Box>
+
+              <SettingRow>
+                <Box>
+                  <Typography variant="body1">{t('settings:telegram.enableLabel')}</Typography>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                    {t('settings:telegram.enableDesc')}
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={settings.telegram_enabled}
+                  onChange={(e) => setSettings({ ...settings, telegram_enabled: e.target.checked })}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': { color: '#0088cc' },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#0088cc' },
+                  }}
+                />
+              </SettingRow>
+
+              <SettingRow>
+                <Box>
+                  <Typography variant="body1">{t('settings:telegram.notifyRestartLabel')}</Typography>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                    {t('settings:telegram.notifyRestartDesc')}
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={settings.telegram_notify_on_restart}
+                  onChange={(e) => setSettings({ ...settings, telegram_notify_on_restart: e.target.checked })}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': { color: '#0088cc' },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#0088cc' },
+                  }}
+                />
+              </SettingRow>
+
+              <SettingRow sx={{ alignItems: 'flex-start' }}>
+                <Box sx={{ flex: 1, mr: 2, pt: 1 }}>
+                  <Typography variant="body1">{t('settings:telegram.tokenLabel')}</Typography>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                    {t('settings:telegram.tokenDesc')}
+                  </Typography>
+                </Box>
+                <Box sx={{ width: '450px' }}>
+                  <StyledTextField
+                    fullWidth
+                    type="password"
+                    autoComplete="new-password"
+                    value={settings.telegram_bot_token}
+                    onChange={(e) => setSettings({ ...settings, telegram_bot_token: e.target.value })}
+                    placeholder={t('settings:telegram.tokenPlaceholder')}
+                    size="small"
+                  />
+                </Box>
+              </SettingRow>
+
+              <SettingRow sx={{ alignItems: 'flex-start' }}>
+                <Box sx={{ flex: 1, mr: 2, pt: 1 }}>
+                  <Typography variant="body1">{t('settings:telegram.recipientsLabel')}</Typography>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                    {t('settings:telegram.recipientsDesc')}<br />
+                    <span style={{ fontStyle: 'italic', fontSize: '0.75rem', opacity: 0.8 }}>
+                      {t('settings:telegram.recipientsHint')}
+                    </span>
+                  </Typography>
+                </Box>
+                <Box sx={{ width: '450px' }}>
+                  <StyledAutocomplete
+                    multiple
+                    freeSolo
+                    options={[]}
+                    value={(settings.telegram_to || '').split(',').map(s => s.trim()).filter(Boolean)}
+                    onChange={(_, newValue) => {
+                      const tags = newValue as string[];
+                      setSettings({ ...settings, telegram_to: tags.join(',') });
+                    }}
+                    renderTags={(value: unknown[], getTagProps) =>
+                      (value as string[]).map((option: string, index: number) => {
+                        const { key, ...tagProps } = getTagProps({ index });
+                        return (
+                          <Chip key={key} label={option} {...tagProps} deleteIcon={<CloseIcon />} />
+                        );
+                      })
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        placeholder={settings.telegram_to ? '' : t('settings:telegram.recipientsPlaceholder')}
+                        size="small"
+                      />
+                    )}
+                  />
+                </Box>
+              </SettingRow>
+
+              <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid rgba(148, 163, 184, 0.2)', display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => handleTestTelegram('verify')}
+                  disabled={testingTelegram || !settings.telegram_bot_token}
+                  startIcon={testingTelegram ? <CircularProgress size={20} /> : null}
+                  sx={{ borderColor: '#0088cc', color: '#0088cc' }}
+                >
+                  {t('settings:telegram.verifyToken')}
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={testingTelegram ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+                  onClick={() => handleTestTelegram('send')}
+                  disabled={testingTelegram || !settings.telegram_bot_token || !settings.telegram_to}
+                  sx={{
+                    background: 'linear-gradient(135deg, #0088cc 0%, #0066aa 100%)',
+                    '&:hover': { background: 'linear-gradient(135deg, #0066aa 0%, #004488 100%)' },
+                  }}
+                >
+                  {t('settings:telegram.sendTest')}
+                </Button>
+              </Box>
+              <Typography variant="caption" sx={{ display: 'block', mt: 1, color: theme.palette.text.secondary }}>
+                {t('settings:telegram.testHelp')}
+              </Typography>
+
+              {telegramTestResult && (
+                <Box sx={{ mt: 2 }}>
+                  <Alert
+                    severity={telegramTestResult.success ? 'success' : 'error'}
+                    icon={telegramTestResult.success ? <CheckCircleIcon /> : <ErrorIcon />}
+                  >
+                    {telegramTestResult.success
+                      ? telegramTestResult.info || t('settings:telegram.testSuccess')
+                      : `${t('settings:telegram.testFailedPrefix')} ${telegramTestResult.error}`}
+                  </Alert>
                 </Box>
               )}
             </SettingSection>

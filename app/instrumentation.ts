@@ -123,10 +123,12 @@ export async function register() {
           const client = await getDB();
 
           try {
-            // Get WhatsApp settings
+            // Daily-summary scheduling settings. The actual messaging-channel
+            // settings (whatsapp_enabled / telegram_enabled / recipients) are
+            // loaded inside the dispatcher.
             const settingsResult = await client.query(
-              `SELECT key, value FROM app_settings 
-               WHERE key IN ('whatsapp_enabled', 'whatsapp_hour', 'whatsapp_last_sent_date', 'whatsapp_to')`
+              `SELECT key, value FROM app_settings
+               WHERE key IN ('whatsapp_enabled', 'telegram_enabled', 'whatsapp_hour', 'whatsapp_last_sent_date')`
             );
 
             const settings: Record<string, unknown> = {};
@@ -135,15 +137,21 @@ export async function register() {
             }
 
             const { evaluateDailyCronGuard } = await import('./utils/cronGuards');
+            // Run the cron if EITHER channel is enabled. The dispatcher
+            // decides which actually fire — it's fine for one to be off.
+            const anyChannelEnabledRaw = (() => {
+              const truthy = (v: unknown) => v === true || v === 'true' || v === '"true"';
+              return truthy(settings.whatsapp_enabled) || truthy(settings.telegram_enabled);
+            })();
             const guard = evaluateDailyCronGuard({
-              enabledValue: settings.whatsapp_enabled,
+              enabledValue: anyChannelEnabledRaw,
               hourValue: settings.whatsapp_hour,
               lastRunValue: settings.whatsapp_last_sent_date,
               defaultHour: 8,
             });
 
             if (!guard.shouldRun) {
-              logger.info({ ...guard }, '[whatsapp-cron] Skipping execution');
+              logger.info({ ...guard }, '[messaging-cron] Skipping execution');
               return;
             }
 
@@ -153,34 +161,39 @@ export async function register() {
             const { generateDailySummary } = await import('./utils/summary.js');
             const summary = await generateDailySummary();
 
-            // Send WhatsApp message
-            const { sendWhatsAppMessage } = await import('./utils/whatsapp.js');
-            const to = typeof settings.whatsapp_to === 'string'
-              ? settings.whatsapp_to.replace(/"/g, '')
-              : settings.whatsapp_to as string;
-
-            await sendWhatsAppMessage({
-              to,
-              body: summary
+            // Fan out to every enabled provider. One channel failing must
+            // never block another — sendNotification is partial-failure
+            // tolerant.
+            const { sendNotification } = await import('./utils/messaging/index.js');
+            const dispatch = await sendNotification({
+              body: summary,
+              purpose: 'daily_summary',
             });
 
-            // Update last sent date
-            await client.query(
-              `UPDATE app_settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = 'whatsapp_last_sent_date'`,
-              [JSON.stringify(today)]
-            );
+            // Update last sent date — only if at least one channel actually
+            // delivered. Otherwise we want the cron to retry on its next run.
+            if (dispatch.succeeded > 0) {
+              await client.query(
+                `UPDATE app_settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = 'whatsapp_last_sent_date'`,
+                [JSON.stringify(today)]
+              );
+            }
 
             // Log to audit (scrape_events table)
+            const status = dispatch.succeeded > 0 ? 'success' : 'failed';
+            const auditMsg = dispatch.attempted === 0
+              ? 'No messaging channels enabled'
+              : `Daily summary: ${dispatch.succeeded}/${dispatch.attempted} channels succeeded`;
             await client.query(
               `INSERT INTO scrape_events (triggered_by, vendor, start_date, status, message, report_json)
                VALUES ($1, $2, $3, $4, $5, $6)`,
-              ['whatsapp_cron', 'whatsapp_summary', today, 'success', `WhatsApp summary sent to ${to}`, JSON.stringify({ body: summary, to })]
+              ['messaging_cron', 'daily_summary', today, status, auditMsg, JSON.stringify({ body: summary, dispatch })]
             );
 
-            logger.info('[whatsapp-cron] Daily summary sent successfully');
+            logger.info({ dispatch }, '[messaging-cron] Daily summary dispatched');
           } catch (error: unknown) {
             const err = error as Error;
-            logger.error({ error: err.message, stack: err.stack }, '[whatsapp-cron] Error sending daily summary');
+            logger.error({ error: err.message, stack: err.stack }, '[messaging-cron] Error sending daily summary');
 
             // Log failure to audit
             const errorMsg = (error as Error).message;
@@ -189,23 +202,23 @@ export async function register() {
             await client.query(
               `INSERT INTO scrape_events (triggered_by, vendor, start_date, status, message, report_json)
                VALUES ($1, $2, $3, $4, $5, $6)`,
-              ['whatsapp_cron', 'whatsapp_summary', todayDate, 'failed', errorMsg, JSON.stringify({ error: errorMsg })]
+              ['messaging_cron', 'daily_summary', todayDate, 'failed', errorMsg, JSON.stringify({ error: errorMsg })]
             ).catch(() => { }); // Ignore if this fails
           } finally {
             client.release();
           }
         } catch (error: unknown) {
           const err = error as Error;
-          logger.error({ error: err.message }, '[whatsapp-cron] Failed to execute cron job');
+          logger.error({ error: err.message }, '[messaging-cron] Failed to execute cron job');
         } finally {
           whatsappCronRunning = false;
         }
       });
 
-      logger.info('[startup] WhatsApp cron job initialized');
+      logger.info('[startup] Daily summary cron job initialized');
     } catch (error: unknown) {
       const err = error as Error;
-      logger.warn({ error: err.message }, '[startup] WhatsApp cron job initialization failed');
+      logger.warn({ error: err.message }, '[startup] Daily summary cron job initialization failed');
     }
 
     // Initialize Background Sync cron job
