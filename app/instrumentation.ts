@@ -322,5 +322,22 @@ export async function register() {
       logger.error({ error: err.message }, '[startup] Failed to check vault initialization status');
     }
 
+    // Fire-and-forget WhatsApp message: "the app just started and the vault is
+    // waiting to be unlocked." Lets the user know their server came back up
+    // (deploy, NAS reboot, OOM) without having to actively check.
+    //
+    // Not awaited — the WhatsApp client is still authenticating right now;
+    // notifyAppStartedWithLockedVault waits internally for the `ready` event
+    // (with a 90s ceiling) before sending. We don't want startup blocked on it.
+    try {
+      const { notifyAppStartedWithLockedVault } = await import('./utils/whatsappStartupNotify.js');
+      notifyAppStartedWithLockedVault().catch((err: Error) => {
+        logger.warn({ error: err.message }, '[startup] Restart-with-locked-vault notification failed (non-fatal)');
+      });
+    } catch (error: unknown) {
+      const err = error as Error;
+      logger.warn({ error: err.message }, '[startup] Failed to schedule restart-locked notification');
+    }
+
   }
 }
