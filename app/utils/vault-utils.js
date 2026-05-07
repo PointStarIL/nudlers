@@ -7,17 +7,6 @@ import logger from './logger.js';
 // per-vault random salts were introduced. Never used for new vaults.
 const LEGACY_SALT = 'nudlers-vault-salt';
 
-// One-shot guard: the "notify on unlock" feature should fire at most once per
-// process lifetime — only the first unlock following a restart is interesting.
-// Resets naturally when the process restarts, which is the only event that
-// re-locks the vault.
-let unlockNotificationFired = false;
-
-// Test seam: lets the suite reset the one-shot flag between cases.
-export function _resetUnlockNotificationFlagForTests() {
-    unlockNotificationFired = false;
-}
-
 /**
  * Core logic to unlock the vault with a passphrase.
  * Returns { success: boolean, error?: string }
@@ -90,12 +79,6 @@ export async function unlockVaultWithPassphrase(passphrase) {
             });
         }
 
-        // Fire-and-forget WhatsApp notification on the first unlock per process,
-        // if the user has opted in. Never block or fail the unlock on send errors.
-        maybeNotifyUnlock().catch((notifyErr) => {
-            logger.warn({ error: notifyErr.message }, 'Unlock notification failed (non-fatal)');
-        });
-
         return { success: true };
     } catch (err) {
         logger.error({ error: err.message }, "Failed to unlock vault");
@@ -103,114 +86,6 @@ export async function unlockVaultWithPassphrase(passphrase) {
     } finally {
         if (wrappingKey) wrappingKey.fill(0);
     }
-}
-
-/**
- * Send a WhatsApp message the first time the vault is unlocked after a process
- * start, if the user opted in via `whatsapp_notify_on_unlock`. Idempotent within
- * a process: subsequent calls are no-ops. Always reads the setting fresh so the
- * user can flip it without restarting.
- */
-async function maybeNotifyUnlock() {
-    if (unlockNotificationFired) return;
-
-    let client;
-    let enabled = false;
-    let recipients = '';
-    try {
-        client = await getDB();
-        const result = await client.query(
-            "SELECT key, value FROM app_settings WHERE key IN ('whatsapp_notify_on_unlock', 'whatsapp_to')"
-        );
-        for (const row of result.rows) {
-            if (row.key === 'whatsapp_notify_on_unlock') {
-                try { enabled = JSON.parse(row.value) === true; } catch { enabled = row.value === 'true'; }
-            } else if (row.key === 'whatsapp_to') {
-                try { recipients = JSON.parse(row.value) || ''; } catch { recipients = String(row.value || '').replace(/"/g, ''); }
-            }
-        }
-    } finally {
-        if (client) client.release();
-    }
-
-    // Mark as fired even when disabled — flipping the setting on later should
-    // not fire a "post-restart" notification mid-session.
-    unlockNotificationFired = true;
-
-    if (!enabled) return;
-    if (!recipients) {
-        logger.info('Unlock notification enabled but no whatsapp_to configured; skipping');
-        return;
-    }
-
-    const now = new Date();
-    const time = now.toLocaleString('he-IL', {
-        timeZone: 'Asia/Jerusalem',
-        hour: '2-digit',
-        minute: '2-digit',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-    });
-    const body = `🔓 Nudlers — הכספת נפתחה\n${time}\n(אחרי הפעלה מחדש של האפליקציה)`;
-
-    // At server startup the WhatsApp client is usually still INITIALIZING
-    // (loading its persisted session). Sending immediately would throw
-    // "client not ready", get swallowed by our fire-and-forget catch, and
-    // burn the one-shot flag for nothing. Wait for it to actually be usable
-    // before attempting the send.
-    try {
-        await waitForWhatsAppReady(90_000);
-    } catch (err) {
-        logger.warn({ err: err.message }, 'WhatsApp not ready in time; skipping unlock notification');
-        return;
-    }
-
-    // Dynamic import so a missing/broken WhatsApp module never breaks unlock.
-    const { sendWhatsAppMessage } = await import('./whatsapp.js');
-    await sendWhatsAppMessage({ to: recipients, body });
-    logger.info('Unlock notification sent');
-}
-
-/**
- * Resolve when the WhatsApp client is READY (or AUTHENTICATED) and able to
- * send. Resolves immediately if it already is. Otherwise listens for the
- * `ready` event on the underlying singleton, with a hard timeout. Rejects on
- * `auth_failure` or timeout — both are signals to drop the notification rather
- * than spin forever.
- */
-async function waitForWhatsAppReady(timeoutMs) {
-    const globalAny = global;
-    const status = globalAny.whatsappStatus;
-    if (status === 'READY' || status === 'AUTHENTICATED') return;
-
-    // Pull a client reference (creates one if the singleton hasn't booted yet,
-    // which can happen if instrumentation.ts skipped initialization).
-    const { getOrCreateClient } = await import('./whatsapp-client.js');
-    const client = getOrCreateClient();
-
-    return new Promise((resolve, reject) => {
-        const cleanup = () => {
-            clearTimeout(timer);
-            client.off?.('ready', onReady);
-            client.off?.('authenticated', onAuthed);
-            client.off?.('auth_failure', onFail);
-        };
-        const onReady = () => { cleanup(); resolve(); };
-        const onAuthed = () => { cleanup(); resolve(); };
-        const onFail = (msg) => {
-            cleanup();
-            reject(new Error(`WhatsApp authentication failure: ${msg}`));
-        };
-        const timer = setTimeout(() => {
-            cleanup();
-            reject(new Error(`WhatsApp client did not become ready within ${timeoutMs}ms`));
-        }, timeoutMs);
-
-        client.once('ready', onReady);
-        client.once('authenticated', onAuthed);
-        client.once('auth_failure', onFail);
-    });
 }
 
 /**
