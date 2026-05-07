@@ -95,6 +95,25 @@
     "testFailedPrefix": "❌ Failed:",
     "generatedMessage": "📝 Generated Message:"
   },
+  "telegram": {
+    "section": "Telegram",
+    "enableLabel": "Enable Telegram",
+    "enableDesc": "Send notifications via Telegram (works in parallel with WhatsApp if both are enabled)",
+    "notifyRestartLabel": "Notify When App Restarts (Vault Locked)",
+    "notifyRestartDesc": "Send a Telegram message when the app restarts and the vault is waiting to be unlocked",
+    "tokenLabel": "Bot Token",
+    "tokenDesc": "Create a bot via @BotFather on Telegram. Paste the token it gives you here.",
+    "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+    "recipientsLabel": "Chat IDs",
+    "recipientsDesc": "Personal chats are positive numbers (e.g. 123456789); group/supergroup chats are negative (e.g. -1001234567890). Each recipient must have started a chat with your bot at least once.",
+    "recipientsHint": "Press Enter or tab to add a chat ID",
+    "recipientsPlaceholder": "Enter chat ID",
+    "verifyToken": "Verify Token",
+    "sendTest": "Send Test Message",
+    "testHelp": "Verify the token, then send a short test message to all configured chat IDs.",
+    "testSuccess": "✅ Telegram is reachable",
+    "testFailedPrefix": "❌ Telegram error:"
+  },
   "vault": {
     "section": "Vault Security",
     "passkeyLabel": "Passkey Authentication",
