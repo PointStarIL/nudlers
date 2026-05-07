@@ -270,6 +270,19 @@ export async function register() {
             );
 
             logger.info('[sync-cron] Background sync completed and last run time updated');
+
+            // Refresh the anomaly inbox now that we have new transactions.
+            // Detection is fingerprint-keyed, so re-runs are idempotent — at
+            // worst we update timestamps on existing rows. Wrapped in its
+            // own try so an evaluator hiccup never breaks the sync.
+            try {
+              const { evaluateAnomalies } = await import('./utils/anomaly/evaluate.js');
+              const summary = await evaluateAnomalies();
+              logger.info({ ...summary }, '[sync-cron] Anomaly evaluation completed');
+            } catch (evalErr: unknown) {
+              const e = evalErr as Error;
+              logger.error({ error: e.message }, '[sync-cron] Anomaly evaluation failed (non-fatal)');
+            }
           } catch (error: unknown) {
             const err = error as Error;
             logger.error({ error: err.message, stack: err.stack }, '[sync-cron] Error during background sync');

@@ -222,7 +222,15 @@ ${categoryBudgets.map(c => {
             temperature: 0.7,
             maxTokens: 8000
         });
-        return text;
+
+        // Prepend any anomalies detected in the last 24h. The fragment is
+        // empty when nothing notable fired, so there's no extra noise on
+        // a quiet day. Failures inside the preamble are swallowed there —
+        // the daily summary should never fail because anomalies couldn't be
+        // fetched.
+        const { getAnomalyPreambleForSummary } = await import('./anomaly/summaryFragment.js');
+        const preamble = await getAnomalyPreambleForSummary();
+        return preamble + text;
 
     } catch (error) {
         logger.error({ error: error.message, stack: error.stack }, 'Error generating daily summary');
