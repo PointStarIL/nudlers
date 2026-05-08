@@ -124,4 +124,51 @@ describe('detectPriceHikes', () => {
         // The refund is dropped, leaving 3 stable priors with no candidate latest.
         expect(detectPriceHikes(txs)).toEqual([]);
     });
+
+    it('still flags a real hike when one earlier prior is a one-off outlier', () => {
+        // The Wave 2 case: an out-of-band ₪200 charge in a stream of ₪19.90
+        // monthly charges used to corrupt the running mean and either reject
+        // a legitimate hike candidate or accept the outlier into the plateau.
+        // With median, the outlier is dampened and the real plateau wins.
+        const txs = [
+            tx('2026-05-15', 'Apple Music', -29.9),   // hike (latest)
+            tx('2026-04-15', 'Apple Music', -19.9),
+            tx('2026-03-15', 'Apple Music', -200),    // one-off (outlier)
+            tx('2026-02-15', 'Apple Music', -19.9),
+            tx('2026-01-15', 'Apple Music', -19.9),
+            tx('2025-12-15', 'Apple Music', -19.9),
+        ];
+        const out = detectPriceHikes(txs);
+        expect(out).toHaveLength(1);
+        // The plateau median should be ₪19.90, not pulled toward ₪200.
+        expect(out[0].payload.priorAverage).toBeCloseTo(19.9, 2);
+    });
+
+    it('does NOT flag when 3 stable priors all live in the same month', () => {
+        // 3 charges of ₪50 from the same merchant in February alone don't
+        // make a plateau — they could be 3 ad-hoc orders. New rule: the
+        // plateau has to span ≥3 distinct calendar months.
+        const txs = [
+            tx('2026-04-15', 'SomeStore', -120),
+            tx('2026-02-25', 'SomeStore', -50),
+            tx('2026-02-15', 'SomeStore', -50),
+            tx('2026-02-05', 'SomeStore', -50),
+        ];
+        expect(detectPriceHikes(txs)).toEqual([]);
+    });
+
+    it('flags with the 10% tolerance band (slightly looser than the 8% prior algo)', () => {
+        // 110 vs 100 / 100 / 100 = 10% spread between priors. Old algo's
+        // 8% rejection on the second-prior comparison would reject the
+        // plateau; new algo's median + 10% tolerance accepts it.
+        const txs = [
+            tx('2026-04-15', 'Gym', -150),     // candidate (50% hike)
+            tx('2026-03-15', 'Gym', -110),
+            tx('2026-02-15', 'Gym', -100),
+            tx('2026-01-15', 'Gym', -100),
+        ];
+        const out = detectPriceHikes(txs);
+        expect(out).toHaveLength(1);
+        expect(out[0].severity).toBe('high');
+    });
 });
