@@ -102,9 +102,9 @@ export async function register() {
     try {
       logger.info('[startup] Initializing WhatsApp (Baileys) client');
       const wa = await import('./utils/whatsapp-client.js');
-      // Fire-and-forget: ensureConnected awaits up to 60s by default. We
-      // don't want startup blocked on the QR-pending case (no session yet)
-      // so we let it resolve in the background.
+      // Fire-and-forget: 30s ceiling, unawaited. We don't want startup
+      // blocked on the QR-pending case (no session yet) so we let it
+      // resolve in the background.
       wa.ensureConnected({ timeoutMs: 30_000 }).then(
         () => logger.info('[startup] WhatsApp client pre-warmed'),
         (err: Error) => logger.warn({ err: err.message }, '[startup] WhatsApp pre-warm did not complete (will connect on demand)'),

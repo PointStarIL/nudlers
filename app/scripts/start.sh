@@ -13,10 +13,11 @@ SCREENSHOTS_DIR="/app/public/debug/screenshots"
 # Screenshot retention in days (default 7, configurable via env)
 SCREENSHOT_RETENTION_DAYS="${SCREENSHOT_RETENTION_DAYS:-7}"
 
-# Defensive cleanup of stale Chromium lock files. Baileys (WhatsApp) no
-# longer uses Chromium, but the israeli-bank-scrapers' puppeteer can leave
-# these behind if a scrape was killed mid-run. Cheap to run, and harmless
-# when there's nothing to delete.
+# Historical cleanup, kept as a defensive no-op. The legacy whatsapp-web.js
+# transport persisted its puppeteer userDataDir under DATA_DIR and could
+# leave SingletonLock files behind on a hard kill. Baileys uses a plain
+# JSON auth dir — these patterns won't match anything — but the find
+# commands are cheap and harmless when there's nothing to delete.
 cleanup_stale_locks() {
     echo "Cleaning up stale Chromium lock files..."
     find "$DATA_DIR" -name "SingletonLock" -delete 2>/dev/null || true

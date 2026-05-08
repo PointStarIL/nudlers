@@ -36,9 +36,12 @@ function setStatus(status, extra = {}) {
     if (Object.prototype.hasOwnProperty.call(extra, 'qr')) {
         globalAny.baileysQr = extra.qr;
     }
-    // Surface to anything listening (whatsappStartupNotify polls
-    // globalThis.whatsappStatus to short-circuit waitForReady when we're
-    // already connected).
+    // Surface a coarse READY/AUTHENTICATED signal to anything listening
+    // on globalThis.whatsappStatus. The self-referential else branch is
+    // intentional: it's a "don't downgrade" — a routine `connecting` tick
+    // shouldn't flip a previously-READY surface back to a transitional
+    // state. whatsappStartupNotify polls this to short-circuit waitForReady
+    // when we're already connected.
     globalAny.whatsappStatus = status === 'READY' || status === 'AUTHENTICATED' ? status : globalAny.whatsappStatus;
 }
 
@@ -93,8 +96,8 @@ export function getOrCreateClient() {
  * on reconnect we tear the old one down and call this again.
  */
 async function buildSock() {
-    // Lazy-load Baileys so the transport router can avoid the cost on
-    // installs that don't use it.
+    // Dynamic import keeps Baileys out of the build graph for routes that
+    // never touch WhatsApp; only the first call actually pays the cost.
     const baileys = await import('@whiskeysockets/baileys');
     // Rename `useMultiFileAuthState` so the React-hooks-rules linter doesn't
     // mistake it for a misused React hook (it's a Baileys helper that just
