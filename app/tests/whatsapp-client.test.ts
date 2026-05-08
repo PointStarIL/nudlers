@@ -1,401 +1,230 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import pkg from 'whatsapp-web.js';
-import { getClient, getOrCreateClient, initializeClient, getStatus, destroyClient, restartClient, hasPersistedSession, clearSession, renewQrCode } from '../utils/whatsapp-client.js';
-import logger from '../utils/logger.js';
-import fs from 'fs';
+import { EventEmitter } from 'events';
 
-// Mock whatsapp-web.js
-vi.mock('whatsapp-web.js', () => {
-    const Client = vi.fn().mockImplementation(() => ({
-        on: vi.fn(),
-        initialize: vi.fn().mockResolvedValue(undefined),
-        destroy: vi.fn().mockResolvedValue(undefined),
-        sendMessage: vi.fn(),
-    }));
+vi.mock('../utils/logger.js', () => ({
+    default: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn(), trace: vi.fn(), child: () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn(), trace: vi.fn() }) },
+}));
+
+// Mock fs so the module's autoRestoreSession() can't accidentally find a
+// real session on disk and trigger initialization on import.
+vi.mock('fs', async () => {
+    const actual = await vi.importActual<typeof import('fs')>('fs');
     return {
+        ...actual,
         default: {
-            Client,
-            LocalAuth: vi.fn().mockImplementation(() => ({})),
-        }
+            ...actual,
+            existsSync: vi.fn(() => false),
+            statSync: vi.fn(() => ({ size: 0 })),
+            mkdirSync: vi.fn(),
+            rmSync: vi.fn(),
+        },
+        existsSync: vi.fn(() => false),
+        statSync: vi.fn(() => ({ size: 0 })),
+        mkdirSync: vi.fn(),
+        rmSync: vi.fn(),
     };
 });
 
-// Mock logger
-vi.mock('../utils/logger.js', () => ({
-    default: {
-        info: vi.fn(),
-        error: vi.fn(),
-        warn: vi.fn(),
-    },
-}));
+interface MockSock {
+    ev: EventEmitter;
+    sendMessage: ReturnType<typeof vi.fn>;
+    end: ReturnType<typeof vi.fn>;
+    ws: { close: ReturnType<typeof vi.fn> };
+}
 
-// Mock fs
-vi.mock('fs', () => ({
-    default: {
-        existsSync: vi.fn(),
-        unlinkSync: vi.fn(),
-        rmSync: vi.fn(),
-    },
-}));
+let lastMockSock: MockSock | null = null;
+let makeWASocketMock: ReturnType<typeof vi.fn>;
+let saveCredsMock: ReturnType<typeof vi.fn>;
 
-describe('WhatsApp Client Utils', () => {
-    beforeEach(() => {
-        vi.useFakeTimers();
-        vi.clearAllMocks();
-        // Reset global state
-        delete (global as any).whatsappClient;
-        delete (global as any).whatsappStatus;
-        delete (global as any).whatsappQR;
-        delete (global as any).whatsappAutoRestoreAttempted;
+vi.mock('@whiskeysockets/baileys', () => {
+    saveCredsMock = vi.fn().mockResolvedValue(undefined);
+    makeWASocketMock = vi.fn(() => {
+        const sock: MockSock = {
+            ev: new EventEmitter(),
+            sendMessage: vi.fn().mockResolvedValue({ key: { id: 'mocked-msg-id' } }),
+            end: vi.fn(),
+            ws: { close: vi.fn() },
+        };
+        lastMockSock = sock;
+        return sock;
     });
-
-    afterEach(async () => {
-        await destroyClient();
-        vi.useRealTimers();
-    });
-
-    describe('getClient', () => {
-        it('should return null when no client exists', () => {
-            const client = getClient();
-            expect(client).toBeNull();
-            expect(pkg.Client).not.toHaveBeenCalled();
-        });
-
-        it('should return existing client instance', async () => {
-            // First initialize the client
-            initializeClient();
-            await vi.runAllTimersAsync();
-
-            // Then getClient should return it without creating new
-            const clientCallCount = (pkg.Client as any).mock.calls.length;
-            const client = getClient();
-
-            expect(client).toBeDefined();
-            expect(pkg.Client).toHaveBeenCalledTimes(clientCallCount); // No new calls
-        });
-    });
-
-    describe('initializeClient', () => {
-        it('should initialize client successfully', async () => {
-            const client = initializeClient();
-            expect(client).toBeDefined();
-            expect(pkg.Client).toHaveBeenCalled();
-
-            // Wait for initialize to be called
-            await vi.runAllTimersAsync();
-            expect(client.initialize).toHaveBeenCalled();
-        });
-
-        it('should return existing client instance (singleton)', () => {
-            const client1 = initializeClient();
-            const client2 = initializeClient();
-            expect(client1).toBe(client2);
-            expect(pkg.Client).toHaveBeenCalledTimes(1);
-        });
-
-        it('should destroy the failed client, clean session locks, and retry with a fresh client', async () => {
-            const failingClient = {
-                on: vi.fn(),
-                initialize: vi.fn().mockRejectedValueOnce(new Error('Init failed 1')),
-                destroy: vi.fn().mockResolvedValue(undefined),
-            };
-            const successClient = {
-                on: vi.fn(),
-                initialize: vi.fn().mockResolvedValueOnce(undefined),
-                destroy: vi.fn().mockResolvedValue(undefined),
-            };
-            (pkg.Client as any)
-                .mockReturnValueOnce(failingClient)
-                .mockReturnValueOnce(successClient);
-            (fs.existsSync as any).mockReturnValue(true);
-
-            initializeClient();
-
-            // Process the first failure
-            await vi.runOnlyPendingTimersAsync();
-            // Advance past the 2s backoff before the retry
-            await vi.advanceTimersByTimeAsync(2000);
-            await vi.runOnlyPendingTimersAsync();
-
-            // First client was tried exactly once and then destroyed for cleanup
-            expect(failingClient.initialize).toHaveBeenCalledTimes(1);
-            expect(failingClient.destroy).toHaveBeenCalledTimes(1);
-
-            // Stale Chromium session locks are cleaned between attempts
-            expect(fs.unlinkSync).toHaveBeenCalled();
-
-            // The retry uses a brand new client (initialize() is single-use per instance)
-            expect(pkg.Client).toHaveBeenCalledTimes(2);
-            expect(successClient.initialize).toHaveBeenCalledTimes(1);
-
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.objectContaining({ err: 'Init failed 1', retry: 1 }),
-                expect.any(String)
-            );
-        });
-
-        it('should remove stale Singleton lock files when init fails', async () => {
-            const failingClient = {
-                on: vi.fn(),
-                initialize: vi.fn().mockRejectedValueOnce(new Error('SingletonLock')),
-                destroy: vi.fn().mockResolvedValue(undefined),
-            };
-            (pkg.Client as any).mockReturnValueOnce(failingClient);
-            (fs.existsSync as any).mockReturnValue(true);
-
-            initializeClient();
-
-            await vi.runOnlyPendingTimersAsync();
-            await vi.advanceTimersByTimeAsync(2000);
-            await vi.runOnlyPendingTimersAsync();
-
-            expect(failingClient.destroy).toHaveBeenCalled();
-            const unlinkedPaths = (fs.unlinkSync as any).mock.calls.map((c: any[]) => c[0] as string);
-            expect(unlinkedPaths.some((p) => p.includes('SingletonLock'))).toBe(true);
-            expect(unlinkedPaths.some((p) => p.includes('SingletonCookie'))).toBe(true);
-            expect(unlinkedPaths.some((p) => p.includes('SingletonSocket'))).toBe(true);
-        });
-    });
-
-    describe('getOrCreateClient', () => {
-        it('should create client if none exists', async () => {
-            const client = getOrCreateClient();
-            expect(client).toBeDefined();
-            expect(pkg.Client).toHaveBeenCalled();
-        });
-
-        it('should return existing client without creating new one', async () => {
-            initializeClient();
-            const callCount = (pkg.Client as any).mock.calls.length;
-
-            getOrCreateClient();
-            expect(pkg.Client).toHaveBeenCalledTimes(callCount); // No additional calls
-        });
-    });
-
-    describe('status and events', () => {
-        it('should update status on events', async () => {
-            const mockClient = {
-                on: vi.fn(),
-                initialize: vi.fn().mockResolvedValue(undefined),
-                destroy: vi.fn(),
-            };
-            (pkg.Client as any).mockReturnValueOnce(mockClient);
-
-            initializeClient();
-
-            // Find the 'qr' event listener and call it
-            const qrListener = mockClient.on.mock.calls.find(call => call[0] === 'qr')?.[1];
-            if (qrListener) qrListener('mock-qr-code');
-
-            expect(getStatus().status).toBe('QR_READY');
-            expect(getStatus().qr).toBe('mock-qr-code');
-
-            // Find the 'ready' event listener and call it
-            const readyListener = mockClient.on.mock.calls.find(call => call[0] === 'ready')?.[1];
-            if (readyListener) readyListener();
-
-            expect(getStatus().status).toBe('READY');
-            expect(getStatus().qr).toBeNull();
-        });
-
-        it('should handle disconnection', async () => {
-            const mockClient = {
-                on: vi.fn(),
-                initialize: vi.fn().mockResolvedValue(undefined),
-                destroy: vi.fn().mockResolvedValue(undefined),
-            };
-            (pkg.Client as any).mockReturnValueOnce(mockClient);
-
-            initializeClient();
-
-            const disconnectListener = mockClient.on.mock.calls.find(call => call[0] === 'disconnected')?.[1];
-            if (disconnectListener) await disconnectListener('reason');
-
-            expect(getStatus().status).toBe('DISCONNECTED');
-            expect(mockClient.destroy).toHaveBeenCalled();
-        });
-    });
-
-    describe('restartClient', () => {
-        it('should restart client', async () => {
-            initializeClient();
-            expect(pkg.Client).toHaveBeenCalledTimes(1);
-
-            const restartPromise = restartClient();
-
-            // Advance timers to trigger the delay in restartClient
-            await vi.runAllTimersAsync();
-
-            await restartPromise;
-            expect(pkg.Client).toHaveBeenCalledTimes(2);
-        });
-    });
-
-    describe('hasPersistedSession', () => {
-        it('should return true when session files exist', () => {
-            (fs.existsSync as any).mockReturnValue(true);
-
-            const result = hasPersistedSession();
-
-            expect(result).toBe(true);
-            expect(fs.existsSync).toHaveBeenCalledTimes(2); // Default folder and Local State
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.objectContaining({ sessionPath: expect.any(String) }),
-                'Found persisted WhatsApp session'
-            );
-        });
-
-        it('should return false when no session files exist', () => {
-            (fs.existsSync as any).mockReturnValue(false);
-
-            const result = hasPersistedSession();
-
-            expect(result).toBe(false);
-        });
-
-        it('should return false when only partial session exists', () => {
-            (fs.existsSync as any)
-                .mockReturnValueOnce(true)  // Default folder exists
-                .mockReturnValueOnce(false); // Local State doesn't exist
-
-            const result = hasPersistedSession();
-
-            expect(result).toBe(false);
-        });
-
-        it('should handle errors gracefully and return false', () => {
-            (fs.existsSync as any).mockImplementation(() => {
-                throw new Error('File system error');
-            });
-
-            const result = hasPersistedSession();
-
-            expect(result).toBe(false);
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.objectContaining({ err: 'File system error' }),
-                'Error checking for persisted session'
-            );
-        });
-    });
-
-    describe('clearSession', () => {
-        it('should clear session when session path exists', () => {
-            (fs.existsSync as any).mockReturnValue(true);
-
-            const result = clearSession();
-
-            expect(result).toBe(true);
-            expect(fs.rmSync).toHaveBeenCalledWith(
-                expect.stringContaining('session-nudlers-client'),
-                { recursive: true, force: true }
-            );
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.objectContaining({ sessionPath: expect.any(String) }),
-                'Clearing persisted WhatsApp session...'
-            );
-            expect(logger.info).toHaveBeenCalledWith('WhatsApp session cleared successfully');
-        });
-
-        it('should return true when no session exists', () => {
-            (fs.existsSync as any).mockReturnValue(false);
-
-            const result = clearSession();
-
-            expect(result).toBe(true);
-            expect(fs.rmSync).not.toHaveBeenCalled();
-            expect(logger.info).toHaveBeenCalledWith('No persisted session to clear');
-        });
-
-        it('should return false and log error when rmSync fails', () => {
-            (fs.existsSync as any).mockReturnValue(true);
-            (fs.rmSync as any).mockImplementation(() => {
-                throw new Error('Permission denied');
-            });
-
-            const result = clearSession();
-
-            expect(result).toBe(false);
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.objectContaining({ err: 'Permission denied' }),
-                'Failed to clear WhatsApp session'
-            );
-        });
-    });
-
-    describe('renewQrCode', () => {
-        it('should destroy client, clear session, and initialize new client', async () => {
-            const mockClient = {
-                on: vi.fn(),
-                initialize: vi.fn().mockResolvedValue(undefined),
-                destroy: vi.fn().mockResolvedValue(undefined),
-            };
-            (pkg.Client as any).mockReturnValue(mockClient);
-            (fs.existsSync as any).mockReturnValue(true);
-
-            // Initialize first client
-            initializeClient();
-            await vi.runAllTimersAsync();
-
-            // Reset mocks to track renewal calls
-            vi.clearAllMocks();
-            (fs.existsSync as any).mockReturnValue(true);
-
-            // Renew QR code
-            const renewPromise = renewQrCode();
-            await vi.runAllTimersAsync();
-            await renewPromise;
-
-            // Should have destroyed old client
-            expect(mockClient.destroy).toHaveBeenCalled();
-
-            // Should have cleared session
-            expect(fs.rmSync).toHaveBeenCalledWith(
-                expect.stringContaining('session-nudlers-client'),
-                { recursive: true, force: true }
-            );
-
-            // Should have created new client
-            expect(pkg.Client).toHaveBeenCalled();
-
-            // Should log the renewal
-            expect(logger.info).toHaveBeenCalledWith('Renewing WhatsApp QR code...');
-        });
-
-        it('should continue even if clearSession fails', async () => {
-            const mockClient = {
-                on: vi.fn(),
-                initialize: vi.fn().mockResolvedValue(undefined),
-                destroy: vi.fn().mockResolvedValue(undefined),
-            };
-            (pkg.Client as any).mockReturnValue(mockClient);
-            (fs.existsSync as any).mockReturnValue(true);
-            (fs.rmSync as any).mockImplementation(() => {
-                throw new Error('Permission denied');
-            });
-
-            // Initialize first client
-            initializeClient();
-            await vi.runAllTimersAsync();
-
-            // Reset mocks to track renewal calls
-            vi.clearAllMocks();
-            (fs.existsSync as any).mockReturnValue(true);
-            (fs.rmSync as any).mockImplementation(() => {
-                throw new Error('Permission denied');
-            });
-
-            // Renew QR code
-            const renewPromise = renewQrCode();
-            await vi.runAllTimersAsync();
-            await renewPromise;
-
-            // Should have logged warning but continued
-            expect(logger.warn).toHaveBeenCalledWith('Failed to clear session, but continuing with QR renewal');
-
-            // Should still have created new client
-            expect(pkg.Client).toHaveBeenCalled();
-        });
-    });
+    return {
+        default: makeWASocketMock,
+        // Some Baileys exports are namespaced; expose the bits the client
+        // module reaches for via `await import` destructuring.
+        useMultiFileAuthState: vi.fn().mockResolvedValue({
+            state: {},
+            saveCreds: saveCredsMock,
+        }),
+        fetchLatestBaileysVersion: vi.fn().mockResolvedValue({ version: [2, 3000, 0] }),
+        Browsers: {
+            macOS: (name: string) => [name, 'Safari', '1.0'],
+            appropriate: (name: string) => [name, 'Safari', '1.0'],
+        },
+        DisconnectReason: {
+            loggedOut: 401,
+            connectionClosed: 428,
+            connectionLost: 408,
+            badSession: 500,
+            restartRequired: 515,
+        },
+    };
 });
 
+// Reset ALL of the module's globalThis state between tests so each test
+// starts from a clean slate. The module memoizes its singleton on global,
+// which is fine in production but lethal for test isolation.
+function clearBaileysGlobals() {
+    const g = globalThis as unknown as Record<string, unknown>;
+    delete g.baileysSock;
+    delete g.baileysStatus;
+    delete g.baileysQr;
+    delete g.baileysSaveCreds;
+    delete g.baileysEmitter;
+    delete g.baileysAutoRestoreAttempted;
+    delete g.whatsappStatus;
+}
+
+describe('whatsapp-client', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        clearBaileysGlobals();
+        // Re-import the module fresh each test so autoRestoreSession's
+        // module-load side effect runs against the current mock state.
+        vi.resetModules();
+    });
+
+    afterEach(() => {
+        clearBaileysGlobals();
+    });
+
+    it('reports DISCONNECTED before any init', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        const status = mod.getStatus();
+        expect(status.status).toBe('DISCONNECTED');
+        expect(status.qr).toBeNull();
+    });
+
+    it('initializes a socket and reports INITIALIZING immediately', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+        expect(makeWASocketMock).toHaveBeenCalledTimes(1);
+        const status = mod.getStatus();
+        // Status is INITIALIZING (or QR_READY if a QR fired synchronously).
+        expect(['INITIALIZING', 'QR_READY', 'READY']).toContain(status.status);
+    });
+
+    it('transitions to QR_READY when the socket emits a qr update', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+        lastMockSock!.ev.emit('connection.update', { qr: 'fake-qr-string' });
+        const status = mod.getStatus();
+        expect(status.status).toBe('QR_READY');
+        expect(status.qr).toBe('fake-qr-string');
+    });
+
+    it('transitions to READY when connection.update reports open', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+        lastMockSock!.ev.emit('connection.update', { connection: 'open' });
+        expect(mod.getStatus().status).toBe('READY');
+        expect(mod.getStatus().qr).toBeNull();
+    });
+
+    it('saves creds to disk on creds.update', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+        lastMockSock!.ev.emit('creds.update');
+        // Microtask flush so the async handler runs.
+        await new Promise((r) => setImmediate(r));
+        expect(saveCredsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT auto-reconnect on a loggedOut close (clears session instead)', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+        expect(makeWASocketMock).toHaveBeenCalledTimes(1);
+
+        lastMockSock!.ev.emit('connection.update', {
+            connection: 'close',
+            lastDisconnect: { error: { output: { statusCode: 401 } } }, // loggedOut
+        });
+
+        // Wait long enough that any (errant) auto-reconnect would have fired.
+        await new Promise((r) => setTimeout(r, 50));
+        // Still only the original socket creation — no reconnect.
+        expect(makeWASocketMock).toHaveBeenCalledTimes(1);
+        expect(mod.getStatus().status).toBe('DISCONNECTED');
+    });
+
+    it('auto-reconnects on a non-loggedOut close after the backoff', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+        expect(makeWASocketMock).toHaveBeenCalledTimes(1);
+
+        lastMockSock!.ev.emit('connection.update', {
+            connection: 'close',
+            lastDisconnect: { error: { output: { statusCode: 428 } } }, // connectionClosed
+        });
+
+        // Backoff is 2_000ms in the production code path. Wait a bit longer
+        // and let the async reconnect (dynamic-import + useMultiFileAuthState
+        // + makeWASocket) settle. We use real timers because the reconnect
+        // chain awaits multiple promises that don't all surface as fake-timer
+        // tasks.
+        await new Promise((r) => setTimeout(r, 2_500));
+
+        expect(makeWASocketMock).toHaveBeenCalledTimes(2);
+    }, 10_000);
+
+    it('sendText projects Baileys response into a unified { id } shape', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+        const result = await mod.sendText({
+            client: lastMockSock,
+            chatId: '972500000000@c.us',
+            body: 'hi',
+        });
+        expect(result).toEqual({ id: 'mocked-msg-id' });
+        expect(lastMockSock!.sendMessage).toHaveBeenCalledWith(
+            '972500000000@c.us',
+            { text: 'hi' }
+        );
+    });
+
+    it('destroyClient tears down the socket and clears state', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+        // Get to READY first so we have something meaningful to tear down.
+        lastMockSock!.ev.emit('connection.update', { connection: 'open' });
+        expect(mod.getStatus().status).toBe('READY');
+
+        await mod.destroyClient();
+        expect(mod.getStatus().status).toBe('DISCONNECTED');
+        expect(mod.getClient()).toBeNull();
+        expect(lastMockSock!.end).toHaveBeenCalled();
+    });
+
+    it('waitForReady resolves immediately if status is already READY', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+        lastMockSock!.ev.emit('connection.update', { connection: 'open' });
+        await expect(mod.waitForReady({ timeoutMs: 100 })).resolves.toBeUndefined();
+    });
+
+    it('waitForReady rejects on auth failure (loggedOut close)', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+
+        const promise = mod.waitForReady({ timeoutMs: 5000 });
+        // Fire the loggedOut close on the next tick so the listener is
+        // already attached.
+        await new Promise((r) => setImmediate(r));
+        lastMockSock!.ev.emit('connection.update', {
+            connection: 'close',
+            lastDisconnect: { error: { output: { statusCode: 401 } } },
+        });
+
+        await expect(promise).rejects.toThrow(/logged out/i);
+    });
+});

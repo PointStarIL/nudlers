@@ -1,14 +1,12 @@
 import logger from '../logger.js';
 
 /**
- * WhatsApp provider — currently a thin wrapper over the existing
- * whatsapp-web.js client (see ../whatsapp.js + ../whatsapp-client.js).
+ * WhatsApp provider — thin wrapper over the Baileys client (see
+ * ../whatsapp.js + ../whatsapp-client.js).
  *
  * The wrapper exists so the dispatcher can treat WhatsApp like any other
- * channel; the provider contract is what stays stable when we eventually
- * swap the underlying transport (Baileys migration — see
- * docs/MIGRATION_BAILEYS.md). Call sites depend on this provider, not on
- * the whatsapp-web.js API.
+ * channel. Call sites depend on this provider, not on the Baileys API
+ * directly, so transport changes stay scoped to whatsapp-client.js.
  */
 
 export const whatsappProvider = {
@@ -23,9 +21,8 @@ export const whatsappProvider = {
 
     async send(args, s) {
         const { body } = args;
-        // Lazy import: pulls puppeteer + whatsapp-web.js into the bundle. Anyone
-        // who hits the dispatcher with no WA settings configured shouldn't pay
-        // that cost.
+        // Lazy import: pulls Baileys into the bundle. Anyone who hits the
+        // dispatcher with no WA settings configured shouldn't pay that cost.
         const { sendWhatsAppMessage } = await import('../whatsapp.js');
         const to = String(s.whatsapp_to || '').replace(/"/g, '');
         if (!to) throw new Error('WhatsApp has no recipients configured');

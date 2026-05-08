@@ -1,13 +1,10 @@
 
-import { getStatus, restartClient, destroyClient, initializeClient, renewQrCode, getActiveTransport } from '../../../utils/whatsapp-transport.js';
+import { getStatus, restartClient, destroyClient, initializeClient, renewQrCode } from '../../../utils/whatsapp-client.js';
 
 export default async function handler(req, res) {
     if (req.method === 'GET') {
         const status = getStatus();
-        // Surface the active transport so the settings UI can show which
-        // implementation is currently driving things ("on Baileys" vs "on
-        // legacy WA Web").
-        return res.status(200).json({ ...status, transport: getActiveTransport() });
+        return res.status(200).json(status);
     }
 
     if (req.method === 'POST') {

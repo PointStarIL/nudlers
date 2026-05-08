@@ -548,7 +548,7 @@ For Docker deployments, add these to your `docker-compose.yaml`:
 services:
   nudlers-app:
     volumes:
-      - whatsapp-data:/app/.wwebjs_auth  # Persist session
+      - whatsapp-data:/app/.baileys_auth  # Persist Baileys session
     cap_add:
       - SYS_ADMIN
     security_opt:
@@ -623,7 +623,7 @@ nudlers/
 | **UI** | Material-UI v6, CSS Variables |
 | **Scraping** | israeli-bank-scrapers, Puppeteer |
 | **AI** | OpenAI-compatible (OpenRouter default), MCP SDK |
-| **Messaging** | whatsapp-web.js |
+| **Messaging** | Baileys (WhatsApp), Telegram Bot API |
 | **Testing** | Vitest, Playwright |
 
 ---
@@ -688,7 +688,7 @@ See [LICENSE](LICENSE) for full terms.
 
 - **Bank Scraping**: [israeli-bank-scrapers](https://github.com/eshaham/israeli-bank-scrapers)
 - **UI Framework**: [Material-UI](https://mui.com/)
-- **WhatsApp Integration**: [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js)
+- **WhatsApp Integration**: [Baileys](https://github.com/WhiskeySockets/Baileys)
 
 ---
 

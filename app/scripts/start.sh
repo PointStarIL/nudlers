@@ -7,20 +7,21 @@ set -e
 
 APP_USER="pptruser"
 APP_GROUP="pptruser"
-DATA_DIR="/app/.wwebjs_auth"
+DATA_DIR="/app/.baileys_auth"
 SCREENSHOTS_DIR="/app/public/debug/screenshots"
 
 # Screenshot retention in days (default 7, configurable via env)
 SCREENSHOT_RETENTION_DAYS="${SCREENSHOT_RETENTION_DAYS:-7}"
 
-# Function to clean up stale Chromium lock files
-# These can persist if the container crashes or is forcefully stopped
+# Defensive cleanup of stale Chromium lock files. Baileys (WhatsApp) no
+# longer uses Chromium, but the israeli-bank-scrapers' puppeteer can leave
+# these behind if a scrape was killed mid-run. Cheap to run, and harmless
+# when there's nothing to delete.
 cleanup_stale_locks() {
     echo "Cleaning up stale Chromium lock files..."
     find "$DATA_DIR" -name "SingletonLock" -delete 2>/dev/null || true
     find "$DATA_DIR" -name "SingletonCookie" -delete 2>/dev/null || true
     find "$DATA_DIR" -name "SingletonSocket" -delete 2>/dev/null || true
-    # Also clean up any leftover Chrome/Chromium lock files
     find "$DATA_DIR" -name ".org.chromium.Chromium.*" -delete 2>/dev/null || true
     find "$DATA_DIR" -name "lockfile" -delete 2>/dev/null || true
 }

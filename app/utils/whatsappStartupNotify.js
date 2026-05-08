@@ -61,10 +61,10 @@ export async function notifyAppStartedWithLockedVault(opts = {}) {
         return { sent: false, reason: 'disabled' };
     }
 
-    // If WhatsApp wants the message, wait for the active WA transport
-    // (legacy or Baileys) to reach READY before dispatching. Telegram
-    // doesn't need this; if WA is the only enabled channel and it never
-    // becomes ready, we drop the notification cleanly.
+    // If WhatsApp wants the message, wait for the Baileys socket to reach
+    // READY before dispatching. Telegram doesn't need this; if WA is the
+    // only enabled channel and it never becomes ready, we drop the
+    // notification cleanly.
     if (wantsWhatsapp) {
         try {
             await waitForWhatsappReady({ timeoutMs: READY_TIMEOUT_MS });
@@ -102,8 +102,9 @@ export async function notifyAppStartedWithLockedVault(opts = {}) {
 
 /**
  * Resolve module dependencies. Production passes nothing and we lazy-import
- * everything to avoid pulling whatsapp-web.js into bundles that don't need
- * it. Tests pass overrides for easy mocking without `vi.mock` gymnastics.
+ * everything to avoid pulling Baileys + the messaging stack into bundles
+ * that don't need it. Tests pass overrides for easy mocking without
+ * `vi.mock` gymnastics.
  */
 async function resolveDependencies(overrides) {
     if (
@@ -117,12 +118,12 @@ async function resolveDependencies(overrides) {
     const dbModule = await import('../pages/api/db.js');
     const dispatcherModule = await import('./messaging/dispatcher.js');
     const settingsModule = await import('./messaging/settings.js');
-    const transportModule = await import('./whatsapp-transport.js');
+    const clientModule = await import('./whatsapp-client.js');
     return {
         getDB: overrides.getDB || dbModule.getDB,
         sendNotification: overrides.sendNotification || dispatcherModule.sendNotification,
         loadMessagingSettings: overrides.loadMessagingSettings || settingsModule.loadMessagingSettings,
-        waitForWhatsappReady: overrides.waitForWhatsappReady || transportModule.waitForReady,
+        waitForWhatsappReady: overrides.waitForWhatsappReady || clientModule.waitForReady,
         now: overrides.now,
     };
 }

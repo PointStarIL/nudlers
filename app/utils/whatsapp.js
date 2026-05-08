@@ -1,34 +1,29 @@
 import logger from './logger.js';
-import { ensureConnected, sendText } from './whatsapp-transport.js';
+import { ensureConnected, sendText } from './whatsapp-client.js';
 
 /**
- * Heuristic: errors that look like the WA web page is gone (frame detached,
- * Puppeteer protocol error, page closed) — i.e. the client is unhealthy and
- * a reconnect is the only thing that will help. Other errors (`recipient is
- * not a contact`, `chatId not found`) are user-visible and shouldn't trigger
- * a reconnect retry, since reconnecting won't help.
- *
- * Also matches Baileys-side transient symptoms (`connection closed`,
- * `socket closed`, `stream errored`) so the same retry path applies when
- * the WebSocket transport happens to die mid-send.
+ * Heuristic: errors that look like the underlying WebSocket connection is
+ * dead — i.e. the client is unhealthy and a reconnect is the only thing
+ * that will help. Other errors (`recipient is not a contact`, `chatId not
+ * found`) are user-visible and shouldn't trigger a reconnect retry, since
+ * reconnecting won't help.
  */
 function looksLikeTransientClientDeath(err) {
     const msg = (err && err.message) ? String(err.message) : String(err);
-    return /frame|detached|target closed|page closed|protocol error|session closed|execution context|navigation|connection closed|stream errored|socket (closed|hang up)|websocket/i.test(msg);
+    return /connection closed|stream errored|socket (closed|hang up)|websocket|timed? ?out/i.test(msg);
 }
 
 const TRANSIENT_RETRY_DELAY_MS = 1500;
 
 /**
- * Sends a WhatsApp message. The transport router (whatsapp-transport.js)
- * picks the underlying implementation; we don't care which.
+ * Sends a WhatsApp message via Baileys.
  *
  * Resilience model:
- *  1. ensureConnected() probes the transport and reconnects up front.
- *  2. If sendText *itself* throws something that looks like a dead-transport
+ *  1. ensureConnected() probes the socket and reconnects up front.
+ *  2. If sendText *itself* throws something that looks like a dead-socket
  *     error AFTER ensureConnected said we were good, we force one more
  *     reconnect-and-retry. This catches the narrow window where the
- *     underlying socket/page died between the probe and the send.
+ *     WebSocket died between the probe and the send.
  *
  * Why not retry every error type? Errors like "recipient not in contacts"
  * or "invalid chat id" are deterministic — retrying just doubles the noise

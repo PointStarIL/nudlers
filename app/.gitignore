@@ -1,3 +1,6 @@
 
+.baileys_auth/
+
+# Legacy whatsapp-web.js local state — kept ignored for older checkouts.
 .wwebjs_auth/
 .wwebjs_cache/

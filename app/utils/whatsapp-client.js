@@ -1,432 +1,396 @@
-import pkg from 'whatsapp-web.js';
-const { Client, LocalAuth } = pkg;
-import logger from '../utils/logger.js';
-import { getWhatsappChromeArgs } from '../config/resource-config.js';
 import path from 'path';
 import fs from 'fs';
+import { EventEmitter } from 'events';
+import logger from './logger.js';
 
 /**
- * WhatsApp Client Singleton
- * Manages a single instance of whatsapp-web.js client.
- * Uses global scoped variables to persist across HMR in development.
- * 
- * Session Persistence:
- * - Sessions are stored in .wwebjs_auth/session-{clientId}
- * - On module load, if a valid session exists, the client auto-initializes
- * - This allows session restoration after server restarts without re-scanning QR
+ * Baileys-based WhatsApp client.
+ *
+ * Why Baileys: it speaks WhatsApp's Multi-Device protocol over a WebSocket
+ * directly. No Chromium, no Puppeteer, no SingletonLock files. ~30 MB RSS,
+ * sub-second cold start.
+ *
+ * Auth state lives at .baileys_auth/.
  */
 
+const AUTH_PATH = path.resolve(process.cwd(), '.baileys_auth');
+const READY_TIMEOUT_MS = 60_000;
+const RECONNECT_BACKOFF_MS = 2_000;
+
+// All process-wide state lives on globalThis so HMR in next dev doesn't make
+// a second client.
 const globalAny = global;
 
-// Use absolute path for auth strategy to ensure persistence in Docker volumes
-const AUTH_PATH = path.resolve(process.cwd(), '.wwebjs_auth');
-const CLIENT_ID = 'nudlers-client';
-const SESSION_PATH = path.join(AUTH_PATH, `session-${CLIENT_ID}`);
+function getState() {
+    return {
+        sock: globalAny.baileysSock || null,
+        status: globalAny.baileysStatus || 'DISCONNECTED', // DISCONNECTED, INITIALIZING, QR_READY, AUTHENTICATED, READY
+        qr: globalAny.baileysQr || null,
+        saveCreds: globalAny.baileysSaveCreds || null,
+        emitter: globalAny.baileysEmitter || null,
+    };
+}
 
-// Internal state
-let clientInstance = globalAny.whatsappClient || null;
-let connectionStatus = globalAny.whatsappStatus || 'DISCONNECTED'; // DISCONNECTED, INITIALIZING, QR_READY, AUTHENTICATED, READY
-let qrCode = globalAny.whatsappQR || null;
+function setStatus(status, extra = {}) {
+    globalAny.baileysStatus = status;
+    if (Object.prototype.hasOwnProperty.call(extra, 'qr')) {
+        globalAny.baileysQr = extra.qr;
+    }
+    // Surface to anything listening (whatsappStartupNotify polls
+    // globalThis.whatsappStatus to short-circuit waitForReady when we're
+    // already connected).
+    globalAny.whatsappStatus = status === 'READY' || status === 'AUTHENTICATED' ? status : globalAny.whatsappStatus;
+}
 
 /**
- * Check if a persisted session exists on disk.
- * A valid session typically has a Default folder with session data.
+ * Tiny pub-sub keyed off node EventEmitter — used by ensureConnected /
+ * waitForReady to await transitions on the singleton without keeping
+ * baileys-specific listeners around.
  */
+function getEmitter() {
+    if (globalAny.baileysEmitter) return globalAny.baileysEmitter;
+    const emitter = new EventEmitter();
+    emitter.setMaxListeners(50);
+    globalAny.baileysEmitter = emitter;
+    return emitter;
+}
+
 export function hasPersistedSession() {
     try {
-        const defaultPath = path.join(SESSION_PATH, 'Default');
-        const localStatePath = path.join(SESSION_PATH, 'Local State');
-
-        // Check for key session files that indicate a valid authenticated session
-        const hasDefaultFolder = fs.existsSync(defaultPath);
-        const hasLocalState = fs.existsSync(localStatePath);
-
-        if (hasDefaultFolder && hasLocalState) {
-            logger.info({ sessionPath: SESSION_PATH }, 'Found persisted WhatsApp session');
-            return true;
-        }
-        return false;
+        const credsPath = path.join(AUTH_PATH, 'creds.json');
+        if (!fs.existsSync(credsPath)) return false;
+        // Empty creds.json = effectively no session (a logged-out state can
+        // leave a zero-byte file behind).
+        const stat = fs.statSync(credsPath);
+        return stat.size > 0;
     } catch (err) {
-        logger.warn({ err: err.message }, 'Error checking for persisted session');
+        logger.warn({ err: err.message }, '[baileys] hasPersistedSession check failed');
         return false;
     }
-}
-
-/**
- * Get the existing client instance WITHOUT creating a new one.
- * Returns null if no client exists.
- * Use getOrCreateClient() when you need to ensure a client exists.
- */
-export function getClient() {
-    return clientInstance || globalAny.whatsappClient || null;
-}
-
-/**
- * Get or create a client instance. Use this when you need to send messages
- * and want to ensure the client is available.
- */
-export function getOrCreateClient() {
-    const existing = getClient();
-    if (existing) return existing;
-
-    // Auto-initialize for sending if no client exists
-    return initializeClient();
-}
-
-/**
- * Build a fresh whatsapp-web.js Client configured with our LocalAuth and
- * puppeteer settings. Pulled out so retries can construct a new instance —
- * Client.initialize() is single-use, calling it twice on the same object
- * leaves the previous chromium subprocess holding the userDataDir lock.
- */
-function buildClient() {
-    // NOTE: --single-process is NOT used here as it causes "detached Frame" errors with WhatsApp Web's iframes
-    const browserArgs = getWhatsappChromeArgs();
-    return new Client({
-        authStrategy: new LocalAuth({
-            clientId: CLIENT_ID,
-            dataPath: AUTH_PATH
-        }),
-        puppeteer: {
-            headless: true,
-            // Use system chromium if available (Crucial for Docker)
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-            args: browserArgs,
-            pipe: true
-        }
-    });
-}
-
-function wireClientEvents(client) {
-    client.on('qr', (qr) => {
-        logger.info('WhatsApp QR Code generated');
-        qrCode = qr;
-        connectionStatus = 'QR_READY';
-        globalAny.whatsappQR = qr;
-        globalAny.whatsappStatus = 'QR_READY';
-    });
-
-    client.on('ready', () => {
-        logger.info('WhatsApp Client is ready!');
-        connectionStatus = 'READY';
-        qrCode = null;
-        globalAny.whatsappQR = null;
-        globalAny.whatsappStatus = 'READY';
-    });
-
-    client.on('authenticated', () => {
-        logger.info('WhatsApp Client authenticated');
-        connectionStatus = 'AUTHENTICATED';
-        globalAny.whatsappStatus = 'AUTHENTICATED';
-    });
-
-    client.on('auth_failure', (msg) => {
-        logger.error({ msg }, 'WhatsApp authentication failure');
-        connectionStatus = 'DISCONNECTED';
-        globalAny.whatsappStatus = 'DISCONNECTED';
-    });
-
-    client.on('disconnected', async (reason) => {
-        logger.warn({ reason }, 'WhatsApp Client disconnected');
-        connectionStatus = 'DISCONNECTED';
-        qrCode = null;
-        globalAny.whatsappQR = null;
-        globalAny.whatsappStatus = 'DISCONNECTED';
-
-        // Clean up and allow for re-initialization
-        await destroyClient();
-    });
-}
-
-/**
- * Remove stale Chromium singleton lock files left behind by a previous
- * Client.initialize() that crashed before puppeteer could close the browser.
- * If we don't, the next initialize() fails with "browser is already running".
- */
-function cleanupSessionLocks() {
-    const lockNames = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
-    for (const name of lockNames) {
-        const lockPath = path.join(SESSION_PATH, name);
-        try {
-            if (fs.existsSync(lockPath)) {
-                fs.unlinkSync(lockPath);
-                logger.info({ lockFile: name }, 'Removed stale WhatsApp session lock');
-            }
-        } catch (err) {
-            logger.warn({ err: err.message, lockFile: name }, 'Failed to remove WhatsApp session lock');
-        }
-    }
-}
-
-/**
- * Initialize the WhatsApp client on-demand.
- * This creates a new client and starts the authentication process.
- * If a persisted session exists, it will be restored automatically.
- * Call this when user explicitly requests to connect/generate QR.
- */
-export function initializeClient() {
-    // Return existing client if already initialized
-    if (clientInstance) {
-        logger.info('WhatsApp client already exists, returning existing instance');
-        return clientInstance;
-    }
-
-    const hasSession = hasPersistedSession();
-    logger.info({ hasPersistedSession: hasSession }, 'Initializing new WhatsApp Client instance...');
-
-    clientInstance = buildClient();
-    wireClientEvents(clientInstance);
-
-    // Save to global to survive HMR
-    globalAny.whatsappClient = clientInstance;
-
-    // Start initialization
-    connectionStatus = 'INITIALIZING';
-    globalAny.whatsappStatus = 'INITIALIZING';
-
-    const MAX_INIT_RETRIES = 3;
-    let initRetries = 0;
-
-    const initializeWithRetry = async () => {
-        try {
-            await clientInstance.initialize();
-            logger.info('WhatsApp client initialized successfully');
-        } catch (err) {
-            initRetries++;
-            logger.error({ err: err.message, retry: initRetries }, 'Failed to initialize WhatsApp client');
-
-            if (initRetries >= MAX_INIT_RETRIES) {
-                logger.error('Max retries reached for WhatsApp initialization');
-                connectionStatus = 'DISCONNECTED';
-                globalAny.whatsappStatus = 'DISCONNECTED';
-                // Reset client so it can be re-tried manually later
-                clientInstance = null;
-                globalAny.whatsappClient = null;
-                return;
-            }
-
-            // The previous attempt may have left a chromium subprocess alive
-            // holding the userDataDir lock. Tear it down before retrying.
-            try {
-                await clientInstance.destroy();
-            } catch (destroyErr) {
-                logger.warn({ err: destroyErr.message }, 'Could not destroy failed WhatsApp client; continuing cleanup');
-            }
-            cleanupSessionLocks();
-
-            // Backoff so chromium has time to actually exit and release the lock
-            const delay = Math.pow(2, initRetries) * 1000;
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            // Client.initialize() is single-use per instance; build a fresh one
-            clientInstance = buildClient();
-            wireClientEvents(clientInstance);
-            globalAny.whatsappClient = clientInstance;
-
-            return initializeWithRetry();
-        }
-    };
-
-    initializeWithRetry();
-
-    return clientInstance;
 }
 
 export function getStatus() {
+    const s = getState();
     return {
-        status: globalAny.whatsappStatus || connectionStatus,
-        qr: globalAny.whatsappQR || qrCode,
-        timestamp: new Date().toISOString()
+        status: s.status,
+        qr: s.qr,
+        timestamp: new Date().toISOString(),
     };
 }
 
-export async function destroyClient() {
-    if (clientInstance || globalAny.whatsappClient) {
-        const client = clientInstance || globalAny.whatsappClient;
-        try {
-            logger.info('Destroying WhatsApp client instance...');
-            await client.destroy();
-        } catch (e) {
-            logger.error({ err: e.message }, 'Error destroying WhatsApp client');
-        }
-
-        // Reset all local and global states
-        clientInstance = null;
-        qrCode = null;
-        connectionStatus = 'DISCONNECTED';
-
-        globalAny.whatsappClient = null;
-        globalAny.whatsappQR = null;
-        globalAny.whatsappStatus = 'DISCONNECTED';
-    }
+export function getClient() {
+    return getState().sock;
 }
 
-export async function restartClient() {
-    logger.info('Restarting WhatsApp client...');
-    await destroyClient();
-    // Wait a bit to ensure resources are freed
-    await new Promise(resolve => setTimeout(resolve, 1000));
+export function getOrCreateClient() {
+    const existing = getClient();
+    if (existing) return existing;
     return initializeClient();
 }
 
-const READY_TIMEOUT_MS = 60000;
-
 /**
- * Wait until `ready` fires (or `auth_failure` / timeout). Used by ensureConnected()
- * after a fresh init to confirm the client is actually usable, not just constructed.
+ * Build a fresh socket. Each Baileys socket can only be initialized once;
+ * on reconnect we tear the old one down and call this again.
  */
-function waitForReadyOnClient(client, timeoutMs) {
-    return new Promise((resolve, reject) => {
-        const cleanup = () => {
-            clearTimeout(timer);
-            client.off?.('ready', onReady);
-            client.off?.('auth_failure', onAuthFail);
-        };
-        const onReady = () => { cleanup(); resolve(); };
-        const onAuthFail = (msg) => {
-            cleanup();
-            reject(new Error(`WhatsApp authentication failure: ${msg}`));
-        };
-        const timer = setTimeout(() => {
-            cleanup();
-            reject(new Error(`WhatsApp client did not become ready within ${timeoutMs}ms`));
-        }, timeoutMs);
-        client.once('ready', onReady);
-        client.once('auth_failure', onAuthFail);
+async function buildSock() {
+    // Lazy-load Baileys so the transport router can avoid the cost on
+    // installs that don't use it.
+    const baileys = await import('@whiskeysockets/baileys');
+    // Rename `useMultiFileAuthState` so the React-hooks-rules linter doesn't
+    // mistake it for a misused React hook (it's a Baileys helper that just
+    // happens to follow the `useX` naming convention).
+    const { default: makeWASocket, useMultiFileAuthState: createMultiFileAuthState, fetchLatestBaileysVersion, Browsers } = baileys;
+
+    if (!fs.existsSync(AUTH_PATH)) {
+        fs.mkdirSync(AUTH_PATH, { recursive: true });
+    }
+
+    const { state, saveCreds } = await createMultiFileAuthState(AUTH_PATH);
+    globalAny.baileysSaveCreds = saveCreds;
+
+    const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
+
+    const sock = makeWASocket({
+        version,
+        auth: state,
+        printQRInTerminal: false,
+        // Baileys requires a Pino-shaped logger (debug/info/warn/error/trace
+        // + child()). Our app logger is Pino so it satisfies the contract.
+        logger,
+        browser: Browsers ? Browsers.appropriate?.('Nudlers') ?? Browsers.macOS?.('Nudlers') ?? ['Nudlers', 'Safari', '1.0'] : ['Nudlers', 'Safari', '1.0'],
+        // We send only — never read. Skipping history sync keeps memory
+        // small and avoids the "syncing messages..." stall on reconnect.
+        syncFullHistory: false,
+        markOnlineOnConnect: false,
+        // Bigger value than the default 25 keeps long-lived connections
+        // from churning while idle.
+        keepAliveIntervalMs: 30_000,
     });
+
+    return sock;
 }
 
 /**
- * Verify the client is actually connected and ready to send.
- * Probes client.getState() — this catches the "zombie READY" case where our
- * cached event-based status is READY but the underlying Chromium has died.
- * If unhealthy or missing, restarts and waits for `ready` before returning.
- * Throws if reconnection fails (e.g. session expired and a fresh QR scan is needed).
+ * Wire connection.update / creds.update handlers and emit our own
+ * unified status events on the local emitter so callers (ensureConnected,
+ * waitForReady) can await transitions without depending on Baileys.
  */
-export async function ensureConnected({ timeoutMs = READY_TIMEOUT_MS } = {}) {
-    const existing = getClient();
-    if (existing) {
-        try {
-            const state = await existing.getState();
-            if (state === 'CONNECTED') {
-                return existing;
+function wireSockEvents(sock) {
+    const emitter = getEmitter();
+
+    sock.ev.on('creds.update', async () => {
+        const s = getState();
+        if (s.saveCreds) {
+            try { await s.saveCreds(); } catch (err) {
+                logger.warn({ err: err.message }, '[baileys] saveCreds failed');
             }
-            logger.warn({ state }, 'WhatsApp client not CONNECTED, will reconnect before sending');
-        } catch (err) {
-            logger.warn({ err: err.message }, 'WhatsApp client.getState() threw, will reconnect before sending');
         }
-    } else {
-        logger.info('No WhatsApp client instance, will initialize before sending');
+    });
+
+    sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update;
+
+        if (qr) {
+            logger.info('[baileys] QR code generated');
+            setStatus('QR_READY', { qr });
+            emitter.emit('qr', qr);
+        }
+
+        if (connection === 'open') {
+            logger.info('[baileys] Connection ready');
+            setStatus('READY', { qr: null });
+            // whatsappStartupNotify polls globalThis.whatsappStatus to
+            // short-circuit waitForReady when we're already connected.
+            globalAny.whatsappStatus = 'READY';
+            emitter.emit('ready');
+        }
+
+        if (connection === 'connecting') {
+            // Don't downgrade an already-READY status to INITIALIZING just
+            // because Baileys ticked through 'connecting' during a routine
+            // network blip.
+            if (getState().status !== 'READY' && getState().status !== 'AUTHENTICATED') {
+                setStatus('INITIALIZING');
+            }
+        }
+
+        if (connection === 'close') {
+            const code = lastDisconnect?.error?.output?.statusCode
+                ?? lastDisconnect?.error?.output?.payload?.statusCode;
+            // 401 = DisconnectReason.loggedOut — the only code where a
+            // reconnect can't help; user must scan a fresh QR. Hardcoded
+            // because doing `await import('@whiskeysockets/baileys')` here
+            // would defer the rest of this handler past the reconnect
+            // window for callers using fake timers.
+            const loggedOut = code === 401;
+            const reason = lastDisconnect?.error?.message || 'unknown';
+
+            logger.warn({ code, reason, loggedOut }, '[baileys] Connection closed');
+            globalAny.whatsappStatus = 'DISCONNECTED';
+            setStatus('DISCONNECTED', { qr: null });
+            emitter.emit('disconnected', { code, reason, loggedOut });
+
+            // On loggedOut, the saved session is dead — only a fresh QR scan
+            // helps. Don't auto-reconnect (we'd just spin up another socket
+            // and immediately get kicked again).
+            if (loggedOut) {
+                logger.warn('[baileys] Session is logged out — clearing creds, fresh QR required');
+                try { fs.rmSync(AUTH_PATH, { recursive: true, force: true }); } catch { /* swallow */ }
+                globalAny.baileysSock = null;
+                return;
+            }
+
+            // Anything else: drop the dead socket and rebuild after a small
+            // backoff. Baileys does NOT auto-reconnect for you.
+            globalAny.baileysSock = null;
+            setTimeout(() => {
+                initializeClient().catch((err) => {
+                    logger.error({ err: err.message }, '[baileys] auto-reconnect failed');
+                });
+            }, RECONNECT_BACKOFF_MS);
+        }
+    });
+
+    // Our public API exposes off()/once() in waitForReady semantics; bridge
+    // those through the emitter rather than Baileys's sock.ev to keep them
+    // under our control.
+    return {
+        once: (evt, cb) => emitter.once(evt, cb),
+        off: (evt, cb) => emitter.off(evt, cb),
+        on: (evt, cb) => emitter.on(evt, cb),
+    };
+}
+
+export async function initializeClient() {
+    const existing = getState().sock;
+    if (existing) {
+        logger.info('[baileys] Client already exists, returning existing instance');
+        return existing;
     }
 
-    const fresh = await restartClient();
-    await waitForReadyOnClient(fresh, timeoutMs);
-    logger.info('WhatsApp client reconnected and ready');
-    return fresh;
-}
+    const hasSession = hasPersistedSession();
+    logger.info({ hasPersistedSession: hasSession }, '[baileys] Initializing new client');
 
-/**
- * Public-facing waitForReady used by the startup-notify path and by anyone
- * else who wants to await a transport's READY state without holding onto
- * the underlying client object. Mirrors the same export on the Baileys
- * client so the transport router can proxy either one.
- */
-export function waitForReady({ timeoutMs = READY_TIMEOUT_MS } = {}) {
-    const status = globalAny.whatsappStatus || connectionStatus;
-    if (status === 'READY' || status === 'AUTHENTICATED') {
-        return Promise.resolve();
+    setStatus('INITIALIZING');
+    globalAny.whatsappStatus = 'INITIALIZING';
+
+    try {
+        const sock = await buildSock();
+        wireSockEvents(sock);
+        globalAny.baileysSock = sock;
+        return sock;
+    } catch (err) {
+        logger.error({ err: err.message, stack: err.stack }, '[baileys] Initialization failed');
+        setStatus('DISCONNECTED', { qr: null });
+        globalAny.whatsappStatus = 'DISCONNECTED';
+        globalAny.baileysSock = null;
+        throw err;
     }
-    const client = getOrCreateClient();
-    return waitForReadyOnClient(client, timeoutMs);
 }
 
-/**
- * Transport-uniform send. Wraps the whatsapp-web.js client.sendMessage call
- * so callers don't have to care which transport they're talking to.
- * Returns `{ id }` — a stable shape across both implementations.
- */
-export async function sendText({ client, chatId, body }) {
-    const message = await client.sendMessage(chatId, body);
-    return { id: message?.id?._serialized ?? '' };
+export async function destroyClient() {
+    const sock = getState().sock;
+    if (!sock) return;
+    try {
+        // logout() actually logs the session out of WhatsApp servers — we
+        // don't want that, just the local close. end() with no args is the
+        // safe shutdown that preserves auth state.
+        if (typeof sock.end === 'function') {
+            sock.end(undefined);
+        } else if (typeof sock.ws?.close === 'function') {
+            sock.ws.close();
+        }
+    } catch (err) {
+        logger.warn({ err: err.message }, '[baileys] error tearing down socket');
+    }
+    globalAny.baileysSock = null;
+    setStatus('DISCONNECTED', { qr: null });
+    globalAny.whatsappStatus = 'DISCONNECTED';
 }
 
-/**
- * Clear the persisted WhatsApp session from disk.
- * This removes the stored authentication data, requiring a fresh QR scan.
- * Useful when:
- * - WhatsApp session expires or becomes invalid
- * - User wants to link a different WhatsApp account
- * - Troubleshooting authentication issues
- */
+export async function restartClient() {
+    logger.info('[baileys] Restarting client');
+    await destroyClient();
+    // Brief pause so the underlying socket really finishes closing before
+    // we open the next one and trip into the same connection slot.
+    await new Promise((r) => setTimeout(r, 1000));
+    return initializeClient();
+}
+
 export function clearSession() {
     try {
-        if (fs.existsSync(SESSION_PATH)) {
-            logger.info({ sessionPath: SESSION_PATH }, 'Clearing persisted WhatsApp session...');
-            fs.rmSync(SESSION_PATH, { recursive: true, force: true });
-            logger.info('WhatsApp session cleared successfully');
+        if (fs.existsSync(AUTH_PATH)) {
+            logger.info({ AUTH_PATH }, '[baileys] Clearing persisted session');
+            fs.rmSync(AUTH_PATH, { recursive: true, force: true });
             return true;
         }
-        logger.info('No persisted session to clear');
         return true;
     } catch (err) {
-        logger.error({ err: err.message, sessionPath: SESSION_PATH }, 'Failed to clear WhatsApp session');
+        logger.error({ err: err.message }, '[baileys] Failed to clear session');
         return false;
     }
 }
 
-/**
- * Renew the QR code by destroying the client, clearing the session, and reinitializing.
- * This forces a fresh QR code to be generated, useful when:
- * - The current session has expired
- * - The user wants to link a different WhatsApp account
- * - The session state is corrupted
- */
 export async function renewQrCode() {
-    logger.info('Renewing WhatsApp QR code...');
-
-    // First destroy the existing client
+    logger.info('[baileys] Renewing QR code');
     await destroyClient();
-
-    // Clear the persisted session
-    const cleared = clearSession();
-    if (!cleared) {
-        logger.warn('Failed to clear session, but continuing with QR renewal');
-    }
-
-    // Wait a bit to ensure everything is cleaned up
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Initialize fresh client - this will generate a new QR code
+    clearSession();
+    await new Promise((r) => setTimeout(r, 500));
     return initializeClient();
 }
 
 /**
- * Auto-restore session on module load.
- * If a persisted session exists and no client is currently running,
- * automatically initialize the client to restore the session.
- * This ensures WhatsApp stays connected across server restarts.
+ * Wait for the socket to reach READY. Resolves on ready, rejects on
+ * auth_failure (loggedOut) or timeout.
+ */
+function waitForReadyInternal(timeoutMs) {
+    return new Promise((resolve, reject) => {
+        const emitter = getEmitter();
+
+        // Already ready? Short-circuit.
+        if (getState().status === 'READY' || getState().status === 'AUTHENTICATED') {
+            return resolve();
+        }
+
+        const cleanup = () => {
+            clearTimeout(timer);
+            emitter.off('ready', onReady);
+            emitter.off('disconnected', onDisconnected);
+        };
+        const onReady = () => { cleanup(); resolve(); };
+        const onDisconnected = ({ loggedOut, reason }) => {
+            if (loggedOut) {
+                cleanup();
+                reject(new Error(`Baileys auth failure (logged out): ${reason}`));
+            }
+            // Non-fatal disconnects auto-reconnect; keep waiting.
+        };
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error(`Baileys client did not become ready within ${timeoutMs}ms`));
+        }, timeoutMs);
+
+        emitter.once('ready', onReady);
+        emitter.on('disconnected', onDisconnected);
+    });
+}
+
+export async function ensureConnected({ timeoutMs = READY_TIMEOUT_MS } = {}) {
+    const existing = getClient();
+    if (existing && (getState().status === 'READY' || getState().status === 'AUTHENTICATED')) {
+        return existing;
+    }
+
+    if (!existing) {
+        logger.info('[baileys] No socket — initializing before send');
+        await initializeClient();
+    } else {
+        logger.warn({ status: getState().status }, '[baileys] Socket not READY — waiting');
+    }
+
+    await waitForReadyInternal(timeoutMs);
+    return getClient();
+}
+
+export function waitForReady({ timeoutMs = READY_TIMEOUT_MS } = {}) {
+    if (!getClient()) {
+        // Kick off init in the background so the wait actually has a chance
+        // of succeeding. ensureConnected() does the same thing internally.
+        initializeClient().catch(() => { /* errors surface via emitter */ });
+    }
+    return waitForReadyInternal(timeoutMs);
+}
+
+/**
+ * Send a text message. Baileys takes a JID + a message-content object
+ * (`{ text }`) and returns `{ key: { id } }`; we project that into a
+ * stable `{ id }` shape so callers don't depend on Baileys's protobuf
+ * types directly.
+ */
+export async function sendText({ client, chatId, body }) {
+    const sent = await client.sendMessage(chatId, { text: body });
+    return { id: sent?.key?.id ?? '' };
+}
+
+/**
+ * Auto-restore on module load: if a session is on disk, kick off the
+ * connection in the background so first-send doesn't pay the cold-connect
+ * cost. instrumentation.ts also calls ensureConnected() at boot for the
+ * same reason — autoRestoreSession is the fallback path for tests / dev.
  */
 function autoRestoreSession() {
-    // Skip if client already exists (HMR case)
-    if (getClient()) {
-        logger.info('WhatsApp client already exists, skipping auto-restore');
-        return;
-    }
+    if (getClient()) return;
+    if (globalAny.baileysAutoRestoreAttempted) return;
+    globalAny.baileysAutoRestoreAttempted = true;
 
-    // Skip if already marked as initialized in global state
-    if (globalAny.whatsappAutoRestoreAttempted) {
-        return;
-    }
-    globalAny.whatsappAutoRestoreAttempted = true;
-
-    // Check if we have a persisted session to restore
     if (hasPersistedSession()) {
-        logger.info('Auto-restoring WhatsApp session from persisted data...');
-        initializeClient();
+        logger.info('[baileys] Auto-restoring session from disk');
+        initializeClient().catch((err) => {
+            logger.error({ err: err.message }, '[baileys] auto-restore failed');
+        });
     } else {
-        logger.info('No persisted WhatsApp session found, client will initialize on-demand');
+        logger.info('[baileys] No persisted session — will initialize on demand');
     }
 }
 
-// Execute auto-restore on module load
 autoRestoreSession();
