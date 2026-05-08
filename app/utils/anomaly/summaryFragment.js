@@ -12,6 +12,13 @@ import logger from '../logger.js';
  * Why high+medium only, not low: low severity exists for the in-app inbox
  * (where the user opts into seeing them) but doesn't earn a WhatsApp
  * interruption. The bar for buzzing someone's phone is higher.
+ *
+ * Why filter on `updated_at`, not `created_at`: the evaluator UPSERTs on
+ * fingerprint and only bumps `updated_at` when re-flagging an existing row.
+ * If we filtered on `created_at`, an anomaly that fired Monday and the user
+ * left open through Wednesday would silently disappear from Tuesday's and
+ * Wednesday's digests — even though the underlying problem is still there.
+ * `updated_at` keeps the user reminded until they explicitly action it.
  */
 export async function getAnomalyPreambleForSummary({ getDB } = {}) {
     const dbModule = getDB ? null : await import('../../pages/api/db');
@@ -20,14 +27,14 @@ export async function getAnomalyPreambleForSummary({ getDB } = {}) {
 
     try {
         const result = await client.query(
-            `SELECT type, severity, title, payload, created_at
+            `SELECT type, severity, title, payload, updated_at
              FROM anomalies
              WHERE status = 'open'
                AND severity IN ('high', 'medium')
-               AND created_at >= NOW() - INTERVAL '24 hours'
+               AND updated_at >= NOW() - INTERVAL '24 hours'
              ORDER BY
                 CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
-                created_at DESC
+                updated_at DESC
              LIMIT 5`,
         );
 

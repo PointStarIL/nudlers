@@ -1,4 +1,5 @@
 import type { DetectedAnomaly } from '../types';
+import { normalizeMerchant } from '../normalize';
 
 /**
  * Flag price hikes on established recurring-style merchants.
@@ -155,8 +156,4 @@ function findStableHistoryMean(
 
 function toMs(d: Date | string): number {
     return d instanceof Date ? d.getTime() : new Date(d).getTime();
-}
-
-function normalizeMerchant(name: string): string {
-    return name.toLowerCase().trim().replace(/\s+/g, ' ');
 }
