@@ -26,7 +26,22 @@
     "evaluateNow": "סריקה מחדש",
     "evaluating": "סורק…",
     "evaluatedSummary": "נמצאו {{detected}} ({{inserted}} חדשים, {{updated}} עודכנו)",
-    "loadFailed": "לא הצלחנו לטעון את התובנות"
+    "loadFailed": "לא הצלחנו לטעון את התובנות",
+    "detectedAgo": "זוהה {{when}}",
+    "relative": {
+      "justNow": "ממש עכשיו",
+      "minutesAgo": "לפני {{count}} ד׳",
+      "hoursAgo": "לפני {{count}} ש׳",
+      "daysAgo": "לפני {{count}} ימים",
+      "weeksAgo": "לפני {{count}} שבועות",
+      "monthsAgo": "לפני {{count}} חודשים"
+    },
+    "txDate": {
+      "priceHike": "חיוב אחרון ב-{{date}}",
+      "newRecurring": "התחיל ב-{{date}}",
+      "categorySpike": "שבוע של {{date}}",
+      "categorySpikeRaw": "שבוע {{week}}"
+    }
   },
   "summary": {
     "title": "סיכום",

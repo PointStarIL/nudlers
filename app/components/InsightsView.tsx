@@ -20,6 +20,7 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 import { logger } from '../utils/client-logger';
+import { useLocale } from '../context/LocaleContext';
 
 type AnomalyType = 'price_hike' | 'new_recurring' | 'category_spike';
 type Severity = 'low' | 'medium' | 'high';
@@ -255,10 +256,103 @@ interface AnomalyCardProps {
     onTransition: (id: number, status: 'acknowledged' | 'dismissed' | 'normal') => void;
 }
 
+/**
+ * Format a relative-past distance ("just now", "5m ago", "3w ago") with an
+ * absolute date fallback once we're past ~30 days. Same idiom as the sync
+ * status indicator, just extended into weeks/months because anomalies can
+ * sit in the inbox much longer than a sync run.
+ */
+function formatRelativePast(
+    iso: string,
+    locale: 'en' | 'he',
+    t: (k: string, opts?: Record<string, unknown>) => string,
+): string {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return '';
+    const diffMs = Date.now() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60_000);
+    const diffHours = Math.floor(diffMs / 3_600_000);
+    const diffDays = Math.floor(diffMs / 86_400_000);
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
+
+    if (diffMins < 1) return t('views:insights.relative.justNow');
+    if (diffMins < 60) return t('views:insights.relative.minutesAgo', { count: diffMins });
+    if (diffHours < 24) return t('views:insights.relative.hoursAgo', { count: diffHours });
+    if (diffDays < 7) return t('views:insights.relative.daysAgo', { count: diffDays });
+    if (diffWeeks < 5) return t('views:insights.relative.weeksAgo', { count: diffWeeks });
+    if (diffMonths < 12) return t('views:insights.relative.monthsAgo', { count: diffMonths });
+    return date.toLocaleDateString(locale === 'he' ? 'he-IL' : 'en-US');
+}
+
+/** ISO 8601 week label (e.g. "2026-W18") → Monday of that week (UTC). */
+function isoWeekToMonday(label: string): Date | null {
+    const m = /^(\d{4})-W(\d{1,2})$/.exec(label);
+    if (!m) return null;
+    const year = parseInt(m[1], 10);
+    const week = parseInt(m[2], 10);
+    // Jan 4 is always in ISO week 1 — use it as an anchor.
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const jan4Dow = jan4.getUTCDay() || 7; // Sun=0 → 7
+    const monday = new Date(jan4);
+    monday.setUTCDate(jan4.getUTCDate() - (jan4Dow - 1) + (week - 1) * 7);
+    return monday;
+}
+
+/**
+ * Pull the underlying transaction date from the anomaly payload. Each
+ * detector stores its own date shape — we surface the most relevant one
+ * with a type-specific label so the card stops reading like "this is
+ * happening right now."
+ */
+function extractTxDateLine(
+    anomaly: Anomaly,
+    locale: 'en' | 'he',
+    t: (k: string, opts?: Record<string, unknown>) => string,
+): string | null {
+    const fmt = (d: Date) => d.toLocaleDateString(locale === 'he' ? 'he-IL' : 'en-US', {
+        day: 'numeric', month: 'short', year: 'numeric',
+    });
+    if (anomaly.type === 'price_hike') {
+        const iso = anomaly.payload?.latestChargeDate;
+        if (typeof iso !== 'string') return null;
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime())
+            ? null
+            : t('views:insights.txDate.priceHike', { date: fmt(d) });
+    }
+    if (anomaly.type === 'new_recurring') {
+        const iso = anomaly.payload?.firstSeen;
+        if (typeof iso !== 'string') return null;
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime())
+            ? null
+            : t('views:insights.txDate.newRecurring', { date: fmt(d) });
+    }
+    if (anomaly.type === 'category_spike') {
+        const week = anomaly.payload?.week;
+        if (typeof week !== 'string') return null;
+        const monday = isoWeekToMonday(week);
+        return monday
+            ? t('views:insights.txDate.categorySpike', { date: fmt(monday) })
+            : t('views:insights.txDate.categorySpikeRaw', { week });
+    }
+    return null;
+}
+
 const AnomalyCard: React.FC<AnomalyCardProps> = ({ anomaly, onTransition }) => {
     const { t } = useTranslation(['views']);
+    const { locale } = useLocale();
     const meta = TYPE_META[anomaly.type];
     const sevTone = SEVERITY_TONE[anomaly.severity];
+
+    const detectedLine = t('views:insights.detectedAgo', {
+        when: formatRelativePast(anomaly.created_at, locale as 'en' | 'he', t),
+    });
+    const txLine = extractTxDateLine(anomaly, locale as 'en' | 'he', t);
+    const absoluteCreated = new Date(anomaly.created_at).toLocaleString(
+        locale === 'he' ? 'he-IL' : 'en-US'
+    );
 
     return (
         <Box
@@ -318,10 +412,32 @@ const AnomalyCard: React.FC<AnomalyCardProps> = ({ anomaly, onTransition }) => {
                     </Stack>
 
                     {anomaly.body && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.5 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, lineHeight: 1.5 }}>
                             {anomaly.body}
                         </Typography>
                     )}
+
+                    {/* Temporal anchors — the primary fix for the
+                        "old anomaly looks fresh" problem. Detected-ago
+                        tells you whether this is news or stale; the
+                        per-type tx-date line tells you when the
+                        underlying transaction happened. */}
+                    <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', mb: 1.5 }}>
+                        <Tooltip title={absoluteCreated}>
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}
+                            >
+                                {detectedLine}
+                            </Typography>
+                        </Tooltip>
+                        {txLine && (
+                            <Typography variant="caption" color="text.secondary">
+                                {txLine}
+                            </Typography>
+                        )}
+                    </Stack>
 
                     <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                         <Button

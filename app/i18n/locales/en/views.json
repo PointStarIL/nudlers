@@ -26,7 +26,22 @@
     "evaluateNow": "Re-scan now",
     "evaluating": "Scanning…",
     "evaluatedSummary": "Found {{detected}} ({{inserted}} new, {{updated}} refreshed)",
-    "loadFailed": "Couldn't load insights"
+    "loadFailed": "Couldn't load insights",
+    "detectedAgo": "Detected {{when}}",
+    "relative": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago",
+      "weeksAgo": "{{count}}w ago",
+      "monthsAgo": "{{count}}mo ago"
+    },
+    "txDate": {
+      "priceHike": "Last charge {{date}}",
+      "newRecurring": "Started {{date}}",
+      "categorySpike": "Week of {{date}}",
+      "categorySpikeRaw": "Week {{week}}"
+    }
   },
   "summary": {
     "title": "Summary",
