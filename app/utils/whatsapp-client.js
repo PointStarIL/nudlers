@@ -180,18 +180,23 @@ function wireSockEvents(sock) {
         if (connection === 'close') {
             const code = lastDisconnect?.error?.output?.statusCode
                 ?? lastDisconnect?.error?.output?.payload?.statusCode;
-            // 401 = DisconnectReason.loggedOut — the only code where a
-            // reconnect can't help; user must scan a fresh QR. Hardcoded
-            // because doing `await import('@whiskeysockets/baileys')` here
-            // would defer the rest of this handler past the reconnect
-            // window for callers using fake timers.
+            // Hardcoded reason codes (Baileys's DisconnectReason values).
+            // Doing `await import('@whiskeysockets/baileys')` here would
+            // defer the rest of this handler past the reconnect window
+            // for callers using fake timers.
+            //   401 = loggedOut          — session dead, fresh QR needed
+            //   440 = connectionReplaced — another client took over our
+            //                              creds; reconnecting just makes
+            //                              us fight that other client in
+            //                              a loop kicking each other off
             const loggedOut = code === 401;
+            const replaced = code === 440;
             const reason = lastDisconnect?.error?.message || 'unknown';
 
-            logger.warn({ code, reason, loggedOut }, '[baileys] Connection closed');
+            logger.warn({ code, reason, loggedOut, replaced }, '[baileys] Connection closed');
             globalAny.whatsappStatus = 'DISCONNECTED';
             setStatus('DISCONNECTED', { qr: null });
-            emitter.emit('disconnected', { code, reason, loggedOut });
+            emitter.emit('disconnected', { code, reason, loggedOut, replaced });
 
             // On loggedOut, the saved session is dead — only a fresh QR scan
             // helps. Don't auto-reconnect (we'd just spin up another socket
@@ -199,6 +204,15 @@ function wireSockEvents(sock) {
             if (loggedOut) {
                 logger.warn('[baileys] Session is logged out — clearing creds, fresh QR required');
                 try { fs.rmSync(AUTH_PATH, { recursive: true, force: true }); } catch { /* swallow */ }
+                globalAny.baileysSock = null;
+                return;
+            }
+
+            // On `replaced`, another instance is using our creds. Reconnecting
+            // restarts the conflict loop. Sit idle and let an operator
+            // resolve it (kill the duplicate process, or scan a new QR).
+            if (replaced) {
+                logger.warn('[baileys] Session was replaced by another client; not auto-reconnecting');
                 globalAny.baileysSock = null;
                 return;
             }
@@ -231,24 +245,42 @@ export async function initializeClient() {
         return existing;
     }
 
+    // Coalesce concurrent init attempts onto one in-flight Promise. Two
+    // callers (autoRestoreSession at module load racing with
+    // ensureConnected from instrumentation.ts's pre-warm) must NEVER both
+    // run buildSock — they'd open two sockets logging in with the same
+    // credentials, WhatsApp's MD protocol responds with
+    // `stream:error -> conflict (type: replaced)`, and our auto-reconnect
+    // makes the two sockets fight in a loop kicking each other off.
+    if (globalAny.baileysInitInFlight) {
+        logger.info('[baileys] Initialization already in flight; awaiting');
+        return globalAny.baileysInitInFlight;
+    }
+
     const hasSession = hasPersistedSession();
     logger.info({ hasPersistedSession: hasSession }, '[baileys] Initializing new client');
 
     setStatus('INITIALIZING');
     globalAny.whatsappStatus = 'INITIALIZING';
 
-    try {
-        const sock = await buildSock();
-        wireSockEvents(sock);
-        globalAny.baileysSock = sock;
-        return sock;
-    } catch (err) {
-        logger.error({ err: err.message, stack: err.stack }, '[baileys] Initialization failed');
-        setStatus('DISCONNECTED', { qr: null });
-        globalAny.whatsappStatus = 'DISCONNECTED';
-        globalAny.baileysSock = null;
-        throw err;
-    }
+    globalAny.baileysInitInFlight = (async () => {
+        try {
+            const sock = await buildSock();
+            wireSockEvents(sock);
+            globalAny.baileysSock = sock;
+            return sock;
+        } catch (err) {
+            logger.error({ err: err.message, stack: err.stack }, '[baileys] Initialization failed');
+            setStatus('DISCONNECTED', { qr: null });
+            globalAny.whatsappStatus = 'DISCONNECTED';
+            globalAny.baileysSock = null;
+            throw err;
+        } finally {
+            globalAny.baileysInitInFlight = null;
+        }
+    })();
+
+    return globalAny.baileysInitInFlight;
 }
 
 export async function destroyClient() {
