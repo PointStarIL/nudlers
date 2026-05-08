@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { sendWhatsAppMessage } from '../utils/whatsapp.js';
-import { ensureConnected, sendText } from '../utils/whatsapp-transport.js';
+import { ensureConnected, sendText } from '../utils/whatsapp-client.js';
 
-// Mock the transport router. The two surfaces we touch from whatsapp.js are
-// ensureConnected (returns the active transport's client) and sendText
-// (transport-uniform wrapper around sendMessage).
-vi.mock('../utils/whatsapp-transport.js', () => ({
+// Mock the Baileys client. The two surfaces whatsapp.js touches are
+// ensureConnected (returns the live socket) and sendText (a thin wrapper
+// around sock.sendMessage).
+vi.mock('../utils/whatsapp-client.js', () => ({
     ensureConnected: vi.fn(),
     sendText: vi.fn(),
 }));
@@ -105,7 +105,7 @@ describe('sendWhatsAppMessage', () => {
 
     it('retries once on transient transport-death errors then succeeds', async () => {
         (sendText as unknown as ReturnType<typeof vi.fn>)
-            .mockRejectedValueOnce(new Error('Target frame detached'))
+            .mockRejectedValueOnce(new Error('Connection Closed'))
             .mockResolvedValueOnce({ id: 'msg789' });
 
         const result = await sendWhatsAppMessage({

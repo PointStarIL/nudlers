@@ -7,20 +7,22 @@ set -e
 
 APP_USER="pptruser"
 APP_GROUP="pptruser"
-DATA_DIR="/app/.wwebjs_auth"
+DATA_DIR="/app/.baileys_auth"
 SCREENSHOTS_DIR="/app/public/debug/screenshots"
 
 # Screenshot retention in days (default 7, configurable via env)
 SCREENSHOT_RETENTION_DAYS="${SCREENSHOT_RETENTION_DAYS:-7}"
 
-# Function to clean up stale Chromium lock files
-# These can persist if the container crashes or is forcefully stopped
+# Historical cleanup, kept as a defensive no-op. The legacy whatsapp-web.js
+# transport persisted its puppeteer userDataDir under DATA_DIR and could
+# leave SingletonLock files behind on a hard kill. Baileys uses a plain
+# JSON auth dir — these patterns won't match anything — but the find
+# commands are cheap and harmless when there's nothing to delete.
 cleanup_stale_locks() {
     echo "Cleaning up stale Chromium lock files..."
     find "$DATA_DIR" -name "SingletonLock" -delete 2>/dev/null || true
     find "$DATA_DIR" -name "SingletonCookie" -delete 2>/dev/null || true
     find "$DATA_DIR" -name "SingletonSocket" -delete 2>/dev/null || true
-    # Also clean up any leftover Chrome/Chromium lock files
     find "$DATA_DIR" -name ".org.chromium.Chromium.*" -delete 2>/dev/null || true
     find "$DATA_DIR" -name "lockfile" -delete 2>/dev/null || true
 }

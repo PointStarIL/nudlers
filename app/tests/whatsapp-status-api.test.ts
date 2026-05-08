@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import handler from '../pages/api/whatsapp/status.js';
 
-// Mock the transport router (the API now goes through it instead of
-// importing whatsapp-client.js directly).
-vi.mock('../utils/whatsapp-transport.js', () => ({
+vi.mock('../utils/whatsapp-client.js', () => ({
     getStatus: vi.fn().mockReturnValue({
         status: 'DISCONNECTED',
         qr: null,
@@ -13,10 +11,9 @@ vi.mock('../utils/whatsapp-transport.js', () => ({
     destroyClient: vi.fn().mockResolvedValue(undefined),
     initializeClient: vi.fn(),
     renewQrCode: vi.fn(),
-    getActiveTransport: vi.fn().mockReturnValue('web'),
 }));
 
-import { getStatus, restartClient, destroyClient, initializeClient, renewQrCode } from '../utils/whatsapp-transport.js';
+import { getStatus, restartClient, destroyClient, initializeClient, renewQrCode } from '../utils/whatsapp-client.js';
 
 // Helper to create mock req/res
 function createMockReqRes(method: string, body?: object) {

@@ -97,7 +97,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Handle case where GID/UID might already exist in base image
 RUN (getent group pptruser || groupadd -r pptruser) \
     && (getent passwd pptruser || useradd -r -g pptruser -G audio,video -m pptruser) \
-    && mkdir -p /home/pptruser/Downloads /app/.wwebjs_auth \
+    && mkdir -p /home/pptruser/Downloads /app/.baileys_auth \
     && chown -R pptruser:pptruser /home/pptruser \
     && chown -R pptruser:pptruser /app
 

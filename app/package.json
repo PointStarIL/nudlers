@@ -44,7 +44,6 @@
     "openai": "^6.34.0",
     "pg": "^8.16.0",
     "pino": "^10.1.1",
-    "qrcode-terminal": "^0.12.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
@@ -55,7 +54,6 @@
     "remark-gfm": "^4.0.1",
     "styled-components": "^6.1.18",
     "stylis-plugin-rtl": "^2.1.1",
-    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#main",
     "zod": "^4.3.6"
   },
   "devDependencies": {

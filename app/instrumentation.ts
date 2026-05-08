@@ -89,16 +89,29 @@ export async function register() {
       logger.error({ error: err.message, stack: err.stack }, '[startup] Failed to run migrations');
     }
 
-    // Initialize WhatsApp Client through the transport router. The router
-    // reads the `whatsapp_transport` setting and lazy-imports either the
-    // legacy whatsapp-web.js client or the Baileys client. Importing the
-    // chosen module triggers its auto-restore-from-disk side effect.
+    // Initialize the Baileys WhatsApp client. Importing the module fires
+    // autoRestoreSession() — which kicks off `initializeClient()` if a
+    // session is on disk. We then `ensureConnected()` with a generous
+    // budget so the *first* user-clicked send doesn't pay the cold-connect
+    // cost (which is what causes the NAS reverse proxy to drop the
+    // response with an HTML 504 even when Baileys eventually relays the
+    // message).
+    //
+    // Failure here must never block startup — if WhatsApp can't be
+    // pre-warmed we just log and move on; the on-demand path still works.
     try {
-      logger.info('[startup] Initializing WhatsApp transport router');
-      await import('./utils/whatsapp-transport.js');
+      logger.info('[startup] Initializing WhatsApp (Baileys) client');
+      const wa = await import('./utils/whatsapp-client.js');
+      // Fire-and-forget: 30s ceiling, unawaited. We don't want startup
+      // blocked on the QR-pending case (no session yet) so we let it
+      // resolve in the background.
+      wa.ensureConnected({ timeoutMs: 30_000 }).then(
+        () => logger.info('[startup] WhatsApp client pre-warmed'),
+        (err: Error) => logger.warn({ err: err.message }, '[startup] WhatsApp pre-warm did not complete (will connect on demand)'),
+      );
     } catch (error: unknown) {
       const err = error as Error;
-      logger.error({ error: err.message }, '[startup] Failed to initialize WhatsApp transport router');
+      logger.error({ error: err.message }, '[startup] Failed to initialize WhatsApp client');
     }
 
 
