@@ -82,6 +82,7 @@ function clearBaileysGlobals() {
     delete g.baileysSaveCreds;
     delete g.baileysEmitter;
     delete g.baileysAutoRestoreAttempted;
+    delete g.baileysInitInFlight;
     delete g.whatsappStatus;
 }
 
@@ -138,6 +139,42 @@ describe('whatsapp-client', () => {
         // Microtask flush so the async handler runs.
         await new Promise((r) => setImmediate(r));
         expect(saveCredsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT auto-reconnect on a connectionReplaced close (avoids fight loop)', async () => {
+        const mod = await import('../utils/whatsapp-client.js');
+        await mod.initializeClient();
+        expect(makeWASocketMock).toHaveBeenCalledTimes(1);
+
+        lastMockSock!.ev.emit('connection.update', {
+            connection: 'close',
+            lastDisconnect: { error: { output: { statusCode: 440 } } }, // connectionReplaced
+        });
+
+        // Backoff plus padding — would have rebuilt by now if we
+        // (mistakenly) auto-reconnected.
+        await new Promise((r) => setTimeout(r, 2_500));
+        expect(makeWASocketMock).toHaveBeenCalledTimes(1);
+        expect(mod.getStatus().status).toBe('DISCONNECTED');
+    }, 10_000);
+
+    it('coalesces concurrent initializeClient() calls into one socket', async () => {
+        // The bug this guards: at boot, autoRestoreSession() fires
+        // initializeClient() unawaited, then instrumentation.ts's pre-warm
+        // calls ensureConnected() → initializeClient() before the first
+        // call has finished buildSock(). Without an in-flight guard, both
+        // run buildSock and we end up with two sockets logging in with the
+        // same creds — WhatsApp evicts one with `conflict: replaced`.
+        const mod = await import('../utils/whatsapp-client.js');
+        const [a, b, c] = await Promise.all([
+            mod.initializeClient(),
+            mod.initializeClient(),
+            mod.initializeClient(),
+        ]);
+        expect(makeWASocketMock).toHaveBeenCalledTimes(1);
+        // All three callers share the exact same socket reference.
+        expect(a).toBe(b);
+        expect(b).toBe(c);
     });
 
     it('does NOT auto-reconnect on a loggedOut close (clears session instead)', async () => {
