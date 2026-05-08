@@ -80,7 +80,12 @@ export function detectCategorySpikes(
             .slice(0, 12)                            // trailing 12 weeks
             .map(([, v]) => v.spend);
 
-        if (priors.length < MIN_NONZERO_WEEKS) continue;
+        // The constant is named MIN_NONZERO_WEEKS but the original code
+        // counted the bucket count, including ₪0 weeks. That made one ₪500
+        // charge in a category with 11 silent weeks "spike" trivially.
+        // Filter to weeks with actual spend so the baseline is meaningful.
+        const nonZeroPriors = priors.filter((v) => v > 0);
+        if (nonZeroPriors.length < MIN_NONZERO_WEEKS) continue;
 
         const mean = priors.reduce((s, v) => s + v, 0) / priors.length;
         if (mean <= 0) continue;

@@ -49,6 +49,8 @@ describe('evaluateAnomalies', () => {
     it('detects a price hike, persists it, and reports inserted=1', async () => {
         const txs = buildPriceHikeTransactions();
         mockClient.query
+            // SELECT user-feedback labels (normal/dismissed) — none yet
+            .mockResolvedValueOnce({ rows: [] })
             // SELECT transactions
             .mockResolvedValueOnce({ rows: txs })
             // INSERT result for the price-hike row
@@ -72,6 +74,8 @@ describe('evaluateAnomalies', () => {
     it('reports updated (not inserted) when the same fingerprint already exists', async () => {
         const txs = buildPriceHikeTransactions();
         mockClient.query
+            // SELECT user-feedback labels — none.
+            .mockResolvedValueOnce({ rows: [] })
             .mockResolvedValueOnce({ rows: txs })
             // The xmax=0 trick returns false when the row was UPDATEd, true when INSERTed.
             .mockResolvedValueOnce({ rows: [{ was_inserted: false }] });
@@ -84,7 +88,11 @@ describe('evaluateAnomalies', () => {
 
     it('returns 0 detected when there is nothing notable in the data', async () => {
         // Empty transaction list — no patterns to detect.
-        mockClient.query.mockResolvedValueOnce({ rows: [] });
+        mockClient.query
+            // SELECT user-feedback labels — none.
+            .mockResolvedValueOnce({ rows: [] })
+            // SELECT transactions
+            .mockResolvedValueOnce({ rows: [] });
 
         const summary = await evaluateAnomalies();
 
@@ -98,5 +106,56 @@ describe('evaluateAnomalies', () => {
 
         await expect(evaluateAnomalies()).rejects.toThrow('boom');
         expect(mockClient.release).toHaveBeenCalled();
+    });
+
+    it('suppresses re-fires for merchants the user has marked normal', async () => {
+        // The detector finds a price hike on Apple Music exactly as before,
+        // but the user has previously labelled the same merchant `normal` —
+        // so the row should be suppressed (not inserted, not updated).
+        const txs = buildPriceHikeTransactions();
+        mockClient.query
+            // SELECT user-feedback labels — Apple Music is marked normal.
+            .mockResolvedValueOnce({
+                rows: [{
+                    type: 'price_hike',
+                    payload: { merchant: 'Apple Music', accountNumber: '1234' },
+                    status: 'normal',
+                    dismissed_at: null,
+                }],
+            })
+            .mockResolvedValueOnce({ rows: txs });
+
+        const summary = await evaluateAnomalies();
+
+        expect(summary.detected).toBe(1);
+        expect(summary.inserted).toBe(0);
+        expect(summary.updated).toBe(0);
+        expect(summary.suppressed).toBe(1);
+        // Critically: NO INSERT call should have been made.
+        const insertCalls = mockClient.query.mock.calls.filter((c: any[]) =>
+            String(c[0]).includes('INSERT INTO anomalies'),
+        );
+        expect(insertCalls).toHaveLength(0);
+    });
+
+    it('expires `dismissed` suppression after the 60-day window', async () => {
+        const txs = buildPriceHikeTransactions();
+        // Dismissed 90 days ago — past the 60-day window, should re-fire.
+        const longAgo = new Date(Date.now() - 90 * 86400 * 1000).toISOString();
+        mockClient.query
+            .mockResolvedValueOnce({
+                rows: [{
+                    type: 'price_hike',
+                    payload: { merchant: 'Apple Music', accountNumber: '1234' },
+                    status: 'dismissed',
+                    dismissed_at: longAgo,
+                }],
+            })
+            .mockResolvedValueOnce({ rows: txs })
+            .mockResolvedValueOnce({ rows: [{ was_inserted: true }] });
+
+        const summary = await evaluateAnomalies();
+        expect(summary.inserted).toBe(1);
+        expect(summary.suppressed).toBe(0);
     });
 });

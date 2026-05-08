@@ -1,5 +1,6 @@
 import type { DetectedAnomaly } from '../types';
 import type { DetectedRecurringPayment } from '../../recurringDetection';
+import { normalizeMerchant } from '../normalize';
 
 /**
  * Flag newly-formed recurring patterns — the "you have a new subscription"
@@ -67,6 +68,3 @@ export function detectNewRecurring(recurring: DetectedRecurringPayment[]): Detec
     return out;
 }
 
-function normalizeMerchant(name: string): string {
-    return name.toLowerCase().trim().replace(/\s+/g, ' ');
-}
