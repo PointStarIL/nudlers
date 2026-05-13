@@ -1,4 +1,15 @@
 # =============================================================================
+# Stage 0: Build patched israeli-bank-scrapers (Yahav fix from PR #1095)
+# Remove this stage once upstream merges and a release lands on npm.
+# =============================================================================
+FROM node:22-bookworm AS ibs-patch
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+RUN git clone --depth 1 -b fix/yahav-account-id-selector https://github.com/gczobel/israeli-bank-scrapers.git . \
+    && npm ci --ignore-scripts \
+    && npm run build
+
+# =============================================================================
 # Stage 1: Dependencies
 # =============================================================================
 FROM node:22-bookworm-slim AS deps
@@ -14,6 +25,9 @@ COPY patches* ./patches/
 
 # Install dependencies
 RUN npm ci
+
+# Apply Yahav scraper fix from upstream PR until merged & released
+COPY --from=ibs-patch /build/lib/scrapers/yahav.js ./node_modules/israeli-bank-scrapers/lib/scrapers/yahav.js
 
 # =============================================================================
 # Stage 2: Builder
