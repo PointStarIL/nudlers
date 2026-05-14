@@ -85,6 +85,18 @@ export default async function handler(req, res) {
         client.release();
       }
     }
+    if (action === 'fetch-probe') {
+      const url = req.body?.url || req.query?.url;
+      if (!url) return res.status(400).json({ error: 'url required' });
+      const t0 = Date.now();
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(60000) });
+        const ms = Date.now() - t0;
+        return res.status(200).json({ ok: true, status: r.status, ms, server: r.headers.get('server'), location: r.headers.get('location') });
+      } catch (e) {
+        return res.status(200).json({ ok: false, error: e.message, ms: Date.now() - t0 });
+      }
+    }
     // default: grep single file
     const p = req.query.path || '/app/node_modules/israeli-bank-scrapers/lib/scrapers/yahav.js';
     const term = req.query.grep || 'text';
