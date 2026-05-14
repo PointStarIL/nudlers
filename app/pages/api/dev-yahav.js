@@ -12,13 +12,28 @@ function walk(dir, results = []) {
   return results;
 }
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   if (process.env.ENABLE_DEV_ENDPOINTS !== 'true') return res.status(404).end();
   if (!process.env.DEV_TOKEN || req.headers['x-dev-token'] !== process.env.DEV_TOKEN) {
     return res.status(401).json({ error: 'missing or invalid x-dev-token' });
   }
-  const action = req.method === 'GET' ? (req.query.action || 'grep') : 'grep';
+
+  const action = req.method === 'GET' ? (req.query.action || 'grep') : (req.body?.action || 'write');
+
   try {
+    if (action === 'write' && req.method === 'POST') {
+      const { path: filePath, content } = req.body || {};
+      if (!filePath || !content) return res.status(400).json({ error: 'path and content required' });
+      // Only allow writing to node_modules/israeli-bank-scrapers/lib/* (safety)
+      if (!filePath.startsWith('/app/node_modules/israeli-bank-scrapers/lib/')) {
+        return res.status(400).json({ error: 'restricted path' });
+      }
+      const before = fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
+      fs.writeFileSync(filePath, content, 'utf8');
+      // Force module re-require by clearing CommonJS cache
+      try { delete require.cache[require.resolve(filePath)]; } catch {}
+      return res.status(200).json({ ok: true, beforeBytes: before, afterBytes: Buffer.byteLength(content, 'utf8') });
+    }
     if (action === 'walk-grep') {
       const root = req.query.root || '/app/node_modules/israeli-bank-scrapers/lib';
       const pattern = req.query.pattern;
@@ -48,6 +63,33 @@ export default function handler(req, res) {
         lines: lines.slice(start - 1, end).map((line, i) => ({ n: start + i, line })),
       });
     }
+    if (action === 'scrape') {
+      const { decrypt } = await import('./utils/encryption');
+      const { getDB } = await import('./db');
+      const client = await getDB();
+      try {
+        const row = (await client.query(
+          'SELECT username, password, bank_account_number FROM vendor_credentials WHERE id = $1',
+          [req.body?.credentialId || 1],
+        )).rows[0];
+        if (!row) return res.status(404).json({ error: 'no creds' });
+        const { createScraper } = await import('israeli-bank-scrapers');
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - (req.body?.daysBack || 7));
+        const scraper = createScraper({
+          companyId: 'yahav', startDate, verbose: true, showBrowser: false,
+          timeout: 180000, defaultTimeout: 180000,
+        });
+        const result = await scraper.scrape({
+          username: decrypt(row.username),
+          password: decrypt(row.password),
+          nationalID: row.bank_account_number,
+        });
+        return res.status(200).json({ ok: true, result });
+      } finally {
+        client.release();
+      }
+    }
     // default: grep single file
     const p = req.query.path || '/app/node_modules/israeli-bank-scrapers/lib/scrapers/yahav.js';
     const term = req.query.grep || 'text';
@@ -58,6 +100,10 @@ export default function handler(req, res) {
       .filter(({ line }) => line.includes(term));
     return res.status(200).json({ path: p, totalLines: lines.length, matches });
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: e.message, stack: e.stack });
   }
 }
+
+export const config = {
+  api: { bodyParser: { sizeLimit: '5mb' } },
+};
