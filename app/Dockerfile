@@ -7,7 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
 WORKDIR /build
 RUN git clone --depth 1 -b fix/yahav-account-id-selector https://github.com/gczobel/israeli-bank-scrapers.git . \
     && npm ci --ignore-scripts \
-    && npm run build
+    && npm run build \
+    && sed -i "s|loginUrl: \`\${LOGIN_URL}\`,|loginUrl: \`\${LOGIN_URL}\`, waitUntil: 'domcontentloaded',|" lib/scrapers/yahav.js \
+    && grep -n "waitUntil" lib/scrapers/yahav.js
 
 # =============================================================================
 # Stage 1: Dependencies
