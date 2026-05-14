@@ -50,8 +50,6 @@ jobs:
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           provenance: false
-          cache-from: type=gha,scope=build-${{ steps.prep.outputs.pair }}
-          cache-to: type=gha,scope=build-${{ steps.prep.outputs.pair }},mode=max
 
       - name: Export digest
         run: |
