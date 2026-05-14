@@ -26,6 +26,7 @@ COPY patches* ./patches/
 # Install dependencies
 RUN npm ci
 
+# Cache-bust: 2026-05-14T18:55:33.754693+00:00
 # Apply Yahav scraper fix from upstream PR until merged & released
 COPY --from=ibs-patch /build/lib/scrapers/yahav.js ./node_modules/israeli-bank-scrapers/lib/scrapers/yahav.js
 
