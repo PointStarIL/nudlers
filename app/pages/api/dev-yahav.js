@@ -21,19 +21,6 @@ export default async function handler(req, res) {
   const action = req.method === 'GET' ? (req.query.action || 'grep') : (req.body?.action || 'write');
 
   try {
-    if (action === 'write' && req.method === 'POST') {
-      const { path: filePath, content } = req.body || {};
-      if (!filePath || !content) return res.status(400).json({ error: 'path and content required' });
-      // Only allow writing to node_modules/israeli-bank-scrapers/lib/* (safety)
-      if (!filePath.startsWith('/app/node_modules/israeli-bank-scrapers/lib/')) {
-        return res.status(400).json({ error: 'restricted path' });
-      }
-      const before = fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
-      fs.writeFileSync(filePath, content, 'utf8');
-      // Force module re-require by clearing CommonJS cache
-      try { delete require.cache[require.resolve(filePath)]; } catch {}
-      return res.status(200).json({ ok: true, beforeBytes: before, afterBytes: Buffer.byteLength(content, 'utf8') });
-    }
     if (action === 'walk-grep') {
       const root = req.query.root || '/app/node_modules/israeli-bank-scrapers/lib';
       const pattern = req.query.pattern;
@@ -76,16 +63,24 @@ export default async function handler(req, res) {
         const { createScraper } = await import('israeli-bank-scrapers');
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - (req.body?.daysBack || 7));
+        // Build credentials per body
+        const overrides = req.body?.credentialsOverride || {};
+        const usernameDb = decrypt(row.username);
+        const passwordDb = decrypt(row.password);
+        const credentials = {
+          username: overrides.username || usernameDb,
+          password: overrides.password || passwordDb,
+          nationalID: overrides.nationalID || usernameDb, // default: use same ID as username
+        };
         const scraper = createScraper({
           companyId: 'yahav', startDate, verbose: true, showBrowser: false,
-          timeout: 180000, defaultTimeout: 180000,
+          timeout: req.body?.timeout || 180000,
+          defaultTimeout: req.body?.timeout || 180000,
         });
-        const result = await scraper.scrape({
-          username: decrypt(row.username),
-          password: decrypt(row.password),
-          nationalID: row.bank_account_number,
-        });
-        return res.status(200).json({ ok: true, result });
+        const result = await scraper.scrape(credentials);
+        return res.status(200).json({ ok: true, result, usedCredentials: {
+          username: credentials.username, hasPass: !!credentials.password, nationalID: credentials.nationalID,
+        }});
       } finally {
         client.release();
       }
